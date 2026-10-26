@@ -67,4 +67,5 @@ Delivery forecast: F0–F1 ≈ 1,500 authored lines, above the ~400 slice budget
 - **L5 (user, verbatim):** "Si, vamos con typescript" — chosen over Go single binary.
 - **L6 (user, verbatim):** "Pongamosle rulebookguard y ya cree el repo https://github.com/JuanCJR/rulebookguard" — npm name `rulebookguard` verified free (404 on registry, 2026-10-26).
 - **L7 (decision):** the `tests:` frontmatter field from the first sketch was dropped; linkage lives only in test tags (S5) to avoid two sources of truth.
+- **L8:** Engram mirror `odd/rulebookguard-core/tasks` pending: Engram rejected project `rulebookguard` as unknown (2026-10-26). Resync once the project is registered.
 - Next step: user reviews Specs; then T1.
