@@ -1,8 +1,16 @@
 {
   "name": "rulebookguard",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "Keep business rules as the single source of truth, bound to code and tests.",
+  "homepage": "https://github.com/JuanCJR/rulebookguard#readme",
+  "bugs": {
+    "url": "https://github.com/JuanCJR/rulebookguard/issues"
+  },
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JuanCJR/rulebookguard.git"
+  },
   "bin": {
     "rulebookguard": "./dist/cli.mjs"
   },
