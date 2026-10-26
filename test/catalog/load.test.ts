@@ -1,8 +1,8 @@
-import { mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { FormatError, findRulebookRoot, loadCatalog } from '../../src/index.ts';
+import { scratchDir } from '../scratch.ts';
 import { fixtureRoot } from './helpers.ts';
 
 describe('loadCatalog', () => {
@@ -88,7 +88,7 @@ describe('loadCatalog', () => {
   });
 
   it('reports a missing rules directory as an issue', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'rulebookguard-'));
+    const root = await scratchDir();
     await writeFile(join(root, 'rulebookguard.config.yaml'), 'schema: 1\ntestGlobs: []\n');
 
     const catalog = await loadCatalog(root);
@@ -102,7 +102,7 @@ describe('loadCatalog', () => {
   });
 
   it('throws a FormatError when the config is missing', async () => {
-    const root = await mkdtemp(join(tmpdir(), 'rulebookguard-'));
+    const root = await scratchDir();
 
     await expect(loadCatalog(root)).rejects.toBeInstanceOf(FormatError);
   });
@@ -117,7 +117,7 @@ describe('findRulebookRoot', () => {
   });
 
   it('returns undefined when no config exists up the tree', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'rulebookguard-'));
+    const dir = await scratchDir();
 
     expect(await findRulebookRoot(dir)).toBeUndefined();
   });

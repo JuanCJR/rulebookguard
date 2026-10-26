@@ -1,12 +1,12 @@
-import { cp, mkdtemp, readdir, readFile, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { cp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { parseRule } from '../../src/index.ts';
+import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
 
 async function scratchRepo(): Promise<string> {
-  const dir = await mkdtemp(join(tmpdir(), 'rulebookguard-new-'));
+  const dir = await scratchDir();
   await cp(fixtureRoot('repo'), dir, { recursive: true });
   return dir;
 }

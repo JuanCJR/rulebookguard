@@ -1,7 +1,6 @@
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
+import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
 
 const repo = fixtureRoot('repo');
@@ -281,7 +280,7 @@ describe('errors and usage', () => {
   });
 
   it('fails when no config is found', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'rulebookguard-'));
+    const dir = await scratchDir();
 
     expect(runCli(['contexts'], dir)).toEqual({
       status: 1,
