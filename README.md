@@ -32,15 +32,15 @@ Put `rulebookguard.config.yaml` at the repository root. Commands find it by walk
 ```yaml
 schema: 1
 rulesDir: docs/rules # default: docs/rules
-testGlobs: # files scanned for @rule tags
+testGlobs: # required: files scanned for @rule tags
   - 'src/**/*.test.ts'
   - 'tests/**/test_*.py'
 contextBudget: 30 # default: 30; lint warns when a context holds more rules
 ```
 
-Unknown fields are rejected. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
+`schema` and `testGlobs` are required (`testGlobs: []` is valid but finds no tags). Unknown fields are rejected. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
 
-Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs. Outside git, the whole tree is walked, skipping only `.git` and `node_modules`.
+Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs; files inside submodules are listed too. Outside git, or when the rulebook root itself is git-ignored, the whole tree is walked, skipping only `.git` and `node_modules`. If git fails (for example, git is missing from `PATH` or the repository has dubious ownership), commands print one warning on stderr and walk the tree instead.
 
 ## Catalog layout
 
@@ -260,9 +260,9 @@ warning context-over-budget docs/rules/clients/_context.md context "clients" has
 1 error, 1 warning
 ```
 
-Exits 1 when there is any error, and 0 when there are only warnings or nothing at all (`No issues found.`).
+Exits 1 when there is any error, and 0 when there are only warnings or nothing at all (`No issues found.`). An invalid `rulebookguard.config.yaml` is reported as `schema` findings too; tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
 
-With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff --name-only <ref>` plus untracked files, so uncommitted work counts). A rule whose file changed must come with a change in at least one test that tags it, otherwise it is reported as `pending-implementation`. Only rules whose status is `active` after the change are checked: new active rules are checked, `proposed` and `deprecated` rules are not. Outside a git work tree, or with a ref git cannot resolve, lint fails with exit code 1.
+With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff --name-only <ref>` plus untracked files, so uncommitted work counts). A rule whose file changed must come with a change in at least one test that tags it, otherwise it is reported as `pending-implementation`; an active rule that no test tags at all is reported only as `untested-rule`. Only rules whose status is `active` after the change are checked: new active rules are checked, `proposed` and `deprecated` rules are not. Outside a git work tree, with a ref git cannot resolve, or when git fails while listing the changes, lint fails with exit code 1.
 
 ```sh
 $ rulebookguard lint --base origin/main
