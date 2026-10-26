@@ -3,8 +3,13 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
+const SAFE_CONFIG = ['-c', 'core.fsmonitor=false'];
+
 export async function runGit(cwd: string, args: string[]): Promise<string> {
-  const { stdout } = await execFileAsync('git', args, { cwd, maxBuffer: 256 * 1024 * 1024 });
+  const { stdout } = await execFileAsync('git', [...SAFE_CONFIG, ...args], {
+    cwd,
+    maxBuffer: 256 * 1024 * 1024,
+  });
   return stdout;
 }
 
