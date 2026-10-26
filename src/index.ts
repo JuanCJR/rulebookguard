@@ -13,7 +13,13 @@ export type {
   RuleStatus,
 } from './format/types.ts';
 export { rulesForPath } from './catalog/anchors.ts';
-export { createGlobMatcher, expandGlobs, listRepoFiles, toRepoPath } from './catalog/files.ts';
+export {
+  createGlobMatcher,
+  expandGlobs,
+  listRepoFiles,
+  toRepoPath,
+  type GitFallbackListener,
+} from './catalog/files.ts';
 export {
   findRulebookRoot,
   loadCatalog,

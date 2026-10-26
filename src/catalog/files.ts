@@ -1,7 +1,7 @@
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import picomatch from 'picomatch';
-import { gitPaths } from './git.ts';
+import { gitFailureReason, gitPaths, isNotARepository } from './git.ts';
 
 const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules']);
 
@@ -17,22 +17,37 @@ export function createGlobMatcher(globs: string[]): (path: string) => boolean {
   return (path) => isMatch(toRepoPath(path));
 }
 
-export async function listRepoFiles(root: string): Promise<string[]> {
-  const files = (await listGitFiles(root)) ?? (await walkFiles(root));
+export type GitFallbackListener = (reason: string) => void;
+
+export async function listRepoFiles(
+  root: string,
+  onGitFallback?: GitFallbackListener,
+): Promise<string[]> {
+  const files = (await listGitFiles(root, onGitFallback)) ?? (await walkFiles(root));
   return files.sort();
 }
 
-export async function expandGlobs(root: string, globs: string[]): Promise<string[]> {
+export async function expandGlobs(
+  root: string,
+  globs: string[],
+  onGitFallback?: GitFallbackListener,
+): Promise<string[]> {
   const isMatch = createGlobMatcher(globs);
-  return (await listRepoFiles(root)).filter(isMatch);
+  return (await listRepoFiles(root, onGitFallback)).filter(isMatch);
 }
 
-async function listGitFiles(root: string): Promise<string[] | undefined> {
+async function listGitFiles(
+  root: string,
+  onGitFallback: GitFallbackListener | undefined,
+): Promise<string[] | undefined> {
   try {
     const listed = await gitPaths(root, 'ls-files', ['--cached', '--others', '--exclude-standard']);
     const deleted = new Set(await gitPaths(root, 'ls-files', ['--deleted']));
     return [...new Set(listed)].filter((file) => !deleted.has(file));
-  } catch {
+  } catch (error) {
+    if (!isNotARepository(error)) {
+      onGitFallback?.(gitFailureReason(error));
+    }
     return undefined;
   }
 }

@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vite-plus/test';
 const cliPath = fileURLToPath(new URL('../src/cli.ts', import.meta.url));
 
 describe('rulebookguard cli', () => {
-  it('prints usage and exits 0', () => {
+  it.skipIf(!('typescript' in process.features))('prints usage and exits 0', () => {
     const result = spawnSync(process.execPath, [cliPath], { encoding: 'utf8' });
 
     expect(result.status).toBe(0);

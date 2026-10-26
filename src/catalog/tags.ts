@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findRuleTags } from '../format/tag.ts';
-import { expandGlobs } from './files.ts';
+import { expandGlobs, type GitFallbackListener } from './files.ts';
 
 export interface TagLocation {
   file: string;
@@ -10,9 +10,13 @@ export interface TagLocation {
 
 export type TagIndex = Map<string, TagLocation[]>;
 
-export async function scanTestTags(root: string, testGlobs: string[]): Promise<TagIndex> {
+export async function scanTestTags(
+  root: string,
+  testGlobs: string[],
+  onGitFallback?: GitFallbackListener,
+): Promise<TagIndex> {
   const index: TagIndex = new Map();
-  for (const file of await expandGlobs(root, testGlobs)) {
+  for (const file of await expandGlobs(root, testGlobs, onGitFallback)) {
     const source = await readFile(join(root, file), 'utf8');
     for (const { id, line } of findRuleTags(source)) {
       const locations = index.get(id) ?? [];

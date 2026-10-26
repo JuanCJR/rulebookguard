@@ -4,7 +4,15 @@ import { expandGlobs, toRepoPath } from '../catalog/files.ts';
 import type { Catalog } from '../catalog/load.ts';
 import { scanTestTags, type TagLocation } from '../catalog/tags.ts';
 import type { RuleDoc, RuleStatus } from '../format/types.ts';
-import { CliError, EXIT_USAGE, findRule, type CliIo, writeJson, writeLines } from './io.ts';
+import {
+  CliError,
+  EXIT_USAGE,
+  findRule,
+  gitFallbackWarning,
+  type CliIo,
+  writeJson,
+  writeLines,
+} from './io.ts';
 
 export const RULE_STATUSES: RuleStatus[] = ['proposed', 'active', 'deprecated'];
 
@@ -149,8 +157,9 @@ export async function impactCommand(
   json: boolean,
 ): Promise<void> {
   const rule = findRule(catalog, id);
-  const files = await expandGlobs(catalog.root, rule.anchors);
-  const tests = (await scanTestTags(catalog.root, catalog.config.testGlobs)).get(id) ?? [];
+  const warn = gitFallbackWarning(io);
+  const files = await expandGlobs(catalog.root, rule.anchors, warn);
+  const tests = (await scanTestTags(catalog.root, catalog.config.testGlobs, warn)).get(id) ?? [];
   if (json) {
     writeJson(io, { id, files, tests } satisfies ImpactJson);
     return;
