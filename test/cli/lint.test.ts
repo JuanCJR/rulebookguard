@@ -1,4 +1,4 @@
-import { cp, writeFile } from 'node:fs/promises';
+import { appendFile, cp, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { scratchDir } from '../scratch.ts';
@@ -99,6 +99,73 @@ describe('lint', () => {
       stdout: 'error missing-rules-dir docs/rules directory does not exist\n1 error, 0 warnings\n',
       stderr: '',
     });
+  });
+
+  it('does not report tags of a rule that fails the schema as unknown', async () => {
+    const dir = await scratchDir();
+    await cp(lintFixture, dir, { recursive: true });
+    await appendFile(
+      join(dir, 'tests/orders_test.py'),
+      '\n\n# @rule R-ORD-004\ndef test_x():\n    pass\n',
+    );
+
+    const result = await runCli(['lint'], dir);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).not.toContain('tags R-ORD-004');
+    expect(result.stdout).toContain('7 errors, 1 warning');
+  });
+
+  it('reports an invalid config as schema findings', async () => {
+    const repo = await cleanRepo();
+    await writeFile(join(repo, 'rulebookguard.config.yaml'), 'schema: 2\ntestGlobs: []\n');
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error schema rulebookguard.config.yaml field "schema" must be equal to 1',
+        '1 error, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+    expect(JSON.parse((await runCli(['lint', '--json'], repo)).stdout)).toEqual({
+      findings: [
+        {
+          severity: 'error',
+          code: 'schema',
+          file: 'rulebookguard.config.yaml',
+          message: 'field "schema" must be equal to 1',
+        },
+      ],
+      errors: 1,
+      warnings: 0,
+    });
+    expect((await runCli(['list'], repo)).status).toBe(1);
+  });
+
+  it('prints each invalid-YAML finding on a single line', async () => {
+    const repo = await cleanRepo();
+    await writeFile(
+      join(repo, 'docs/rules/clients/R-CLI-003.md'),
+      '---\nid: [unclosed\nsummary: x\n---\n\nBody.\n',
+    );
+    await writeFile(join(repo, 'rulebookguard.config.yaml'), 'schema: 1\ntestGlobs: [unclosed\n');
+
+    const configResult = await runCli(['lint'], repo);
+    expect(configResult.stdout).toMatch(
+      /^error schema rulebookguard\.config\.yaml invalid YAML: [^\n]+ at line \d+, column \d+\n1 error, 0 warnings\n$/,
+    );
+
+    await writeFile(
+      join(repo, 'rulebookguard.config.yaml'),
+      "schema: 1\nrulesDir: docs/rules\ntestGlobs: ['tests/**/*_test.go', 'tests/**/test_*.py']\n",
+    );
+    const ruleResult = await runCli(['lint'], repo);
+    expect(ruleResult.status).toBe(1);
+    expect(ruleResult.stdout).toMatch(
+      /^error schema docs\/rules\/clients\/R-CLI-003\.md invalid YAML: [^\n]+ at line \d+, column \d+\n1 error, 0 warnings\n$/,
+    );
   });
 
   it('rejects unexpected arguments', async () => {

@@ -106,6 +106,21 @@ describe('lint --base', () => {
     });
   });
 
+  it('reports only untested-rule for a changed active rule that no test tags', async () => {
+    const repo = await committedRepo();
+    await writeFile(join(repo, 'docs/rules/clients/R-CLI-004.md'), newRule('R-CLI-004'));
+
+    expect(await runCli(['lint', '--base', 'HEAD'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error untested-rule docs/rules/clients/R-CLI-004.md active rule R-CLI-004 has no test tagging it',
+        '1 error, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
   it('works when the rulebook root is nested in the work tree', async () => {
     const dir = await scratchDir();
     const nested = join(dir, 'packages/app');

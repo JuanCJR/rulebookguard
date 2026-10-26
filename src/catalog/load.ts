@@ -3,7 +3,7 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { CONFIG_FILE_NAME, loadConfig } from '../format/config.ts';
 import { CONTEXT_FILE_NAME, loadContext } from '../format/context.ts';
 import { FormatError, type FormatIssue } from '../format/errors.ts';
-import { loadRule } from '../format/rule.ts';
+import { isRuleId, loadRule } from '../format/rule.ts';
 import type { ContextDoc, RuleDoc, RulebookConfig } from '../format/types.ts';
 import { toRepoPath } from './files.ts';
 
@@ -25,6 +25,7 @@ export interface Catalog {
   config: RulebookConfig;
   contexts: ContextDoc[];
   rules: RuleDoc[];
+  invalidRuleIds: string[];
   issues: CatalogIssue[];
 }
 
@@ -44,7 +45,14 @@ export async function findRulebookRoot(start: string): Promise<string | undefine
 
 export async function loadCatalog(root: string): Promise<Catalog> {
   const config = await loadConfig(join(root, CONFIG_FILE_NAME));
-  const catalog: Catalog = { root, config, contexts: [], rules: [], issues: [] };
+  const catalog: Catalog = {
+    root,
+    config,
+    contexts: [],
+    rules: [],
+    invalidRuleIds: [],
+    issues: [],
+  };
   const rulesDir = toRepoPath(config.rulesDir).replace(/\/+$/, '');
   const directories = await listEntries(join(root, rulesDir));
   if (directories === undefined) {
@@ -78,9 +86,13 @@ async function loadContextDirectory(catalog: Catalog, dir: string, name: string)
   }
   for (const file of files.filter((item) => item !== CONTEXT_FILE_NAME)) {
     const rule = await load(catalog, `${dir}/${file}`, loadRule);
+    const baseName = file.slice(0, -'.md'.length);
+    if (rule === undefined && isRuleId(baseName)) {
+      catalog.invalidRuleIds.push(baseName);
+    }
     if (rule !== undefined) {
       catalog.rules.push(rule);
-      checkRule(catalog, rule, name, file.slice(0, -'.md'.length), context);
+      checkRule(catalog, rule, name, baseName, context);
     }
   }
 }

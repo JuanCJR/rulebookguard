@@ -1,9 +1,10 @@
-import { readdir } from 'node:fs/promises';
+import { access, readdir } from 'node:fs/promises';
 import { join } from 'node:path';
 import picomatch from 'picomatch';
 import { gitFailureReason, gitPaths, isNotARepository } from './git.ts';
 
 const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules']);
+const GITLINK_MODE = '160000';
 
 export function toRepoPath(path: string): string {
   return path.replaceAll('\\', '/').replace(/^(?:\.\/)+/, '');
@@ -41,14 +42,52 @@ async function listGitFiles(
   onGitFallback: GitFallbackListener | undefined,
 ): Promise<string[] | undefined> {
   try {
-    const listed = await gitPaths(root, 'ls-files', ['--cached', '--others', '--exclude-standard']);
+    const staged = (await gitPaths(root, 'ls-files', ['--stage'])).map(parseStageEntry);
+    const others = await gitPaths(root, 'ls-files', ['--others', '--exclude-standard']);
     const deleted = new Set(await gitPaths(root, 'ls-files', ['--deleted']));
-    return [...new Set(listed)].filter((file) => !deleted.has(file));
+    const gitlinks = new Set(
+      staged.filter(({ mode }) => mode === GITLINK_MODE).map(({ path }) => path),
+    );
+    const files = [...new Set([...staged.map(({ path }) => path), ...others])].filter(
+      (file) => !deleted.has(file) && !gitlinks.has(file),
+    );
+    if (files.length === 0 && gitlinks.size === 0) {
+      return undefined;
+    }
+    for (const gitlink of gitlinks) {
+      const nested = await listSubmoduleFiles(join(root, gitlink), onGitFallback);
+      files.push(...nested.map((file) => `${gitlink}/${file}`));
+    }
+    return files;
   } catch (error) {
     if (!isNotARepository(error)) {
       onGitFallback?.(gitFailureReason(error));
     }
     return undefined;
+  }
+}
+
+async function listSubmoduleFiles(
+  dir: string,
+  onGitFallback: GitFallbackListener | undefined,
+): Promise<string[]> {
+  if (!(await exists(join(dir, '.git')))) {
+    return (await exists(dir)) ? walkFiles(dir) : [];
+  }
+  return (await listGitFiles(dir, onGitFallback)) ?? (await walkFiles(dir));
+}
+
+function parseStageEntry(entry: string): { mode: string; path: string } {
+  const tab = entry.indexOf('\t');
+  return { mode: entry.slice(0, entry.indexOf(' ')), path: entry.slice(tab + 1) };
+}
+
+async function exists(path: string): Promise<boolean> {
+  try {
+    await access(path);
+    return true;
+  } catch {
+    return false;
   }
 }
 

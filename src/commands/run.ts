@@ -74,7 +74,10 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   }
   const { values, argument } = parse(spec, rest);
   const json = values.json === true;
-  const catalog = await openCatalog(io, name !== 'lint');
+  if (name === 'lint') {
+    return lintCommand(io, { base: values.base as string | undefined, json });
+  }
+  const catalog = await openCatalog(io);
   switch (name) {
     case 'contexts':
       contextsCommand(catalog, io, json);
@@ -98,8 +101,6 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
     case 'new':
       await newCommand(catalog, io, argument);
       break;
-    case 'lint':
-      return lintCommand(catalog, io, { base: values.base as string | undefined, json });
   }
   return EXIT_OK;
 }

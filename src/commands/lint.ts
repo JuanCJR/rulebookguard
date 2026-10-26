@@ -1,12 +1,14 @@
 import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../catalog/files.ts';
 import { changedSince, gitFailureReason, isCommitRef, isInsideWorkTree } from '../catalog/git.ts';
-import type { Catalog } from '../catalog/load.ts';
+import { loadCatalog, relativeToRoot, type Catalog } from '../catalog/load.ts';
+import { FormatError } from '../format/errors.ts';
 import { scanTestTags, type TagIndex } from '../catalog/tags.ts';
 import {
   CliError,
   EXIT_FAILURE,
   EXIT_OK,
   gitFallbackWarning,
+  requireRulebookRoot,
   type CliIo,
   writeJson,
   writeLines,
@@ -33,11 +35,23 @@ export interface LintOptions {
   json: boolean;
 }
 
-export async function lintCommand(
-  catalog: Catalog,
-  io: CliIo,
-  options: LintOptions,
-): Promise<number> {
+export async function lintCommand(io: CliIo, options: LintOptions): Promise<number> {
+  const root = await requireRulebookRoot(io);
+  let catalog: Catalog;
+  try {
+    catalog = await loadCatalog(root);
+  } catch (error) {
+    if (!(error instanceof FormatError)) {
+      throw error;
+    }
+    return report(
+      io,
+      error.issues.map((issue) =>
+        issueFinding('schema', { ...issue, file: relativeToRoot(root, issue.file) }),
+      ),
+      options.json,
+    );
+  }
   const changed =
     options.base === undefined ? undefined : await changedFiles(catalog.root, options.base);
   const warn = gitFallbackWarning(io);
@@ -46,10 +60,14 @@ export async function lintCommand(
   if (options.base !== undefined && changed !== undefined) {
     findings.push(...pendingImplementation(catalog, tags, options.base, changed));
   }
+  return report(io, findings, options.json);
+}
+
+function report(io: CliIo, findings: LintFinding[], json: boolean): number {
   const sorted = sortFindings(findings);
   const errors = sorted.filter((finding) => finding.severity === 'error').length;
   const warnings = sorted.length - errors;
-  if (options.json) {
+  if (json) {
     writeJson(io, { findings: sorted, errors, warnings } satisfies LintJson);
   } else if (sorted.length === 0) {
     writeLines(io, ['No issues found.']);
@@ -62,6 +80,13 @@ export async function lintCommand(
   return errors > 0 ? EXIT_FAILURE : EXIT_OK;
 }
 
+function issueFinding(
+  code: string,
+  { file, field, message }: { file: string; field?: string | undefined; message: string },
+): LintFinding {
+  return error(code, file, field === undefined ? message : `field "${field}" ${message}`);
+}
+
 export async function lintCatalog(
   catalog: Catalog,
   tags?: TagIndex,
@@ -69,14 +94,10 @@ export async function lintCatalog(
 ): Promise<LintFinding[]> {
   const tagIndex =
     tags ?? (await scanTestTags(catalog.root, catalog.config.testGlobs, onGitFallback));
-  const findings: LintFinding[] = catalog.issues.map(({ code, file, field, message }) => ({
-    severity: 'error',
-    code,
-    file,
-    message: field === undefined ? message : `field "${field}" ${message}`,
-  }));
+  const findings: LintFinding[] = catalog.issues.map((issue) => issueFinding(issue.code, issue));
   const files = await listRepoFiles(catalog.root, onGitFallback);
   const status = new Map(catalog.rules.map((rule) => [rule.id, rule.status]));
+  const invalid = new Set(catalog.invalidRuleIds);
   for (const rule of catalog.rules) {
     if (rule.status === 'active' && !tagIndex.has(rule.id)) {
       findings.push(
@@ -91,7 +112,7 @@ export async function lintCatalog(
   }
   for (const [id, locations] of tagIndex) {
     const ruleStatus = status.get(id);
-    if (ruleStatus !== undefined && ruleStatus !== 'deprecated') {
+    if ((ruleStatus !== undefined && ruleStatus !== 'deprecated') || invalid.has(id)) {
       continue;
     }
     for (const { file, line } of locations) {
@@ -126,6 +147,7 @@ export function pendingImplementation(
   const changedSet = new Set(changed);
   return catalog.rules
     .filter((rule) => rule.status === 'active' && changedSet.has(rule.file))
+    .filter((rule) => (tags.get(rule.id) ?? []).length > 0)
     .filter((rule) => !(tags.get(rule.id) ?? []).some(({ file }) => changedSet.has(file)))
     .map((rule) =>
       error(
