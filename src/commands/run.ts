@@ -1,6 +1,7 @@
 import { parseArgs, type ParseArgsConfig } from 'node:util';
 import { formatIssue, FormatError } from '../format/errors.ts';
 import { CliError, EXIT_FAILURE, EXIT_OK, EXIT_USAGE, openCatalog, type CliIo } from './io.ts';
+import { newCommand } from './new.ts';
 import { contextsCommand, forCommand, impactCommand, listCommand, showCommand } from './read.ts';
 
 type ParseArgsOptionsConfig = NonNullable<ParseArgsConfig['options']>;
@@ -13,6 +14,7 @@ Commands:
   show <id> [--json]                                 L2: the full rule
   for <path> [--json]                                active rules anchored to a path
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
+  new <context>                                      scaffold the next free rule id as a proposed rule
 
 Exit codes: 0 success, 1 failure, 2 usage error.
 `;
@@ -34,6 +36,7 @@ const COMMANDS: Record<string, CommandSpec> = {
   show: { usage: 'rulebookguard show <id> [--json]', argument: 'id', options: JSON_OPTION },
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
+  new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
@@ -84,6 +87,9 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       break;
     case 'impact':
       await impactCommand(catalog, io, argument, json);
+      break;
+    case 'new':
+      await newCommand(catalog, io, argument);
       break;
   }
   return EXIT_OK;

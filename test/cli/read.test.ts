@@ -310,7 +310,7 @@ describe('errors and usage', () => {
   it('lists the commands in the usage text', () => {
     const usage = ok(['--help']);
 
-    for (const command of ['contexts', 'list', 'show', 'for', 'impact']) {
+    for (const command of ['contexts', 'list', 'show', 'for', 'impact', 'new']) {
       expect(usage).toContain(`  ${command}`);
     }
   });
