@@ -102,6 +102,8 @@ describe('lint', () => {
 
     expect(result.status).toBe(2);
     expect(result.stdout).toBe('');
-    expect(result.stderr).toBe('Unexpected argument "extra". Usage: rulebookguard lint [--json]\n');
+    expect(result.stderr).toBe(
+      'Unexpected argument "extra". Usage: rulebookguard lint [--base <ref>] [--json]\n',
+    );
   });
 });

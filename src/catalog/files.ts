@@ -1,10 +1,7 @@
-import { execFile } from 'node:child_process';
 import { readdir } from 'node:fs/promises';
 import { join } from 'node:path';
-import { promisify } from 'node:util';
 import picomatch from 'picomatch';
-
-const execFileAsync = promisify(execFile);
+import { gitPaths } from './git.ts';
 
 const SKIPPED_DIRECTORIES = new Set(['.git', 'node_modules']);
 
@@ -32,20 +29,12 @@ export async function expandGlobs(root: string, globs: string[]): Promise<string
 
 async function listGitFiles(root: string): Promise<string[] | undefined> {
   try {
-    const listed = await gitLsFiles(root, ['--cached', '--others', '--exclude-standard']);
-    const deleted = new Set(await gitLsFiles(root, ['--deleted']));
+    const listed = await gitPaths(root, 'ls-files', ['--cached', '--others', '--exclude-standard']);
+    const deleted = new Set(await gitPaths(root, 'ls-files', ['--deleted']));
     return [...new Set(listed)].filter((file) => !deleted.has(file));
   } catch {
     return undefined;
   }
-}
-
-async function gitLsFiles(root: string, args: string[]): Promise<string[]> {
-  const { stdout } = await execFileAsync('git', ['ls-files', '-z', ...args], {
-    cwd: root,
-    maxBuffer: 256 * 1024 * 1024,
-  });
-  return stdout.split('\0').filter((file) => file !== '');
 }
 
 async function walkFiles(root: string): Promise<string[]> {

@@ -34,7 +34,9 @@ export type {
 export {
   formatFinding,
   lintCatalog,
+  pendingImplementation,
   type LintFinding,
   type LintJson,
+  type LintOptions,
   type LintSeverity,
 } from './commands/lint.ts';

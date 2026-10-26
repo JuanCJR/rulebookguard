@@ -16,7 +16,8 @@ Commands:
   for <path> [--json]                                active rules anchored to a path
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
   new <context>                                      scaffold the next free rule id as a proposed rule
-  lint [--json]                                      check the catalog, anchors and test tags
+  lint [--base <ref>] [--json]                       check the catalog, anchors and test tags;
+                                                     --base: rules changed since <ref> need a changed test
 
 Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 `;
@@ -39,7 +40,10 @@ const COMMANDS: Record<string, CommandSpec> = {
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
   new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
-  lint: { usage: 'rulebookguard lint [--json]', options: JSON_OPTION },
+  lint: {
+    usage: 'rulebookguard lint [--base <ref>] [--json]',
+    options: { ...JSON_OPTION, base: { type: 'string' } },
+  },
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
@@ -95,7 +99,7 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       await newCommand(catalog, io, argument);
       break;
     case 'lint':
-      return lintCommand(catalog, io, json);
+      return lintCommand(catalog, io, { base: values.base as string | undefined, json });
   }
   return EXIT_OK;
 }
