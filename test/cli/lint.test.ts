@@ -141,7 +141,18 @@ describe('lint', () => {
       errors: 1,
       warnings: 0,
     });
-    expect((await runCli(['list'], repo)).status).toBe(1);
+    expect(await runCli(['list'], repo)).toEqual({
+      status: 1,
+      stdout: '',
+      stderr: `${join(repo, 'rulebookguard.config.yaml')}: field "schema" must be equal to 1\n`,
+    });
+
+    await writeFile(join(repo, 'rulebookguard.config.yaml'), 'schema: 1\n');
+    expect(await runCli(['list'], repo)).toEqual({
+      status: 1,
+      stdout: '',
+      stderr: `${join(repo, 'rulebookguard.config.yaml')}: field "testGlobs" is required\n`,
+    });
   });
 
   it('prints each invalid-YAML finding on a single line', async () => {
