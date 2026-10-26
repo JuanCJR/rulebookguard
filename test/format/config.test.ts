@@ -53,6 +53,20 @@ describe('parseConfig', () => {
     expect(issues).toEqual([{ file: FILE, field: 'contextBudget', message: 'must be >= 1' }]);
   });
 
+  it('accepts the language of the rules', () => {
+    const config = parseConfig('schema: 1\ntestGlobs: []\nlanguage: es\n', FILE);
+
+    expect(config.language).toBe('es');
+  });
+
+  it('rejects an unsupported language', () => {
+    const issues = captureIssues(() =>
+      parseConfig('schema: 1\ntestGlobs: []\nlanguage: fr\n', FILE),
+    );
+
+    expect(issues).toEqual([{ file: FILE, field: 'language', message: 'must be one of: en, es' }]);
+  });
+
   it('rejects unknown fields', () => {
     const issues = captureIssues(() =>
       parseConfig('schema: 1\ntestGlobs: []\nrulesdir: x\n', FILE),

@@ -10,6 +10,7 @@ export type {
   RuleDoc,
   RuleFrontmatter,
   RulebookConfig,
+  RuleLanguage,
   RuleStatus,
 } from './format/types.ts';
 export { rulesForPath } from './catalog/anchors.ts';
