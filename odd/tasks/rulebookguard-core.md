@@ -1,6 +1,6 @@
 # rulebookguard — core (F0–F5)
 
-Objective: a reusable, language-agnostic tool that keeps business rules as the single source of truth, readable by humans and AI, bound to code and tests so drift is detected. Branch: one `feat/` branch per phase from `master`. Delivery: `ask-on-risk`. Runtime: Node >= 20, TypeScript (ESM). Test runner: vitest.
+Objective: a reusable, language-agnostic tool that keeps business rules as the single source of truth, readable by humans and AI, bound to code and tests so drift is detected. Main branch: `main`; one `feat/` branch per phase from `main`. Delivery: `ask-on-risk`. Runtime: Node >= 20, TypeScript (ESM). Toolchain: Vite+ (`vp check` = format + lint + type-check, `vp test` = Vitest, `vp pack` = tsdown library build). Test runner: `vp test`.
 
 ## Specs
 
@@ -43,7 +43,7 @@ Objective: a reusable, language-agnostic tool that keeps business rules as the s
 | T11 | F4 | S12 | inline | pending | — |
 | T12 | F5 | S12 | inline | optional | — |
 
-- **T1** Bootstrap: `package.json` (bin, ESM, engines), `tsconfig`, vitest, eslint/prettier, GitHub Actions CI (typecheck, lint, test). Risk: item 5 (CI, dependencies).
+- **T1** Bootstrap with Vite+: `package.json` (bin, ESM, engines), `tsconfig`, `vite.config.ts` with `pack` (bin entry, `dts`) and `lint.options` (`typeAware`, `typeCheck`) so `vp check` is the single static check; GitHub Actions CI with `voidzero-dev/setup-vp` pinned to an exact version, running `vp check`, `vp test`, `vp pack`. Risk: item 5 (CI, dependencies).
 - **T2** Format: JSON Schema v1 (config, context, rule), types, parsers with schema validation errors that name file and field.
 - **T3** Catalog loader + inverse index (`path → rules`) + test-tag scanner.
 - **T4** Read commands: `contexts`, `list`, `show`, `for`, `impact`, with `--json`.
@@ -68,4 +68,5 @@ Delivery forecast: F0–F1 ≈ 1,500 authored lines, above the ~400 slice budget
 - **L6 (user, verbatim):** "Pongamosle rulebookguard y ya cree el repo https://github.com/JuanCJR/rulebookguard" — npm name `rulebookguard` verified free (404 on registry, 2026-10-26).
 - **L7 (decision):** the `tests:` frontmatter field from the first sketch was dropped; linkage lives only in test tags (S5) to avoid two sources of truth.
 - **L8:** Engram mirror `odd/rulebookguard-core/tasks` pending: Engram rejected project `rulebookguard` as unknown (2026-10-26). Resync once the project is registered.
+- **L9 (2026-10-26, user, verbatim):** "1. cambia en el plan que la rama principal debe ser main 2. Usaremos vite+" — GitHub default branch is still `master`; renaming it to `main` is pending (user's remote action or explicit authorization). Vite+ commands verified in the official guide (viteplus.dev/guide: check, pack, ci).
 - Next step: user reviews Specs; then T1.
