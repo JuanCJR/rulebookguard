@@ -287,8 +287,21 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - run: npx --yes rulebookguard lint --base origin/main
+      - run: npx --yes rulebookguard@0.1.0 lint --base origin/main
 ```
+
+Pin the version, or add rulebookguard as a dev dependency and run it from the lockfile, so a new release never changes CI results by itself.
+
+## Releasing
+
+Releases are published to npm from GitHub Actions with [trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is stored and every version carries a provenance attestation. To release, bump `version` in `package.json`, merge it to `main`, then push a matching tag:
+
+```sh
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+The `Release` workflow fails without publishing when the tag does not match the package version, or when `vp check`, `vp test` or `vp pack` fails.
 
 ## License
 
