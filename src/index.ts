@@ -31,3 +31,10 @@ export type {
   RuleSummaryJson,
   ShowJson,
 } from './commands/read.ts';
+export {
+  formatFinding,
+  lintCatalog,
+  type LintFinding,
+  type LintJson,
+  type LintSeverity,
+} from './commands/lint.ts';
