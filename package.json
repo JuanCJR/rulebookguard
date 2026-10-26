@@ -1,0 +1,30 @@
+{
+  "name": "rulebookguard",
+  "version": "0.0.0",
+  "description": "Keep business rules as the single source of truth, bound to code and tests.",
+  "license": "MIT",
+  "bin": {
+    "rulebookguard": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist",
+    "schemas"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.mts",
+      "import": "./dist/index.mjs"
+    },
+    "./schemas/*": "./schemas/*",
+    "./package.json": "./package.json"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.43",
+    "typescript": "^7.0.2",
+    "vite-plus": "^1.4.0"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
