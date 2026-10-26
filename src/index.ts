@@ -12,3 +12,14 @@ export type {
   RulebookConfig,
   RuleStatus,
 } from './format/types.ts';
+export { rulesForPath } from './catalog/anchors.ts';
+export { createGlobMatcher, expandGlobs, listRepoFiles, toRepoPath } from './catalog/files.ts';
+export {
+  findRulebookRoot,
+  loadCatalog,
+  relativeToRoot,
+  type Catalog,
+  type CatalogIssue,
+  type CatalogIssueCode,
+} from './catalog/load.ts';
+export { scanTestTags, type TagIndex, type TagLocation } from './catalog/tags.ts';

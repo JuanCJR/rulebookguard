@@ -1,0 +1,5 @@
+schema: 1
+rulesDir: docs/rules
+testGlobs:
+  - 'tests/**/*_test.go'
+  - 'tests/**/test_*.py'
