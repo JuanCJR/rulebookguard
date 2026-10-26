@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rulebookguard:schema:v1:rule",
+  "title": "Rule file frontmatter",
+  "type": "object",
+  "$defs": {
+    "ruleId": { "type": "string", "pattern": "^R-[A-Z][A-Z0-9]*-[0-9]{3}$" }
+  },
+  "properties": {
+    "id": { "$ref": "#/$defs/ruleId" },
+    "context": { "type": "string", "minLength": 1 },
+    "entities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "status": { "enum": ["proposed", "active", "deprecated"] },
+    "supersedes": { "$ref": "#/$defs/ruleId" },
+    "anchors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "summary": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]*$" }
+  },
+  "required": ["id", "context", "entities", "status", "anchors", "summary"],
+  "additionalProperties": false
+}
