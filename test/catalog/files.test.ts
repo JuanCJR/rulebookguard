@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { expandGlobs, listRepoFiles, scanTestTags } from '../../src/index.ts';
@@ -82,9 +82,131 @@ describe('listRepoFiles in special git layouts', () => {
     expect(files).not.toContain('vendor/lib');
     expect(await expandGlobs(dir, ['vendor/**/*.go'])).toEqual(['vendor/lib/pkg/lib.go']);
   });
+
+  it('skips a submodule whose git listing fails instead of walking it', async () => {
+    const library = await scratchDir();
+    await mkdir(join(library, 'pkg'), { recursive: true });
+    await writeFile(join(library, 'pkg/lib.go'), 'package pkg\n');
+    await writeFile(join(library, '.gitignore'), 'dist/\n');
+    initRepo(library);
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    initRepo(dir);
+    git(dir, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', library, 'vendor/lib');
+    git(dir, 'commit', '-q', '-m', 'add submodule');
+    await mkdir(join(dir, 'vendor/lib/dist'), { recursive: true });
+    await writeFile(join(dir, 'vendor/lib/dist/built.go'), 'package dist\n');
+    await writeFile(join(dir, '.git/modules/vendor/lib/index'), 'corrupt\n');
+    const calls: [string, string | undefined][] = [];
+
+    const files = await listRepoFiles(dir, (reason, submodule) => calls.push([reason, submodule]));
+
+    expect(files).toContain('src/clients/create.go');
+    expect(files.filter((file) => file.startsWith('vendor/lib/'))).toEqual([]);
+    expect(calls.map(([, submodule]) => submodule)).toEqual(['vendor/lib']);
+  });
+});
+
+async function outsideTree(): Promise<string> {
+  const outside = await scratchDir();
+  await mkdir(join(outside, 'tests'), { recursive: true });
+  await writeFile(join(outside, 'tests/test_leak.py'), '# @rule R-CLI-002\n');
+  return outside;
+}
+
+function addGitlink(dir: string, path: string): void {
+  const commit = git(dir, 'rev-parse', 'HEAD').trim();
+  git(dir, 'update-index', '--add', '--cacheinfo', `160000,${commit},${path}`);
+  git(dir, 'commit', '-q', '-m', `add gitlink ${path}`);
+}
+
+describe('listRepoFiles with crafted gitlinks', () => {
+  it('skips a gitlink whose working-tree entry escapes the rulebook root', async () => {
+    const plain = await outsideTree();
+    const repo = await outsideTree();
+    initRepo(repo);
+    const parent = await outsideTree();
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    initRepo(dir);
+    addGitlink(dir, 'vendor/plain');
+    addGitlink(dir, 'vendor/repo');
+    addGitlink(dir, 'linked/tests');
+    await mkdir(join(dir, 'vendor'), { recursive: true });
+    await symlink(plain, join(dir, 'vendor/plain'));
+    await symlink(repo, join(dir, 'vendor/repo'));
+    await symlink(parent, join(dir, 'linked'));
+    const reasons: string[] = [];
+
+    const files = await listRepoFiles(dir, (reason) => reasons.push(reason));
+
+    expect(files.filter((file) => /^(vendor(\/|$)|linked\/)/.test(file))).toEqual([]);
+    expect(files).toContain('src/clients/create.go');
+    expect((await scanTestTags(dir, ['**/test_*.py'])).has('R-CLI-002')).toBe(false);
+    expect(reasons).toEqual([]);
+  });
+
+  it('keeps the superproject listing when one submodule cannot be listed', async () => {
+    const dir = await repoWithIgnoredBuild();
+    initRepo(dir);
+    addGitlink(dir, 'vendor/broken');
+    await mkdir(join(dir, 'vendor'), { recursive: true });
+    await writeFile(join(dir, 'vendor/broken'), 'not a directory\n');
+    const calls: [string, string | undefined][] = [];
+
+    const files = await listRepoFiles(dir, (reason, submodule) => calls.push([reason, submodule]));
+
+    expect(files).toContain('src/clients/create.go');
+    expect(files.filter((file) => file.startsWith('dist/'))).toEqual([]);
+    expect(files.filter((file) => file.startsWith('vendor/'))).toEqual([]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.[1]).toBe('vendor/broken');
+    expect(calls[0]?.[0]).toMatch(/ENOTDIR/);
+  });
+});
+
+describe('scanTestTags with tracked symlinks', () => {
+  it('does not read a test symlink that resolves outside the root', async () => {
+    const outside = await outsideTree();
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    await symlink(join(outside, 'tests/test_leak.py'), join(dir, 'tests/test_link.py'));
+    initRepo(dir);
+
+    const tags = await scanTestTags(dir, ['tests/**/test_*.py']);
+
+    expect(git(dir, 'ls-files', 'tests/test_link.py').trim()).toBe('tests/test_link.py');
+    expect([...tags.values()].flat().map(({ file }) => file)).not.toContain('tests/test_link.py');
+    expect(tags.has('R-CLI-001')).toBe(true);
+  });
+
+  it('reads a test symlink that resolves inside the root', async () => {
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    await mkdir(join(dir, 'shared'), { recursive: true });
+    await writeFile(join(dir, 'shared/tagged.py'), '# @rule R-CLI-002\n');
+    await symlink('../shared/tagged.py', join(dir, 'tests/test_inside.py'));
+    initRepo(dir);
+
+    const tags = await scanTestTags(dir, ['tests/**/test_*.py']);
+
+    expect(tags.get('R-CLI-002')).toEqual([{ file: 'tests/test_inside.py', line: 1 }]);
+  });
 });
 
 describe('listRepoFiles outside a git work tree', () => {
+  it('does not follow a symlinked directory that points outside the root', async () => {
+    const outside = await outsideTree();
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    await symlink(outside, join(dir, 'ext'));
+
+    const files = await listRepoFiles(dir);
+
+    expect(files.filter((file) => file.startsWith('ext'))).toEqual([]);
+    expect(files).toContain('src/clients/create.go');
+  });
+
   it('walks the whole tree, skipping only .git and node_modules', async () => {
     const dir = await repoWithIgnoredBuild();
     await mkdir(join(dir, 'node_modules/pkg'), { recursive: true });

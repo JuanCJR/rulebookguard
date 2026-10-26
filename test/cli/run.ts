@@ -19,12 +19,11 @@ export async function runCli(args: string[], cwd: string): Promise<CliResult> {
       stderr += text;
     },
   };
-  try {
-    const status = await run(args, io);
-    return { status, stdout, stderr };
-  } catch (error) {
-    return { status: 1, stdout, stderr: `${stderr}${(error as Error).stack ?? String(error)}\n` };
-  }
+  // runCli maps CliError and FormatError to a status itself; anything else it
+  // rethrows is a crash, so it propagates and fails the test instead of
+  // looking like an ordinary exit status 1.
+  const status = await run(args, io);
+  return { status, stdout, stderr };
 }
 
 export function fixtureRoot(name: string): string {

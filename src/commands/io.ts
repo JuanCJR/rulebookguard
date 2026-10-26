@@ -1,4 +1,5 @@
 import { findRulebookRoot, loadCatalog, type Catalog } from '../catalog/load.ts';
+import type { GitFallbackListener } from '../catalog/files.ts';
 import { CONFIG_FILE_NAME } from '../format/config.ts';
 import type { RuleDoc } from '../format/types.ts';
 
@@ -57,9 +58,20 @@ export function writeLines(io: CliIo, lines: string[]): void {
   io.stdout(lines.map((line) => `${line}\n`).join(''));
 }
 
-export function gitFallbackWarning(io: CliIo): (reason: string) => void {
+export function gitFallbackWarning(io: CliIo): GitFallbackListener {
   let warned = false;
-  return (reason) => {
+  // lint lists files twice (tags and anchors); warn once per submodule.
+  const skipped = new Set<string>();
+  return (reason, submodule) => {
+    if (submodule !== undefined) {
+      if (!skipped.has(submodule)) {
+        skipped.add(submodule);
+        io.stderr(
+          `warning: could not list files of submodule "${submodule}" (${reason}); skipping it.\n`,
+        );
+      }
+      return;
+    }
     if (!warned) {
       warned = true;
       io.stderr(`warning: git could not list files (${reason}); walking the directory instead.\n`);

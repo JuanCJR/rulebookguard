@@ -1,7 +1,7 @@
-import { readFile } from 'node:fs/promises';
+import { readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findRuleTags } from '../format/tag.ts';
-import { expandGlobs, type GitFallbackListener } from './files.ts';
+import { expandGlobs, resolvesInside, type GitFallbackListener } from './files.ts';
 
 export interface TagLocation {
   file: string;
@@ -16,8 +16,13 @@ export async function scanTestTags(
   onGitFallback?: GitFallbackListener,
 ): Promise<TagIndex> {
   const index: TagIndex = new Map();
+  const realRoot = await realpath(root);
   for (const file of await expandGlobs(root, testGlobs, onGitFallback)) {
-    const source = await readFile(join(root, file), 'utf8');
+    const path = join(root, file);
+    if (!(await resolvesInside(path, realRoot))) {
+      continue;
+    }
+    const source = await readFile(path, 'utf8');
     for (const { id, line } of findRuleTags(source)) {
       const locations = index.get(id) ?? [];
       locations.push({ file, line });
