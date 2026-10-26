@@ -1,4 +1,4 @@
-import { access, chmod, cp, rm, writeFile } from 'node:fs/promises';
+import { access, chmod, cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { git, initRepo } from '../git.ts';
@@ -56,6 +56,27 @@ describe('git failures', () => {
     } finally {
       process.env.PATH = path;
     }
+  });
+
+  it('warns once per submodule that cannot be listed and keeps the git listing', async () => {
+    const repo = await scratchDir();
+    await cp(fixtureRoot('repo'), repo, { recursive: true });
+    initRepo(repo);
+    const commit = git(repo, 'rev-parse', 'HEAD').trim();
+    git(repo, 'update-index', '--add', '--cacheinfo', `160000,${commit},vendor/broken`);
+    git(repo, 'commit', '-q', '-m', 'add gitlink');
+    await mkdir(join(repo, 'vendor'), { recursive: true });
+    await writeFile(join(repo, 'vendor/broken'), 'not a directory\n');
+    const warning =
+      /^warning: could not list files of submodule "vendor\/broken" \(.*ENOTDIR.*\); skipping it\.\n$/;
+
+    const lint = await runCli(['lint'], repo);
+    const impact = await runCli(['impact', 'R-CLI-001'], repo);
+
+    expect(lint.status).toBe(1);
+    expect(lint.stderr).toMatch(warning);
+    expect(impact.status).toBe(0);
+    expect(impact.stderr).toMatch(warning);
   });
 
   it('warns with the first git error line when git fails for another reason', async () => {

@@ -40,7 +40,7 @@ contextBudget: 30 # default: 30; lint warns when a context holds more rules
 
 `schema` and `testGlobs` are required (`testGlobs: []` is valid but finds no tags). Unknown fields are rejected. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
 
-Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs; files inside submodules are listed too. Outside git, or when the rulebook root itself is git-ignored, the whole tree is walked, skipping only `.git` and `node_modules`. If git fails (for example, git is missing from `PATH` or the repository has dubious ownership), commands print one warning on stderr and walk the tree instead.
+Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs; files inside submodules are listed too. A submodule path that is a symlink, or that resolves outside the rulebook root, is skipped. If one submodule cannot be listed, commands print `warning: could not list files of submodule "<path>" (<reason>); skipping it.` and keep the rest of the git listing. Outside git, or when the rulebook root itself is git-ignored, the whole tree is walked, skipping only `.git` and `node_modules`. If git fails (for example, git is missing from `PATH` or the repository has dubious ownership), commands print one warning on stderr and walk the tree instead.
 
 ## Catalog layout
 

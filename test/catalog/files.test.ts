@@ -1,4 +1,4 @@
-import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { expandGlobs, listRepoFiles, scanTestTags } from '../../src/index.ts';
@@ -84,7 +84,77 @@ describe('listRepoFiles in special git layouts', () => {
   });
 });
 
+async function outsideTree(): Promise<string> {
+  const outside = await scratchDir();
+  await mkdir(join(outside, 'tests'), { recursive: true });
+  await writeFile(join(outside, 'tests/test_leak.py'), '# @rule R-CLI-002\n');
+  return outside;
+}
+
+function addGitlink(dir: string, path: string): void {
+  const commit = git(dir, 'rev-parse', 'HEAD').trim();
+  git(dir, 'update-index', '--add', '--cacheinfo', `160000,${commit},${path}`);
+  git(dir, 'commit', '-q', '-m', `add gitlink ${path}`);
+}
+
+describe('listRepoFiles with crafted gitlinks', () => {
+  it('skips a gitlink whose working-tree entry escapes the rulebook root', async () => {
+    const plain = await outsideTree();
+    const repo = await outsideTree();
+    initRepo(repo);
+    const parent = await outsideTree();
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    initRepo(dir);
+    addGitlink(dir, 'vendor/plain');
+    addGitlink(dir, 'vendor/repo');
+    addGitlink(dir, 'linked/tests');
+    await mkdir(join(dir, 'vendor'), { recursive: true });
+    await symlink(plain, join(dir, 'vendor/plain'));
+    await symlink(repo, join(dir, 'vendor/repo'));
+    await symlink(parent, join(dir, 'linked'));
+    const reasons: string[] = [];
+
+    const files = await listRepoFiles(dir, (reason) => reasons.push(reason));
+
+    expect(files.filter((file) => /^(vendor(\/|$)|linked\/)/.test(file))).toEqual([]);
+    expect(files).toContain('src/clients/create.go');
+    expect((await scanTestTags(dir, ['**/test_*.py'])).has('R-CLI-002')).toBe(false);
+    expect(reasons).toEqual([]);
+  });
+
+  it('keeps the superproject listing when one submodule cannot be listed', async () => {
+    const dir = await repoWithIgnoredBuild();
+    initRepo(dir);
+    addGitlink(dir, 'vendor/broken');
+    await mkdir(join(dir, 'vendor'), { recursive: true });
+    await writeFile(join(dir, 'vendor/broken'), 'not a directory\n');
+    const calls: [string, string | undefined][] = [];
+
+    const files = await listRepoFiles(dir, (reason, submodule) => calls.push([reason, submodule]));
+
+    expect(files).toContain('src/clients/create.go');
+    expect(files.filter((file) => file.startsWith('dist/'))).toEqual([]);
+    expect(files.filter((file) => file.startsWith('vendor/'))).toEqual([]);
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.[1]).toBe('vendor/broken');
+    expect(calls[0]?.[0]).toMatch(/ENOTDIR/);
+  });
+});
+
 describe('listRepoFiles outside a git work tree', () => {
+  it('does not follow a symlinked directory that points outside the root', async () => {
+    const outside = await outsideTree();
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    await symlink(outside, join(dir, 'ext'));
+
+    const files = await listRepoFiles(dir);
+
+    expect(files.filter((file) => file.startsWith('ext'))).toEqual([]);
+    expect(files).toContain('src/clients/create.go');
+  });
+
   it('walks the whole tree, skipping only .git and node_modules', async () => {
     const dir = await repoWithIgnoredBuild();
     await mkdir(join(dir, 'node_modules/pkg'), { recursive: true });
