@@ -1,6 +1,7 @@
 import { cp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
+import { initRepo } from '../git.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
 
@@ -273,6 +274,25 @@ describe('impact', () => {
     expect(result.stderr).toBe(
       'Unknown rule id "R-XXX-001". Run "rulebookguard list" to list them.\n',
     );
+  });
+});
+
+describe('read commands in a fresh git work tree', () => {
+  it('print the same output as in the fixture, without warnings', async () => {
+    const copy = await scratchDir();
+    await cp(repo, copy, { recursive: true });
+    initRepo(copy);
+
+    for (const args of [
+      ['contexts'],
+      ['list'],
+      ['show', 'R-CLI-001'],
+      ['for', 'src/clients/create.go'],
+      ['impact', 'R-CLI-001'],
+      ['impact', 'R-BIL-001', '--json'],
+    ]) {
+      expect(await ok(args, copy)).toBe(await ok(args));
+    }
   });
 });
 

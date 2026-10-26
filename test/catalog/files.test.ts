@@ -2,7 +2,7 @@ import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { expandGlobs, listRepoFiles, scanTestTags } from '../../src/index.ts';
-import { initRepo } from '../git.ts';
+import { git, initRepo } from '../git.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot } from './helpers.ts';
 
@@ -46,6 +46,41 @@ describe('listRepoFiles inside a git work tree', () => {
       'src/billing/invoice.go',
       'src/billing/tax.go',
     ]);
+  });
+});
+
+describe('listRepoFiles in special git layouts', () => {
+  it('walks a rulebook root that the enclosing work tree ignores', async () => {
+    const dir = await scratchDir();
+    const nested = join(dir, 'packages/app');
+    await cp(fixtureRoot('repo'), nested, { recursive: true });
+    await writeFile(join(dir, '.gitignore'), 'packages/\n');
+    initRepo(dir);
+
+    expect(await expandGlobs(nested, ['src/billing/**'])).toEqual([
+      'src/billing/invoice.go',
+      'src/billing/tax.go',
+    ]);
+    expect((await scanTestTags(nested, ['tests/**/test_*.py'])).has('R-CLI-001')).toBe(true);
+  });
+
+  it('lists the files inside submodules instead of the gitlink', async () => {
+    const library = await scratchDir();
+    await mkdir(join(library, 'pkg'), { recursive: true });
+    await writeFile(join(library, 'pkg/lib.go'), 'package pkg\n');
+    initRepo(library);
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    initRepo(dir);
+    git(dir, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', library, 'vendor/lib');
+    git(dir, 'commit', '-q', '-m', 'add submodule');
+
+    const files = await listRepoFiles(dir);
+
+    expect(files).toContain('vendor/lib/pkg/lib.go');
+    expect(files).toContain('.gitmodules');
+    expect(files).not.toContain('vendor/lib');
+    expect(await expandGlobs(dir, ['vendor/**/*.go'])).toEqual(['vendor/lib/pkg/lib.go']);
   });
 });
 
