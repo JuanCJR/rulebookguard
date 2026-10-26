@@ -1,6 +1,7 @@
 import { parseArgs, type ParseArgsConfig } from 'node:util';
 import { formatIssue, FormatError } from '../format/errors.ts';
 import { CliError, EXIT_FAILURE, EXIT_OK, EXIT_USAGE, openCatalog, type CliIo } from './io.ts';
+import { lintCommand } from './lint.ts';
 import { newCommand } from './new.ts';
 import { contextsCommand, forCommand, impactCommand, listCommand, showCommand } from './read.ts';
 
@@ -15,8 +16,9 @@ Commands:
   for <path> [--json]                                active rules anchored to a path
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
   new <context>                                      scaffold the next free rule id as a proposed rule
+  lint [--json]                                      check the catalog, anchors and test tags
 
-Exit codes: 0 success, 1 failure, 2 usage error.
+Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 `;
 
 interface CommandSpec {
@@ -37,6 +39,7 @@ const COMMANDS: Record<string, CommandSpec> = {
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
   new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
+  lint: { usage: 'rulebookguard lint [--json]', options: JSON_OPTION },
 };
 
 export async function runCli(argv: string[], io: CliIo): Promise<number> {
@@ -67,7 +70,7 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   }
   const { values, argument } = parse(spec, rest);
   const json = values.json === true;
-  const catalog = await openCatalog(io);
+  const catalog = await openCatalog(io, name !== 'lint');
   switch (name) {
     case 'contexts':
       contextsCommand(catalog, io, json);
@@ -91,6 +94,8 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
     case 'new':
       await newCommand(catalog, io, argument);
       break;
+    case 'lint':
+      return lintCommand(catalog, io, json);
   }
   return EXIT_OK;
 }

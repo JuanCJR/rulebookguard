@@ -22,14 +22,14 @@ export class CliError extends Error {
   }
 }
 
-export async function openCatalog(io: CliIo): Promise<Catalog> {
+export async function openCatalog(io: CliIo, warnOnIssues: boolean = true): Promise<Catalog> {
   const root = await findRulebookRoot(io.cwd);
   if (root === undefined) {
     throw new CliError(`${CONFIG_FILE_NAME} not found in ${io.cwd} or any parent directory.`);
   }
   const catalog = await loadCatalog(root);
   const count = catalog.issues.length;
-  if (count > 0) {
+  if (warnOnIssues && count > 0) {
     io.stderr(
       `warning: the catalog has ${count} ${count === 1 ? 'issue' : 'issues'}; run "rulebookguard lint" for details.\n`,
     );
