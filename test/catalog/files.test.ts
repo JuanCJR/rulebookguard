@@ -165,6 +165,35 @@ describe('listRepoFiles with crafted gitlinks', () => {
   });
 });
 
+describe('scanTestTags with tracked symlinks', () => {
+  it('does not read a test symlink that resolves outside the root', async () => {
+    const outside = await outsideTree();
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    await symlink(join(outside, 'tests/test_leak.py'), join(dir, 'tests/test_link.py'));
+    initRepo(dir);
+
+    const tags = await scanTestTags(dir, ['tests/**/test_*.py']);
+
+    expect(git(dir, 'ls-files', 'tests/test_link.py').trim()).toBe('tests/test_link.py');
+    expect([...tags.values()].flat().map(({ file }) => file)).not.toContain('tests/test_link.py');
+    expect(tags.has('R-CLI-001')).toBe(true);
+  });
+
+  it('reads a test symlink that resolves inside the root', async () => {
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    await mkdir(join(dir, 'shared'), { recursive: true });
+    await writeFile(join(dir, 'shared/tagged.py'), '# @rule R-CLI-002\n');
+    await symlink('../shared/tagged.py', join(dir, 'tests/test_inside.py'));
+    initRepo(dir);
+
+    const tags = await scanTestTags(dir, ['tests/**/test_*.py']);
+
+    expect(tags.get('R-CLI-002')).toEqual([{ file: 'tests/test_inside.py', line: 1 }]);
+  });
+});
+
 describe('listRepoFiles outside a git work tree', () => {
   it('does not follow a symlinked directory that points outside the root', async () => {
     const outside = await outsideTree();

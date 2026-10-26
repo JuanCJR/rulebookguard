@@ -126,7 +126,21 @@ async function isContainedEntry(path: string, realRoot: string): Promise<boolean
     }
     throw error;
   }
-  const fromRoot = relative(realRoot, await realpath(path));
+  return resolvesInside(path, realRoot);
+}
+
+// A tracked symlink can point anywhere, so a path is read only when its target lies inside the root.
+export async function resolvesInside(path: string, realRoot: string): Promise<boolean> {
+  let target: string;
+  try {
+    target = await realpath(path);
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 'ENOENT') {
+      return false;
+    }
+    throw error;
+  }
+  const fromRoot = relative(realRoot, target);
   return fromRoot !== '..' && !fromRoot.startsWith(`..${sep}`) && !isAbsolute(fromRoot);
 }
 
