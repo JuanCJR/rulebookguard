@@ -1,0 +1,13 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rulebookguard:schema:v1:context",
+  "title": "_context.md frontmatter",
+  "type": "object",
+  "properties": {
+    "context": { "type": "string", "minLength": 1 },
+    "prefix": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*$" },
+    "summary": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]*$" }
+  },
+  "required": ["context", "prefix", "summary"],
+  "additionalProperties": false
+}

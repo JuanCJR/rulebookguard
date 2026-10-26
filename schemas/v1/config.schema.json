@@ -1,0 +1,14 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:rulebookguard:schema:v1:config",
+  "title": "rulebookguard.config.yaml",
+  "type": "object",
+  "properties": {
+    "schema": { "const": 1 },
+    "rulesDir": { "type": "string", "minLength": 1, "default": "docs/rules" },
+    "testGlobs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "contextBudget": { "type": "integer", "minimum": 1, "default": 30 }
+  },
+  "required": ["schema", "testGlobs"],
+  "additionalProperties": false
+}
