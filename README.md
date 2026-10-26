@@ -13,7 +13,7 @@ It is language-agnostic: rules are Markdown, and tests in any language link to t
 
 ## Install
 
-Requires Node.js 20 or later.
+Requires Node.js 22 or later.
 
 ```sh
 npx rulebookguard lint
