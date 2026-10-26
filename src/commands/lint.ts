@@ -1,8 +1,16 @@
-import { createGlobMatcher, listRepoFiles } from '../catalog/files.ts';
-import { changedSince, isCommitRef, isInsideWorkTree } from '../catalog/git.ts';
+import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../catalog/files.ts';
+import { changedSince, gitFailureReason, isCommitRef, isInsideWorkTree } from '../catalog/git.ts';
 import type { Catalog } from '../catalog/load.ts';
 import { scanTestTags, type TagIndex } from '../catalog/tags.ts';
-import { CliError, EXIT_FAILURE, EXIT_OK, type CliIo, writeJson, writeLines } from './io.ts';
+import {
+  CliError,
+  EXIT_FAILURE,
+  EXIT_OK,
+  gitFallbackWarning,
+  type CliIo,
+  writeJson,
+  writeLines,
+} from './io.ts';
 
 export type LintSeverity = 'error' | 'warning';
 
@@ -32,8 +40,9 @@ export async function lintCommand(
 ): Promise<number> {
   const changed =
     options.base === undefined ? undefined : await changedFiles(catalog.root, options.base);
-  const tags = await scanTestTags(catalog.root, catalog.config.testGlobs);
-  const findings = await lintCatalog(catalog, tags);
+  const warn = gitFallbackWarning(io);
+  const tags = await scanTestTags(catalog.root, catalog.config.testGlobs, warn);
+  const findings = await lintCatalog(catalog, tags, warn);
   if (options.base !== undefined && changed !== undefined) {
     findings.push(...pendingImplementation(catalog, tags, options.base, changed));
   }
@@ -53,15 +62,20 @@ export async function lintCommand(
   return errors > 0 ? EXIT_FAILURE : EXIT_OK;
 }
 
-export async function lintCatalog(catalog: Catalog, tags?: TagIndex): Promise<LintFinding[]> {
-  const tagIndex = tags ?? (await scanTestTags(catalog.root, catalog.config.testGlobs));
+export async function lintCatalog(
+  catalog: Catalog,
+  tags?: TagIndex,
+  onGitFallback?: GitFallbackListener,
+): Promise<LintFinding[]> {
+  const tagIndex =
+    tags ?? (await scanTestTags(catalog.root, catalog.config.testGlobs, onGitFallback));
   const findings: LintFinding[] = catalog.issues.map(({ code, file, field, message }) => ({
     severity: 'error',
     code,
     file,
     message: field === undefined ? message : `field "${field}" ${message}`,
   }));
-  const files = await listRepoFiles(catalog.root);
+  const files = await listRepoFiles(catalog.root, onGitFallback);
   const status = new Map(catalog.rules.map((rule) => [rule.id, rule.status]));
   for (const rule of catalog.rules) {
     if (rule.status === 'active' && !tagIndex.has(rule.id)) {
@@ -129,7 +143,11 @@ async function changedFiles(root: string, base: string): Promise<string[]> {
   if (!(await isCommitRef(root, base))) {
     throw new CliError(`Unknown git ref "${base}".`);
   }
-  return changedSince(root, base);
+  try {
+    return await changedSince(root, base);
+  } catch (error) {
+    throw new CliError(`Cannot list the files changed since "${base}": ${gitFailureReason(error)}`);
+  }
 }
 
 export function formatFinding(finding: LintFinding): string {

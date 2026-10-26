@@ -52,3 +52,13 @@ export function writeJson(io: CliIo, value: unknown): void {
 export function writeLines(io: CliIo, lines: string[]): void {
   io.stdout(lines.map((line) => `${line}\n`).join(''));
 }
+
+export function gitFallbackWarning(io: CliIo): (reason: string) => void {
+  let warned = false;
+  return (reason) => {
+    if (!warned) {
+      warned = true;
+      io.stderr(`warning: git could not list files (${reason}); walking the directory instead.\n`);
+    }
+  };
+}

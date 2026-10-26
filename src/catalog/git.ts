@@ -42,3 +42,24 @@ export async function changedSince(cwd: string, ref: string): Promise<string[]> 
   const untracked = await gitPaths(cwd, 'ls-files', ['--others', '--exclude-standard']);
   return [...new Set([...changed, ...untracked])].sort();
 }
+
+export function gitFailureReason(error: unknown): string {
+  const { code, stderr, message } = error as {
+    code?: unknown;
+    stderr?: unknown;
+    message?: unknown;
+  };
+  if (code === 'ENOENT') {
+    return 'git was not found';
+  }
+  const lines = `${typeof stderr === 'string' ? stderr : ''}\n${String(message ?? error)}`
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line !== '' && !line.startsWith('warning:'));
+  return lines[0] ?? 'git failed';
+}
+
+export function isNotARepository(error: unknown): boolean {
+  const { stderr } = error as { stderr?: unknown };
+  return typeof stderr === 'string' && stderr.includes('not a git repository');
+}
