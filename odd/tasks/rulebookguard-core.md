@@ -30,8 +30,8 @@ Objective: a reusable, language-agnostic tool that keeps business rules as the s
 
 | ID | Phase | Specs | Route | Status | Commit |
 |----|-------|-------|-------|--------|--------|
-| T1 | F0 | S13 | inline | pending | — |
-| T2 | F0 | S2–S5 | inline | pending | — |
+| T1 | F0 | S13 | inline | done | c0caa85 |
+| T2 | F0 | S2–S5 | inline | done | 8968e50 |
 | T3 | F1 | S5–S6 | inline | pending | — |
 | T4 | F1 | S7–S8 | inline | pending | — |
 | T5 | F1 | S8 | inline | pending | — |
@@ -70,3 +70,4 @@ Delivery forecast: F0–F1 ≈ 1,500 authored lines, above the ~400 slice budget
 - **L8:** Engram mirror `odd/rulebookguard-core/tasks` pending: Engram rejected project `rulebookguard` as unknown (2026-10-26). Resync once the project is registered.
 - **L9 (2026-10-26, user, verbatim):** "1. cambia en el plan que la rama principal debe ser main 2. Usaremos vite+" — GitHub default branch is still `master`; renaming it to `main` is pending (user's remote action or explicit authorization). Vite+ commands verified in the official guide (viteplus.dev/guide: check, pack, ci).
 - Next step: user reviews Specs; then T1.
+- **L10 (2026-10-26, T1–T2 evidence):** T1 `c0caa85`: vite-plus 1.4.0 (bundled vitest 5.0.5, tsdown 0.23.1) with pnpm overrides in `pnpm-workspace.yaml`; CI pins `voidzero-dev/setup-vp@v1.22.0` and `actions/checkout@v7.0.1`; `fmt.ignorePatterns` skips `README.md` (outside T1 surface, fix in T8) and `odd/**`. T2 `8968e50`: RED observed with 53 of 54 tests failing (modules missing), GREEN 54/54 after adding `schemas/v1/{config,context,rule}.schema.json` (draft 2020-12, ajv 8.20.0) and `src/format/*` (yaml 2.9.1). Assumptions: unknown fields are rejected; `prefix` is `^[A-Z][A-Z0-9]*$`; `<NNN>` is exactly three digits; tags with a malformed id are ignored by `findRuleTags`. Cross-file checks (id prefix vs context, directory vs `context`, duplicates) are left to T3/T6. `vp check`, `vp test`, `vp pack` pass; `node dist/cli.mjs` prints usage, exit 0. Next step: T3.
