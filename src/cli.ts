@@ -1,7 +1,8 @@
 #!/usr/bin/env node
-const USAGE = `Usage: rulebookguard <command> [options]
+import { runCli } from './commands/run.ts';
 
-Commands are not implemented yet.
-`;
-
-process.stdout.write(USAGE);
+process.exitCode = await runCli(process.argv.slice(2), {
+  cwd: process.cwd(),
+  stdout: (text) => process.stdout.write(text),
+  stderr: (text) => process.stderr.write(text),
+});

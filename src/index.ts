@@ -23,3 +23,11 @@ export {
   type CatalogIssueCode,
 } from './catalog/load.ts';
 export { scanTestTags, type TagIndex, type TagLocation } from './catalog/tags.ts';
+export type {
+  ContextsJson,
+  ForJson,
+  ImpactJson,
+  ListJson,
+  RuleSummaryJson,
+  ShowJson,
+} from './commands/read.ts';
