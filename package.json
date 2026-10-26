@@ -12,7 +12,7 @@
     "url": "git+https://github.com/JuanCJR/rulebookguard.git"
   },
   "bin": {
-    "rulebookguard": "./dist/cli.mjs"
+    "rulebookguard": "dist/cli.mjs"
   },
   "files": [
     "dist",
