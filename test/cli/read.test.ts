@@ -1,7 +1,7 @@
-import { mkdtemp } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { cp } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
+import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
 
 const repo = fixtureRoot('repo');
@@ -255,6 +255,16 @@ describe('impact', () => {
     });
   });
 
+  it('lists the same files and tests outside a git work tree as inside one', async () => {
+    const copy = await scratchDir();
+    await cp(repo, copy, { recursive: true });
+
+    for (const id of ['R-CLI-001', 'R-BIL-001']) {
+      expect(json(['impact', id], copy)).toEqual(json(['impact', id]));
+      expect(ok(['impact', id], copy)).toBe(ok(['impact', id]));
+    }
+  });
+
   it('rejects an unknown id', () => {
     const result = runCli(['impact', 'R-XXX-001', '--json'], repo);
 
@@ -281,7 +291,7 @@ describe('errors and usage', () => {
   });
 
   it('fails when no config is found', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'rulebookguard-'));
+    const dir = await scratchDir();
 
     expect(runCli(['contexts'], dir)).toEqual({
       status: 1,
@@ -310,7 +320,7 @@ describe('errors and usage', () => {
   it('lists the commands in the usage text', () => {
     const usage = ok(['--help']);
 
-    for (const command of ['contexts', 'list', 'show', 'for', 'impact']) {
+    for (const command of ['contexts', 'list', 'show', 'for', 'impact', 'new']) {
       expect(usage).toContain(`  ${command}`);
     }
   });
