@@ -1,6 +1,7 @@
 import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Catalog } from '../catalog/load.ts';
+import type { RuleLanguage } from '../format/types.ts';
 import { CliError, type CliIo, writeLines } from './io.ts';
 
 const MAX_NUMBER = 999;
@@ -28,7 +29,11 @@ export async function newCommand(catalog: Catalog, io: CliIo, name: string): Pro
   const id = `R-${context.prefix}-${String(last + 1).padStart(3, '0')}`;
   const file = `${directory}/${id}.md`;
   try {
-    await writeFile(join(catalog.root, file), template(id, context.context), { flag: 'wx' });
+    await writeFile(
+      join(catalog.root, file),
+      template(id, context.context, catalog.config.language ?? 'en'),
+      { flag: 'wx' },
+    );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
       throw new CliError(`${file} already exists; nothing was written.`);
@@ -38,25 +43,48 @@ export async function newCommand(catalog: Catalog, io: CliIo, name: string): Pro
   writeLines(io, [file]);
 }
 
-function template(id: string, context: string): string {
+const TEMPLATE_TEXT: Record<
+  RuleLanguage,
+  { summary: string; title: string; intro: string; scenario: string }
+> = {
+  en: {
+    summary: 'TODO: one-line summary of the rule.',
+    title: 'TODO: rule title',
+    intro: 'TODO: state the rule in full, then add examples as Gherkin scenarios or tables.',
+    scenario: `Scenario: TODO
+  Given TODO
+  When TODO
+  Then TODO`,
+  },
+  es: {
+    summary: 'TODO: resumen de la regla en una línea.',
+    title: 'TODO: título de la regla',
+    intro: 'TODO: describe la regla completa y agrega ejemplos como escenarios Gherkin o tablas.',
+    scenario: `# language: es
+Escenario: TODO
+  Dado TODO
+  Cuando TODO
+  Entonces TODO`,
+  },
+};
+
+function template(id: string, context: string, language: RuleLanguage): string {
+  const text = TEMPLATE_TEXT[language];
   return `---
 id: ${id}
 context: ${context}
 entities: []
 status: proposed
 anchors: []
-summary: 'TODO: one-line summary of the rule.'
+summary: '${text.summary}'
 ---
 
-# TODO: rule title
+# ${text.title}
 
-TODO: state the rule in full, then add examples as Gherkin scenarios or tables.
+${text.intro}
 
 \`\`\`gherkin
-Scenario: TODO
-  Given TODO
-  When TODO
-  Then TODO
+${text.scenario}
 \`\`\`
 `;
 }

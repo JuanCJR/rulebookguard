@@ -36,9 +36,12 @@ testGlobs: # required: files scanned for @rule tags
   - 'src/**/*.test.ts'
   - 'tests/**/test_*.py'
 contextBudget: 30 # default: 30; lint warns when a context holds more rules
+language: es # default: en; language of the text that rulebookguard generates
 ```
 
-`schema` and `testGlobs` are required (`testGlobs: []` is valid but finds no tags). Unknown fields are rejected. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
+`schema` and `testGlobs` are required (`testGlobs: []` is valid but finds no tags). Unknown fields are rejected.
+
+`language` (`en` or `es`) sets the language of the text rulebookguard writes for you, such as the template of `new`. Rule content is free text and is never checked for language, so rules can be written in any language whatever this setting says. `language` needs rulebookguard 0.1.1 or later; older versions reject it as an unknown field. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
 
 Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs; files inside submodules are listed too. A submodule path that is a symlink, or that resolves outside the rulebook root, is skipped. A test file that is a symlink is scanned for `@rule` tags only when its target lies inside the rulebook root. If one submodule cannot be listed, commands print `warning: could not list files of submodule "<path>" (<reason>); skipping it.` and keep the rest of the git listing. Outside git, or when the rulebook root itself is git-ignored, the whole tree is walked, skipping only `.git` and `node_modules`. If git fails (for example, git is missing from `PATH` or the repository has dubious ownership), commands print one warning on stderr and walk the tree instead.
 
@@ -224,7 +227,7 @@ Exits 1 for an unknown id.
 
 ### `new <context>`
 
-Scaffolds the next free id of a context as a `proposed` rule and prints its path. Ids are never reused, and an existing file is never overwritten.
+Scaffolds the next free id of a context as a `proposed` rule and prints its path. Ids are never reused, and an existing file is never overwritten. The placeholder text of the new rule follows `language` in the config.
 
 ```sh
 $ rulebookguard new clients

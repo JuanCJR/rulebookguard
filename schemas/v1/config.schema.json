@@ -7,7 +7,8 @@
     "schema": { "const": 1 },
     "rulesDir": { "type": "string", "minLength": 1, "default": "docs/rules" },
     "testGlobs": { "type": "array", "items": { "type": "string", "minLength": 1 } },
-    "contextBudget": { "type": "integer", "minimum": 1, "default": 30 }
+    "contextBudget": { "type": "integer", "minimum": 1, "default": 30 },
+    "language": { "enum": ["en", "es"] }
   },
   "required": ["schema", "testGlobs"],
   "additionalProperties": false

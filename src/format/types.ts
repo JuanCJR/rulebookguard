@@ -1,10 +1,14 @@
 export type RuleStatus = 'proposed' | 'active' | 'deprecated';
 
+export type RuleLanguage = 'en' | 'es';
+
 export interface RulebookConfig {
   schema: 1;
   rulesDir: string;
   testGlobs: string[];
   contextBudget: number;
+  /** Language the generated rule text is written in; `en` when unset. */
+  language?: RuleLanguage;
 }
 
 export interface ContextFrontmatter {

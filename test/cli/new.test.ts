@@ -29,8 +29,25 @@ describe('new', () => {
       entities: [],
       anchors: [],
     });
-    expect(rule.summary).toContain('TODO');
+    expect(rule.summary).toBe('TODO: one-line summary of the rule.');
+    expect(rule.body).toContain('Scenario: TODO');
     expect((await runCli(['show', 'R-CLI-004'], repo)).status).toBe(0);
+  });
+
+  it('writes the template in the configured language', async () => {
+    const repo = await scratchRepo();
+    const config = join(repo, 'rulebookguard.config.yaml');
+    await writeFile(config, `${await readFile(config, 'utf8')}language: es\n`);
+
+    const result = await runCli(['new', 'clients'], repo);
+
+    expect(result).toEqual({ status: 0, stdout: `${CLIENTS}/R-CLI-004.md\n`, stderr: '' });
+    const file = `${CLIENTS}/R-CLI-004.md`;
+    const rule = parseRule(await readFile(join(repo, file), 'utf8'), file);
+    expect(rule).toMatchObject({ id: 'R-CLI-004', context: 'clients', status: 'proposed' });
+    expect(rule.summary).toBe('TODO: resumen de la regla en una línea.');
+    expect(rule.body).toContain('# TODO: título de la regla');
+    expect(rule.body).toContain('# language: es\nEscenario: TODO');
   });
 
   it('increments on every call', async () => {
