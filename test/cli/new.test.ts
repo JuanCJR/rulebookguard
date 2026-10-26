@@ -17,7 +17,7 @@ describe('new', () => {
   it('scaffolds the next free id as a proposed rule and prints its path', async () => {
     const repo = await scratchRepo();
 
-    const result = runCli(['new', 'clients'], repo);
+    const result = await runCli(['new', 'clients'], repo);
 
     expect(result).toEqual({ status: 0, stdout: `${CLIENTS}/R-CLI-004.md\n`, stderr: '' });
     const file = `${CLIENTS}/R-CLI-004.md`;
@@ -30,14 +30,14 @@ describe('new', () => {
       anchors: [],
     });
     expect(rule.summary).toContain('TODO');
-    expect(runCli(['show', 'R-CLI-004'], repo).status).toBe(0);
+    expect((await runCli(['show', 'R-CLI-004'], repo)).status).toBe(0);
   });
 
   it('increments on every call', async () => {
     const repo = await scratchRepo();
 
-    runCli(['new', 'billing'], repo);
-    const result = runCli(['new', 'billing'], repo);
+    await runCli(['new', 'billing'], repo);
+    const result = await runCli(['new', 'billing'], repo);
 
     expect(result.stdout).toBe('docs/rules/billing/R-BIL-004.md\n');
     expect((await readdir(join(repo, 'docs/rules/billing'))).sort()).toEqual([
@@ -54,7 +54,7 @@ describe('new', () => {
     const broken = join(repo, CLIENTS, 'R-CLI-007.md');
     await writeFile(broken, 'not a rule\n');
 
-    const result = runCli(['new', 'clients'], repo);
+    const result = await runCli(['new', 'clients'], repo);
 
     expect(result.status).toBe(0);
     expect(result.stdout).toBe(`${CLIENTS}/R-CLI-008.md\n`);
@@ -65,7 +65,7 @@ describe('new', () => {
     const repo = await scratchRepo();
     await writeFile(join(repo, CLIENTS, 'R-CLI-999.md'), 'taken\n');
 
-    const result = runCli(['new', 'clients'], repo);
+    const result = await runCli(['new', 'clients'], repo);
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
@@ -77,15 +77,15 @@ describe('new', () => {
   it('rejects an unknown context', async () => {
     const repo = await scratchRepo();
 
-    expect(runCli(['new', 'sales'], repo)).toEqual({
+    expect(await runCli(['new', 'sales'], repo)).toEqual({
       status: 1,
       stdout: '',
       stderr: 'Unknown context "sales". Run "rulebookguard contexts" to list them.\n',
     });
   });
 
-  it('requires a context', () => {
-    const result = runCli(['new'], fixtureRoot('repo'));
+  it('requires a context', async () => {
+    const result = await runCli(['new'], fixtureRoot('repo'));
 
     expect(result.status).toBe(2);
     expect(result.stderr).toBe('Missing argument <context>. Usage: rulebookguard new <context>\n');

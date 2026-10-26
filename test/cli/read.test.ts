@@ -6,20 +6,20 @@ import { fixtureRoot, runCli } from './run.ts';
 
 const repo = fixtureRoot('repo');
 
-function ok(args: string[], cwd = repo): string {
-  const result = runCli(args, cwd);
+async function ok(args: string[], cwd = repo): Promise<string> {
+  const result = await runCli(args, cwd);
   expect(result.stderr).toBe('');
   expect(result.status).toBe(0);
   return result.stdout;
 }
 
-function json(args: string[], cwd = repo): unknown {
-  return JSON.parse(ok([...args, '--json'], cwd));
+async function json(args: string[], cwd = repo): Promise<unknown> {
+  return JSON.parse(await ok([...args, '--json'], cwd));
 }
 
 describe('contexts', () => {
-  it('prints the contexts map', () => {
-    expect(ok(['contexts'])).toBe(
+  it('prints the contexts map', async () => {
+    expect(await ok(['contexts'])).toBe(
       [
         'billing (BIL, 2 rules): Invoices and taxes charged to clients.',
         'clients (CLI, 3 rules): Customers that receive installation services.',
@@ -28,8 +28,8 @@ describe('contexts', () => {
     );
   });
 
-  it('prints JSON', () => {
-    expect(json(['contexts'])).toEqual({
+  it('prints JSON', async () => {
+    expect(await json(['contexts'])).toEqual({
       contexts: [
         {
           context: 'billing',
@@ -49,14 +49,14 @@ describe('contexts', () => {
     });
   });
 
-  it('works from a subdirectory of the repo', () => {
-    expect(ok(['contexts'], join(repo, 'src/clients'))).toContain('clients (CLI, 3 rules)');
+  it('works from a subdirectory of the repo', async () => {
+    expect(await ok(['contexts'], join(repo, 'src/clients'))).toContain('clients (CLI, 3 rules)');
   });
 });
 
 describe('list', () => {
-  it('prints id, status and summary of every rule', () => {
-    expect(ok(['list'])).toBe(
+  it('prints id, status and summary of every rule', async () => {
+    expect(await ok(['list'])).toBe(
       [
         'R-BIL-001 [active] Every new client gets a zero-balance account.',
         'R-BIL-002 [active] Invoices are numbered without gaps.',
@@ -68,14 +68,14 @@ describe('list', () => {
     );
   });
 
-  it('filters by context and status', () => {
-    expect(ok(['list', '--context', 'clients', '--status', 'proposed'])).toBe(
+  it('filters by context and status', async () => {
+    expect(await ok(['list', '--context', 'clients', '--status', 'proposed'])).toBe(
       'R-CLI-002 [proposed] A client email is verified before the first installation.\n',
     );
   });
 
-  it('prints JSON', () => {
-    expect(json(['list', '--context', 'billing'])).toEqual({
+  it('prints JSON', async () => {
+    expect(await json(['list', '--context', 'billing'])).toEqual({
       rules: [
         {
           id: 'R-BIL-001',
@@ -93,16 +93,16 @@ describe('list', () => {
     });
   });
 
-  it('rejects an unknown context', () => {
-    expect(runCli(['list', '--context', 'sales'], repo)).toEqual({
+  it('rejects an unknown context', async () => {
+    expect(await runCli(['list', '--context', 'sales'], repo)).toEqual({
       status: 1,
       stdout: '',
       stderr: 'Unknown context "sales". Run "rulebookguard contexts" to list them.\n',
     });
   });
 
-  it('rejects an unknown status', () => {
-    expect(runCli(['list', '--status', 'draft'], repo)).toEqual({
+  it('rejects an unknown status', async () => {
+    expect(await runCli(['list', '--status', 'draft'], repo)).toEqual({
       status: 2,
       stdout: '',
       stderr: 'Invalid status "draft": expected one of proposed, active, deprecated.\n',
@@ -111,8 +111,8 @@ describe('list', () => {
 });
 
 describe('show', () => {
-  it('prints the full rule', () => {
-    expect(ok(['show', 'R-BIL-002'])).toBe(
+  it('prints the full rule', async () => {
+    expect(await ok(['show', 'R-BIL-002'])).toBe(
       [
         'R-BIL-002: Invoices are numbered without gaps.',
         'context: billing',
@@ -130,8 +130,8 @@ describe('show', () => {
     );
   });
 
-  it('prints JSON with supersedes null when absent', () => {
-    expect(json(['show', 'R-CLI-001'])).toEqual({
+  it('prints JSON with supersedes null when absent', async () => {
+    expect(await json(['show', 'R-CLI-001'])).toEqual({
       rule: {
         id: 'R-CLI-001',
         context: 'clients',
@@ -146,16 +146,16 @@ describe('show', () => {
     });
   });
 
-  it('rejects an unknown id', () => {
-    expect(runCli(['show', 'R-CLI-999'], repo)).toEqual({
+  it('rejects an unknown id', async () => {
+    expect(await runCli(['show', 'R-CLI-999'], repo)).toEqual({
       status: 1,
       stdout: '',
       stderr: 'Unknown rule id "R-CLI-999". Run "rulebookguard list" to list them.\n',
     });
   });
 
-  it('requires an id', () => {
-    const result = runCli(['show'], repo);
+  it('requires an id', async () => {
+    const result = await runCli(['show'], repo);
 
     expect(result.status).toBe(2);
     expect(result.stderr).toBe('Missing argument <id>. Usage: rulebookguard show <id> [--json]\n');
@@ -163,8 +163,8 @@ describe('show', () => {
 });
 
 describe('for', () => {
-  it('prints only active rules anchored to the path', () => {
-    expect(ok(['for', 'src/clients/create.go'])).toBe(
+  it('prints only active rules anchored to the path', async () => {
+    expect(await ok(['for', 'src/clients/create.go'])).toBe(
       [
         'R-BIL-001 (billing): Every new client gets a zero-balance account.',
         'R-CLI-001 (clients): A client document number is unique per country.',
@@ -173,18 +173,18 @@ describe('for', () => {
     );
   });
 
-  it('resolves the path against the working directory', () => {
-    expect(ok(['for', 'legacy/import.go'], join(repo, 'src/clients'))).toBe(
+  it('resolves the path against the working directory', async () => {
+    expect(await ok(['for', 'legacy/import.go'], join(repo, 'src/clients'))).toBe(
       'R-CLI-001 (clients): A client document number is unique per country.\n',
     );
   });
 
-  it('says when no active rule is anchored', () => {
-    expect(ok(['for', 'README.md'])).toBe('No active rules anchored to README.md.\n');
+  it('says when no active rule is anchored', async () => {
+    expect(await ok(['for', 'README.md'])).toBe('No active rules anchored to README.md.\n');
   });
 
-  it('prints JSON', () => {
-    expect(json(['for', 'src/billing/invoice.go'])).toEqual({
+  it('prints JSON', async () => {
+    expect(await json(['for', 'src/billing/invoice.go'])).toEqual({
       path: 'src/billing/invoice.go',
       rules: [
         {
@@ -205,8 +205,8 @@ describe('for', () => {
     });
   });
 
-  it('rejects a path outside the repo', () => {
-    expect(runCli(['for', '../outside.go'], repo)).toEqual({
+  it('rejects a path outside the repo', async () => {
+    expect(await runCli(['for', '../outside.go'], repo)).toEqual({
       status: 1,
       stdout: '',
       stderr: `Path "../outside.go" is outside the rulebook root ${repo}.\n`,
@@ -215,8 +215,8 @@ describe('for', () => {
 });
 
 describe('impact', () => {
-  it('prints anchored files and tagging tests', () => {
-    expect(ok(['impact', 'R-BIL-001'])).toBe(
+  it('prints anchored files and tagging tests', async () => {
+    expect(await ok(['impact', 'R-BIL-001'])).toBe(
       [
         'R-BIL-001: Every new client gets a zero-balance account.',
         'Files matched by anchors (3):',
@@ -231,8 +231,8 @@ describe('impact', () => {
     );
   });
 
-  it('prints empty sections', () => {
-    expect(ok(['impact', 'R-CLI-002'])).toBe(
+  it('prints empty sections', async () => {
+    expect(await ok(['impact', 'R-CLI-002'])).toBe(
       [
         'R-CLI-002: A client email is verified before the first installation.',
         'Files matched by anchors (1):',
@@ -244,8 +244,8 @@ describe('impact', () => {
     );
   });
 
-  it('prints JSON', () => {
-    expect(json(['impact', 'R-CLI-001'])).toEqual({
+  it('prints JSON', async () => {
+    expect(await json(['impact', 'R-CLI-001'])).toEqual({
       id: 'R-CLI-001',
       files: ['src/clients/create.go', 'src/clients/legacy/import.go', 'src/clients/update.go'],
       tests: [
@@ -260,13 +260,13 @@ describe('impact', () => {
     await cp(repo, copy, { recursive: true });
 
     for (const id of ['R-CLI-001', 'R-BIL-001']) {
-      expect(json(['impact', id], copy)).toEqual(json(['impact', id]));
-      expect(ok(['impact', id], copy)).toBe(ok(['impact', id]));
+      expect(await json(['impact', id], copy)).toEqual(await json(['impact', id]));
+      expect(await ok(['impact', id], copy)).toBe(await ok(['impact', id]));
     }
   });
 
-  it('rejects an unknown id', () => {
-    const result = runCli(['impact', 'R-XXX-001', '--json'], repo);
+  it('rejects an unknown id', async () => {
+    const result = await runCli(['impact', 'R-XXX-001', '--json'], repo);
 
     expect(result.status).toBe(1);
     expect(result.stdout).toBe('');
@@ -277,8 +277,8 @@ describe('impact', () => {
 });
 
 describe('errors and usage', () => {
-  it('warns on stderr when the catalog has issues', () => {
-    const result = runCli(
+  it('warns on stderr when the catalog has issues', async () => {
+    const result = await runCli(
       ['list', '--context', 'sales', '--status', 'proposed'],
       fixtureRoot('catalog-issues'),
     );
@@ -293,15 +293,15 @@ describe('errors and usage', () => {
   it('fails when no config is found', async () => {
     const dir = await scratchDir();
 
-    expect(runCli(['contexts'], dir)).toEqual({
+    expect(await runCli(['contexts'], dir)).toEqual({
       status: 1,
       stdout: '',
       stderr: `rulebookguard.config.yaml not found in ${dir} or any parent directory.\n`,
     });
   });
 
-  it('rejects an unknown command', () => {
-    const result = runCli(['frobnicate'], repo);
+  it('rejects an unknown command', async () => {
+    const result = await runCli(['frobnicate'], repo);
 
     expect(result.status).toBe(2);
     expect(result.stdout).toBe('');
@@ -310,15 +310,15 @@ describe('errors and usage', () => {
     );
   });
 
-  it('rejects an unknown option', () => {
-    const result = runCli(['contexts', '--verbose'], repo);
+  it('rejects an unknown option', async () => {
+    const result = await runCli(['contexts', '--verbose'], repo);
 
     expect(result.status).toBe(2);
     expect(result.stderr).toContain("Unknown option '--verbose'");
   });
 
-  it('lists the commands in the usage text', () => {
-    const usage = ok(['--help']);
+  it('lists the commands in the usage text', async () => {
+    const usage = await ok(['--help']);
 
     for (const command of ['contexts', 'list', 'show', 'for', 'impact', 'new']) {
       expect(usage).toContain(`  ${command}`);

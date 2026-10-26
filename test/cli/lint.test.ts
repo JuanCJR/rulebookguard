@@ -14,8 +14,8 @@ async function cleanRepo(): Promise<string> {
 }
 
 describe('lint', () => {
-  it('lists every finding and exits 1 when there are errors', () => {
-    expect(runCli(['lint'], lintFixture)).toEqual({
+  it('lists every finding and exits 1 when there are errors', async () => {
+    expect(await runCli(['lint'], lintFixture)).toEqual({
       status: 1,
       stdout: [
         'error untested-rule rules/orders/R-ORD-002.md active rule R-ORD-002 has no test tagging it',
@@ -33,8 +33,8 @@ describe('lint', () => {
     });
   });
 
-  it('prints JSON', () => {
-    const result = runCli(['lint', '--json'], lintFixture);
+  it('prints JSON', async () => {
+    const result = await runCli(['lint', '--json'], lintFixture);
 
     expect(result.status).toBe(1);
     expect(result.stderr).toBe('');
@@ -60,8 +60,12 @@ describe('lint', () => {
   it('exits 0 with no findings', async () => {
     const repo = await cleanRepo();
 
-    expect(runCli(['lint'], repo)).toEqual({ status: 0, stdout: 'No issues found.\n', stderr: '' });
-    expect(JSON.parse(runCli(['lint', '--json'], repo).stdout)).toEqual({
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: 'No issues found.\n',
+      stderr: '',
+    });
+    expect(JSON.parse((await runCli(['lint', '--json'], repo)).stdout)).toEqual({
       findings: [],
       errors: 0,
       warnings: 0,
@@ -75,7 +79,7 @@ describe('lint', () => {
       "schema: 1\nrulesDir: docs/rules\ntestGlobs: ['tests/**/*_test.go', 'tests/**/test_*.py']\ncontextBudget: 2\n",
     );
 
-    expect(runCli(['lint'], repo)).toEqual({
+    expect(await runCli(['lint'], repo)).toEqual({
       status: 0,
       stdout: [
         'warning context-over-budget docs/rules/clients/_context.md context "clients" has 3 rules, more than the contextBudget of 2',
@@ -90,15 +94,15 @@ describe('lint', () => {
     const dir = await scratchDir();
     await writeFile(join(dir, 'rulebookguard.config.yaml'), 'schema: 1\ntestGlobs: []\n');
 
-    expect(runCli(['lint'], dir)).toEqual({
+    expect(await runCli(['lint'], dir)).toEqual({
       status: 1,
       stdout: 'error missing-rules-dir docs/rules directory does not exist\n1 error, 0 warnings\n',
       stderr: '',
     });
   });
 
-  it('rejects unexpected arguments', () => {
-    const result = runCli(['lint', 'extra'], lintFixture);
+  it('rejects unexpected arguments', async () => {
+    const result = await runCli(['lint', 'extra'], lintFixture);
 
     expect(result.status).toBe(2);
     expect(result.stdout).toBe('');
