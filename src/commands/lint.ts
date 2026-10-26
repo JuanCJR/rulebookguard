@@ -53,10 +53,7 @@ export async function lintCommand(
   return errors > 0 ? EXIT_FAILURE : EXIT_OK;
 }
 
-export async function lintCatalog(
-  catalog: Catalog,
-  tags: TagIndex | undefined = undefined,
-): Promise<LintFinding[]> {
+export async function lintCatalog(catalog: Catalog, tags?: TagIndex): Promise<LintFinding[]> {
   const tagIndex = tags ?? (await scanTestTags(catalog.root, catalog.config.testGlobs));
   const findings: LintFinding[] = catalog.issues.map(({ code, file, field, message }) => ({
     severity: 'error',
