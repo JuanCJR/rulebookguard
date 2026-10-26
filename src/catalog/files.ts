@@ -53,9 +53,13 @@ async function listGitFiles(root: string, scope: ListScope): Promise<string[] | 
   try {
     listing = await listGitIndex(root);
   } catch (error) {
-    if (!isNotARepository(error)) {
-      scope.onGitFallback?.(gitFailureReason(error));
+    if (isNotARepository(error)) {
+      return undefined;
     }
+    if (scope.prefix !== '') {
+      throw error;
+    }
+    scope.onGitFallback?.(gitFailureReason(error));
     return undefined;
   }
   if (listing === undefined) {

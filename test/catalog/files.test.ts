@@ -82,6 +82,29 @@ describe('listRepoFiles in special git layouts', () => {
     expect(files).not.toContain('vendor/lib');
     expect(await expandGlobs(dir, ['vendor/**/*.go'])).toEqual(['vendor/lib/pkg/lib.go']);
   });
+
+  it('skips a submodule whose git listing fails instead of walking it', async () => {
+    const library = await scratchDir();
+    await mkdir(join(library, 'pkg'), { recursive: true });
+    await writeFile(join(library, 'pkg/lib.go'), 'package pkg\n');
+    await writeFile(join(library, '.gitignore'), 'dist/\n');
+    initRepo(library);
+    const dir = await scratchDir();
+    await cp(fixtureRoot('repo'), dir, { recursive: true });
+    initRepo(dir);
+    git(dir, '-c', 'protocol.file.allow=always', 'submodule', 'add', '-q', library, 'vendor/lib');
+    git(dir, 'commit', '-q', '-m', 'add submodule');
+    await mkdir(join(dir, 'vendor/lib/dist'), { recursive: true });
+    await writeFile(join(dir, 'vendor/lib/dist/built.go'), 'package dist\n');
+    await writeFile(join(dir, '.git/modules/vendor/lib/index'), 'corrupt\n');
+    const calls: [string, string | undefined][] = [];
+
+    const files = await listRepoFiles(dir, (reason, submodule) => calls.push([reason, submodule]));
+
+    expect(files).toContain('src/clients/create.go');
+    expect(files.filter((file) => file.startsWith('vendor/lib/'))).toEqual([]);
+    expect(calls.map(([, submodule]) => submodule)).toEqual(['vendor/lib']);
+  });
 });
 
 async function outsideTree(): Promise<string> {
