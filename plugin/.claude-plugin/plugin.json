@@ -1,6 +1,6 @@
 {
   "name": "rulebookguard",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Business rules as the source of truth: injects the rules anchored to a file before Claude edits it, and serves them over MCP.",
   "author": {
     "name": "Juan Carlos Jimenez"
