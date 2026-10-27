@@ -318,7 +318,7 @@ Generated text and the interface follow `language` in the config. The site is a 
 
 ### `lint [--base <ref>] [--json]`
 
-Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, followed by a count.
+Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, with a `hint:` line under it that says how to fix it, followed by a count.
 
 | Severity | Code                     | Meaning                                                          |
 | -------- | ------------------------ | ---------------------------------------------------------------- |
@@ -339,7 +339,9 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 ```sh
 $ rulebookguard lint
 error untested-rule docs/rules/billing/R-BIL-002.md active rule R-BIL-002 has no test tagging it
+  hint: add "@rule R-BIL-002" to a test in a file matched by testGlobs, or set the rule's status to proposed
 warning context-over-budget docs/rules/clients/_context.md context "clients" has 31 rules, more than the contextBudget of 30
+  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml
 1 error, 1 warning
 ```
 
@@ -350,10 +352,11 @@ With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff
 ```sh
 $ rulebookguard lint --base origin/main
 error pending-implementation docs/rules/clients/R-CLI-001.md rule R-CLI-001 changed since origin/main but none of the tests tagging it changed
+  hint: update or add a test tagging R-CLI-001 that covers the changed rule
 1 error, 0 warnings
 ```
 
-`--json` prints `{ "findings": [{ "severity", "code", "file", "line"?, "message" }], "errors", "warnings" }`.
+`--json` prints `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
 ## CI recipe
 

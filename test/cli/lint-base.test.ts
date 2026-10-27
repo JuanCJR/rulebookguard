@@ -7,6 +7,7 @@ import { fixtureRoot, runCli } from './run.ts';
 
 const CLI_001 = 'docs/rules/clients/R-CLI-001.md';
 const PENDING_CLI_001 = `error pending-implementation ${CLI_001} rule R-CLI-001 changed since HEAD but none of the tests tagging it changed`;
+const PENDING_HINT = '  hint: update or add a test tagging R-CLI-001 that covers the changed rule';
 
 async function committedRepo(): Promise<string> {
   const dir = await scratchDir();
@@ -37,7 +38,7 @@ describe('lint --base', () => {
 
     expect(await runCli(['lint', '--base', 'HEAD'], repo)).toEqual({
       status: 1,
-      stdout: `${PENDING_CLI_001}\n1 error, 0 warnings\n`,
+      stdout: `${PENDING_CLI_001}\n${PENDING_HINT}\n1 error, 0 warnings\n`,
       stderr: '',
     });
   });
@@ -66,6 +67,7 @@ describe('lint --base', () => {
           code: 'pending-implementation',
           file: CLI_001,
           message: 'rule R-CLI-001 changed since HEAD~1 but none of the tests tagging it changed',
+          hint: 'update or add a test tagging R-CLI-001 that covers the changed rule',
         },
       ],
       errors: 1,
@@ -99,6 +101,7 @@ describe('lint --base', () => {
       status: 1,
       stdout: [
         'error pending-implementation docs/rules/clients/R-CLI-005.md rule R-CLI-005 changed since HEAD but none of the tests tagging it changed',
+        '  hint: update or add a test tagging R-CLI-005 that covers the changed rule',
         '1 error, 0 warnings',
         '',
       ].join('\n'),
@@ -114,6 +117,7 @@ describe('lint --base', () => {
       status: 1,
       stdout: [
         'error untested-rule docs/rules/clients/R-CLI-004.md active rule R-CLI-004 has no test tagging it',
+        '  hint: add "@rule R-CLI-004" to a test in a file matched by testGlobs, or set the rule\'s status to proposed',
         '1 error, 0 warnings',
         '',
       ].join('\n'),
@@ -130,7 +134,7 @@ describe('lint --base', () => {
     await appendFile(join(nested, CLI_001), '\nA second paragraph.\n');
 
     expect((await runCli(['lint', '--base', 'HEAD'], nested)).stdout).toBe(
-      `${PENDING_CLI_001}\n1 error, 0 warnings\n`,
+      `${PENDING_CLI_001}\n${PENDING_HINT}\n1 error, 0 warnings\n`,
     );
   });
 

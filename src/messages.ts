@@ -1,3 +1,4 @@
+import type { CatalogIssueCode } from './catalog/load.ts';
 import type { RuleLanguage } from './format/types.ts';
 
 export interface Messages {
@@ -49,6 +50,14 @@ export interface Messages {
   contextOverBudget: (context: string, count: number, budget: number) => string;
   pendingImplementation: (id: string, base: string) => string;
   noIssues: string;
+  hintLabel: string;
+  catalogHints: Record<CatalogIssueCode, string>;
+  untestedRuleHint: (id: string) => string;
+  unmatchedAnchorHint: string;
+  unknownRuleTagHint: string;
+  deprecatedRuleTagHint: (id: string, successor: string | undefined) => string;
+  contextOverBudgetHint: string;
+  pendingImplementationHint: (id: string) => string;
   lintSummary: (errors: number, warnings: number) => string;
   needsWorkTree: (root: string) => string;
   unknownRef: (ref: string) => string;
@@ -115,6 +124,32 @@ const EN: Messages = {
   pendingImplementation: (id, base) =>
     `rule ${id} changed since ${base} but none of the tests tagging it changed`,
   noIssues: 'No issues found.',
+  hintLabel: 'hint',
+  catalogHints: {
+    schema:
+      'fix the file as the message says; the JSON Schemas ship under rulebookguard/schemas/v1/',
+    'missing-rules-dir': 'create the directory, or set rulesDir in rulebookguard.config.yaml',
+    'missing-context-file': 'add a _context.md with context, prefix and summary',
+    'context-mismatch':
+      'make the context field equal to the directory name, or move the file to the matching directory',
+    'file-name-mismatch': 'rename the file after the id, or change the id',
+    'id-prefix-mismatch':
+      'change the id to use the context prefix, or move the rule to the context that owns its prefix',
+    'duplicate-id':
+      'give one of the rules another id; "rulebookguard new <context>" picks the next free one',
+  },
+  untestedRuleHint: (id) =>
+    `add "@rule ${id}" to a test in a file matched by testGlobs, or set the rule's status to proposed`,
+  unmatchedAnchorHint: 'fix the glob so it matches the files that implement the rule, or remove it',
+  unknownRuleTagHint: 'fix the id in the tag, or create the rule it refers to',
+  deprecatedRuleTagHint: (id, successor) =>
+    successor === undefined
+      ? `tag the rule that replaces ${id}, or remove the tag`
+      : `tag ${successor}, which supersedes ${id}, instead`,
+  contextOverBudgetHint:
+    'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
+  pendingImplementationHint: (id) =>
+    `update or add a test tagging ${id} that covers the changed rule`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
   needsWorkTree: (root) => `lint --base needs a git work tree, but ${root} is not inside one.`,
@@ -184,6 +219,33 @@ const ES: Messages = {
   pendingImplementation: (id, base) =>
     `la regla ${id} cambió desde ${base} pero no cambió ninguno de los tests que la etiquetan`,
   noIssues: 'No se encontraron problemas.',
+  hintLabel: 'sugerencia',
+  catalogHints: {
+    schema:
+      'corrige el archivo según el mensaje; los JSON Schemas vienen en rulebookguard/schemas/v1/',
+    'missing-rules-dir': 'crea el directorio o cambia rulesDir en rulebookguard.config.yaml',
+    'missing-context-file': 'agrega un _context.md con context, prefix y summary',
+    'context-mismatch':
+      'iguala el campo context al nombre del directorio o mueve el archivo al directorio que corresponde',
+    'file-name-mismatch': 'renombra el archivo según el id o cambia el id',
+    'id-prefix-mismatch':
+      'cambia el id para usar el prefijo del contexto o mueve la regla al contexto dueño de ese prefijo',
+    'duplicate-id':
+      'dale otro id a una de las reglas; "rulebookguard new <contexto>" elige el siguiente libre',
+  },
+  untestedRuleHint: (id) =>
+    `agrega "@rule ${id}" a un test en un archivo que coincida con testGlobs, o cambia el estado de la regla a proposed`,
+  unmatchedAnchorHint:
+    'corrige el glob para que coincida con los archivos que implementan la regla, o quítalo',
+  unknownRuleTagHint: 'corrige el id de la etiqueta o crea la regla a la que se refiere',
+  deprecatedRuleTagHint: (id, successor) =>
+    successor === undefined
+      ? `etiqueta la regla que reemplaza a ${id} o quita la etiqueta`
+      : `etiqueta ${successor}, que reemplaza a ${id}`,
+  contextOverBudgetHint:
+    'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
+  pendingImplementationHint: (id) =>
+    `actualiza o agrega un test que etiquete ${id} y cubra el cambio de la regla`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errores'}, ${warnings} ${warnings === 1 ? 'aviso' : 'avisos'}`,
   needsWorkTree: (root) => `lint --base necesita un work tree de git, pero ${root} no está en uno.`,

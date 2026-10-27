@@ -1,6 +1,11 @@
 import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../catalog/files.ts';
 import { changedSince, gitFailureReason, isCommitRef, isInsideWorkTree } from '../catalog/git.ts';
-import { loadCatalog, relativeToRoot, type Catalog } from '../catalog/load.ts';
+import {
+  loadCatalog,
+  relativeToRoot,
+  type Catalog,
+  type CatalogIssueCode,
+} from '../catalog/load.ts';
 import { FormatError } from '../format/errors.ts';
 import { messages, type Messages } from '../messages.ts';
 import { scanTestTags, type TagIndex } from '../catalog/tags.ts';
@@ -23,6 +28,8 @@ export interface LintFinding {
   file: string;
   line?: number;
   message: string;
+  /** One line on how to fix the finding. */
+  hint: string;
 }
 
 export interface LintJson {
@@ -79,17 +86,28 @@ function report(io: CliIo, findings: LintFinding[], json: boolean, text: Message
   } else if (sorted.length === 0) {
     writeLines(io, [text.noIssues]);
   } else {
-    writeLines(io, [...sorted.map(formatFinding), text.lintSummary(errors, warnings)]);
+    writeLines(io, [
+      ...sorted.flatMap((finding) => [
+        formatFinding(finding),
+        `  ${text.hintLabel}: ${finding.hint}`,
+      ]),
+      text.lintSummary(errors, warnings),
+    ]);
   }
   return errors > 0 ? EXIT_FAILURE : EXIT_OK;
 }
 
 function issueFinding(
-  code: string,
+  code: CatalogIssueCode,
   { file, field, message }: { file: string; field?: string | undefined; message: string },
   text: Messages,
 ): LintFinding {
-  return error(code, file, field === undefined ? message : `${text.field(field)} ${message}`);
+  return error(
+    code,
+    file,
+    field === undefined ? message : `${text.field(field)} ${message}`,
+    text.catalogHints[code],
+  );
 }
 
 export async function lintCatalog(
@@ -106,13 +124,32 @@ export async function lintCatalog(
   const files = await listRepoFiles(catalog.root, onGitFallback);
   const status = new Map(catalog.rules.map((rule) => [rule.id, rule.status]));
   const invalid = new Set(catalog.invalidRuleIds);
+  const successors = new Map(
+    catalog.rules
+      .filter((rule) => rule.supersedes !== undefined && rule.status !== 'deprecated')
+      .map((rule) => [rule.supersedes as string, rule.id]),
+  );
   for (const rule of catalog.rules) {
     if (rule.status === 'active' && !tagIndex.has(rule.id)) {
-      findings.push(error('untested-rule', rule.file, text.untestedRule(rule.id)));
+      findings.push(
+        error(
+          'untested-rule',
+          rule.file,
+          text.untestedRule(rule.id),
+          text.untestedRuleHint(rule.id),
+        ),
+      );
     }
     for (const anchor of rule.anchors) {
       if (!files.some(createGlobMatcher([anchor]))) {
-        findings.push(error('unmatched-anchor', rule.file, text.unmatchedAnchor(anchor)));
+        findings.push(
+          error(
+            'unmatched-anchor',
+            rule.file,
+            text.unmatchedAnchor(anchor),
+            text.unmatchedAnchorHint,
+          ),
+        );
       }
     }
   }
@@ -124,8 +161,19 @@ export async function lintCatalog(
     for (const { file, line } of locations) {
       findings.push(
         ruleStatus === undefined
-          ? { ...error('unknown-rule-tag', file, text.unknownRuleTag(id)), line }
-          : { ...error('deprecated-rule-tag', file, text.deprecatedRuleTag(id)), line },
+          ? {
+              ...error('unknown-rule-tag', file, text.unknownRuleTag(id), text.unknownRuleTagHint),
+              line,
+            }
+          : {
+              ...error(
+                'deprecated-rule-tag',
+                file,
+                text.deprecatedRuleTag(id),
+                text.deprecatedRuleTagHint(id, successors.get(id)),
+              ),
+              line,
+            },
       );
     }
   }
@@ -138,6 +186,7 @@ export async function lintCatalog(
         code: 'context-over-budget',
         file: context.file,
         message: text.contextOverBudget(context.context, count, budget),
+        hint: text.contextOverBudgetHint,
       });
     }
   }
@@ -157,7 +206,12 @@ export function pendingImplementation(
     .filter((rule) => (tags.get(rule.id) ?? []).length > 0)
     .filter((rule) => !(tags.get(rule.id) ?? []).some(({ file }) => changedSet.has(file)))
     .map((rule) =>
-      error('pending-implementation', rule.file, text.pendingImplementation(rule.id, base)),
+      error(
+        'pending-implementation',
+        rule.file,
+        text.pendingImplementation(rule.id, base),
+        text.pendingImplementationHint(rule.id),
+      ),
     );
 }
 
@@ -180,8 +234,8 @@ export function formatFinding(finding: LintFinding): string {
   return `${finding.severity} ${finding.code} ${location} ${finding.message}`;
 }
 
-function error(code: string, file: string, message: string): LintFinding {
-  return { severity: 'error', code, file, message };
+function error(code: string, file: string, message: string, hint: string): LintFinding {
+  return { severity: 'error', code, file, message, hint };
 }
 
 function sortFindings(findings: LintFinding[]): LintFinding[] {
