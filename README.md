@@ -238,14 +238,16 @@ Exits 1 for an unknown context or when the context has no free id left.
 
 ### `hook`
 
-A Claude Code `PreToolUse` hook for the `Edit` and `Write` tools (the Claude Code plugin below wires it up). It reads the hook event as JSON on stdin, takes `tool_input.file_path` (relative paths resolve against the event's `cwd`), finds `rulebookguard.config.yaml` by walking up from that file, and prints the active rules anchored to it as additional context for Claude:
+A Claude Code hook for `PreToolUse` and `PostToolUse` events of tools that take a `file_path` (the Claude Code plugin below wires it up). It reads the hook event as JSON on stdin, takes `tool_input.file_path` (relative paths resolve against the event's `cwd`), finds `rulebookguard.config.yaml` by walking up from that file, and prints the active rules anchored to it as additional context for Claude, under the same `hookEventName`:
 
 ```sh
-$ echo '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/billing/invoice.go"}}' | rulebookguard hook
-{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Business rules anchored to src/billing/invoice.go (rulebookguard). …"}}
+$ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"/repo/src/billing/invoice.go"}}' | rulebookguard hook
+{"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Business rules anchored to src/billing/invoice.go (rulebookguard). …"}}
 ```
 
-Each rule comes with its id, context, summary, rule file and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config. The hook never blocks an edit and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, unreadable input or any error, it prints nothing and exits 0.
+Claude Code adds the context next to the tool result, so a `PostToolUse` hook on `Read` delivers the rules together with the file contents, before Claude writes a change (Claude Code requires reading a file before editing it).
+
+Each rule comes with its id, context, summary, rule file and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config. The hook never blocks a tool and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, another event, unreadable input or any error, it prints nothing and exits 0.
 
 ### `mcp [--project <dir>]`
 
@@ -317,9 +319,28 @@ jobs:
 
 Pin the version, or add rulebookguard as a dev dependency and run it from the lockfile, so a new release never changes CI results by itself.
 
+## Claude Code plugin
+
+The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
+
+- **Hooks:** after every `Read` and before every `Write`, it runs `rulebookguard hook`, so Claude gets the active rules anchored to a file together with its contents, before it writes a change. A `Write` of a new file, which needs no `Read`, gets them right after the file is created.
+- **MCP server:** the `rules_for` and `rules_show` tools from `rulebookguard mcp`, for rules of files Claude has not opened yet.
+- **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code) only when the user asks for the behavior change.
+
+Install it from this repository's marketplace:
+
+```sh
+claude plugin marketplace add JuanCJR/rulebookguard
+claude plugin install rulebookguard@rulebookguard
+```
+
+Or, inside Claude Code 2.1.275 or later: `/plugin install rulebookguard --marketplace JuanCJR/rulebookguard`.
+
+The plugin runs the project's own rulebookguard (`node_modules/rulebookguard`, in the project directory or a parent) when its version is at least the plugin's; otherwise it runs `npx rulebookguard@<plugin version>`, which needs Node.js and network access the first time. The hooks never block a tool: any failure, including a timeout, lets it go ahead without rules.
+
 ## Releasing
 
-Releases are published to npm from GitHub Actions with [trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is stored and every version carries a provenance attestation. To release, bump `version` in `package.json`, merge it to `main`, then push a matching tag:
+Releases are published to npm from GitHub Actions with [trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is stored and every version carries a provenance attestation. To release, bump `version` in `package.json` and in `plugin/.claude-plugin/plugin.json` (a test keeps them equal), merge it to `main`, then push a matching tag:
 
 ```sh
 git tag v0.1.0
