@@ -1,10 +1,14 @@
 import { execFile } from 'node:child_process';
 import { randomUUID } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
-import { cp, mkdir, readdir, rm, writeFile } from 'node:fs/promises';
-import { basename, dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
+import type { AddressInfo } from 'node:net';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import type { Catalog } from '../catalog/load.ts';
+import type { RuleLanguage } from '../format/types.ts';
 import { siteData } from '../site/data.ts';
 import { normalizeBase, sitePages, siteText } from '../site/pages.ts';
 import { CliError, gitFallbackWarning, openCatalog, writeLines, type CliIo } from './io.ts';
@@ -17,9 +21,20 @@ const MARKER = '.rulebookguard-site';
 export interface SiteOptions {
   out?: string | undefined;
   base?: string | undefined;
+  serve?: boolean | undefined;
+  port?: number | undefined;
 }
 
-export async function siteCommand(io: CliIo, options: SiteOptions): Promise<void> {
+export const DEFAULT_PORT = 4321;
+
+/**
+ * Builds the site into `--out`; with `serve`, also serves it on 127.0.0.1 until `until` settles (Ctrl+C by default).
+ */
+export async function siteCommand(
+  io: CliIo,
+  options: SiteOptions,
+  until: Promise<void> = untilInterrupted(),
+): Promise<void> {
   const catalog = await openCatalog(io);
   const out = resolve(io.cwd, options.out ?? 'site');
   const fromCwd = relative(io.cwd, out);
@@ -29,6 +44,34 @@ export async function siteCommand(io: CliIo, options: SiteOptions): Promise<void
 
   const language = catalog.config.language ?? 'en';
   const base = normalizeBase(options.base ?? '/');
+  // Claim the port before the build, so a taken port fails in milliseconds rather than after it.
+  const server = options.serve ? await listen(out, base, options.port ?? DEFAULT_PORT) : undefined;
+  try {
+    await buildSite(catalog, out, language, base, io);
+  } catch (error) {
+    server?.close();
+    throw error;
+  }
+  writeLines(io, [shown]);
+  if (server === undefined) {
+    return;
+  }
+  const { port } = server.address() as AddressInfo;
+  writeLines(io, [`Serving ${shown} at http://127.0.0.1:${port}${base} (Ctrl+C to stop)`]);
+  await until;
+  await new Promise<void>((closed) => {
+    server.close(() => closed());
+    server.closeAllConnections();
+  });
+}
+
+async function buildSite(
+  catalog: Catalog,
+  out: string,
+  language: RuleLanguage,
+  base: string,
+  io: CliIo,
+): Promise<void> {
   const files = sitePages(await siteData(catalog, gitFallbackWarning(io)), { language, base });
   const text = siteText(language);
   const sidebar = [
@@ -54,7 +97,96 @@ export async function siteCommand(io: CliIo, options: SiteOptions): Promise<void
   } finally {
     await rm(work, { recursive: true, force: true });
   }
-  writeLines(io, [shown]);
+}
+
+function untilInterrupted(): Promise<void> {
+  return new Promise((stop) => {
+    process.once('SIGINT', () => stop());
+    process.once('SIGTERM', () => stop());
+  });
+}
+
+const CONTENT_TYPES: Record<string, string> = {
+  '.html': 'text/html; charset=utf-8',
+  '.css': 'text/css; charset=utf-8',
+  '.js': 'text/javascript; charset=utf-8',
+  '.mjs': 'text/javascript; charset=utf-8',
+  '.json': 'application/json; charset=utf-8',
+  '.txt': 'text/plain; charset=utf-8',
+  '.xml': 'application/xml; charset=utf-8',
+  '.svg': 'image/svg+xml',
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.ico': 'image/x-icon',
+  '.webp': 'image/webp',
+  '.woff2': 'font/woff2',
+  '.wasm': 'application/wasm',
+};
+
+function listen(out: string, base: string, port: number): Promise<Server> {
+  const server = createServer((request, response) => {
+    serveFile(out, base, request, response).catch(() => {
+      response.writeHead(500).end();
+    });
+  });
+  return new Promise((ready, fail) => {
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      fail(
+        error.code === 'EADDRINUSE'
+          ? new CliError(`Port ${port} is already in use; pass another --port.`)
+          : error,
+      );
+    });
+    server.listen(port, '127.0.0.1', () => ready(server));
+  });
+}
+
+async function serveFile(
+  out: string,
+  base: string,
+  request: IncomingMessage,
+  response: ServerResponse,
+): Promise<void> {
+  const path = decodeURIComponent(new URL(request.url ?? '/', 'http://localhost').pathname);
+  if (`${path}/` === base) {
+    response.writeHead(301, { location: base }).end();
+    return;
+  }
+  if (!path.startsWith(base)) {
+    if (path === '/') {
+      response.writeHead(301, { location: base }).end();
+      return;
+    }
+    await sendNotFound(out, response);
+    return;
+  }
+  let file = resolve(out, `.${sep}${path.slice(base.length)}`);
+  if (file !== out && !file.startsWith(`${out}${sep}`)) {
+    await sendNotFound(out, response);
+    return;
+  }
+  const info = await stat(file).catch(() => undefined);
+  if (info?.isDirectory()) {
+    if (!path.endsWith('/')) {
+      response.writeHead(301, { location: `${path}/` }).end();
+      return;
+    }
+    file = join(file, 'index.html');
+  }
+  const body = await readFile(file).catch(() => undefined);
+  if (body === undefined) {
+    await sendNotFound(out, response);
+    return;
+  }
+  response.writeHead(200, {
+    'content-type': CONTENT_TYPES[extname(file)] ?? 'application/octet-stream',
+  });
+  response.end(body);
+}
+
+async function sendNotFound(out: string, response: ServerResponse): Promise<void> {
+  const page = await readFile(join(out, '404.html')).catch(() => 'Not found');
+  response.writeHead(404, { 'content-type': CONTENT_TYPES['.html'] }).end(page);
 }
 
 /**

@@ -13,7 +13,7 @@ It is language-agnostic: rules are Markdown, and tests in any language link to t
 
 ## Install
 
-Requires Node.js 22.23.4 or later (the `site` command builds with Astro 7, which needs it).
+Requires Node.js 22.23.4 or later (the `site:generate` and `site:run` commands build with Astro 7, which needs it).
 
 ```sh
 npx rulebookguard lint
@@ -260,13 +260,25 @@ An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with 
 
 The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.`
 
-### `site [--out <dir>] [--base <path>]`
+### `site:generate [--out <dir>] [--base <path>]`
 
 Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
 
 ```sh
-$ rulebookguard site --out public/rules --base /rules
+$ rulebookguard site:generate --out public/rules --base /rules
 public/rules
+```
+
+`site` is the same command.
+
+### `site:run [--out <dir>] [--base <path>] [--port <n>]`
+
+Builds the site like `site:generate`, then serves `--out` on `127.0.0.1` (port 4321, or `--port`) and prints the URL, until Ctrl+C. Unknown paths get the site's 404 page. A taken port fails, exit 1, before building.
+
+```sh
+$ rulebookguard site:run
+site
+Serving site at http://127.0.0.1:4321/ (Ctrl+C to stop)
 ```
 
 The site has:
