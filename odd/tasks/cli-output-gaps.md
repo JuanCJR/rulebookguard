@@ -11,6 +11,7 @@ Objective: close the gaps found while testing rulebookguard on kuadra: `new` on 
 - **S5 — `language` applies to everything after the config is loaded.** User decision (verbatim choice): "Todo lo que va después de cargar la config (Recomendado)": lint messages and hints, errors (unknown rule or context, path outside root, git), warnings, headers of `impact`/`for`/`show`/`contexts`/`list`, catalog and schema issue messages, and the JSON `message`/`hint` follow `language`. `code` values, JSON keys and enum values (`active`, `proposed`) stay English. `--help` and argument errors (exit 2 from parsing) stay English because they happen before the config is found; an invalid config file reports in English.
 - **S6 — `show` lists anchors one per line**, like `impact`.
 - **S7 — `--help` for `hook`** describes PreToolUse and PostToolUse (Read) as the README does.
+- **S8 — `show` prints `(none)` for empty entities** instead of `entities: ` with a trailing space. User (verbatim): "arregla ese gap que encontraste".
 
 ## Tasks
 
@@ -20,6 +21,7 @@ Objective: close the gaps found while testing rulebookguard on kuadra: `new` on 
 | T2 | S1, S5 | inline | done | 7130a08 |
 | T3 | S2, S3, S6, S7 | inline | done | 7fcd240 |
 | T4 | S4 | inline | done | 482f65a |
+| T5 | S8 | inline | done | e837aae |
 
 ## Log
 
@@ -30,3 +32,4 @@ Objective: close the gaps found while testing rulebookguard on kuadra: `new` on 
 - **L5 (2026-10-27, T3 evidence):** `7fcd240`. RED: 5 failing. GREEN: 226/226. The warning keeps counting catalog issues (no test or anchor scan on read commands, which stay fast) and now says the count covers format issues only.
 - **L6 (2026-10-27, T4 evidence):** `482f65a`. RED: 9 failing. GREEN: 227/227, `vp lint` clean. `formatFinding` stays one line (public API); the report adds the hint line. `LintFinding.hint` is a new required field of the exported type.
 - **L7 (2026-10-27, end-to-end):** source CLI on a scratch copy of kuadra's catalog (`language: es`): `new inventory` printed the context and `R-INV-001`, a second call `R-INV-002`; `contexts`, empty `list`, `show` and `lint` print in Spanish with hints. New gap found: `show` prints `entities: ` with a trailing space when the list is empty. Next: resume the kuadra walkthrough (user, L1).
+- **L8 (2026-10-27, T5 evidence):** `e837aae`. RED: 1 failing in `test/cli/read.test.ts`. GREEN: 228/228, `vp lint` clean. Empty entities print the localized `(none)`, like empty anchors.
