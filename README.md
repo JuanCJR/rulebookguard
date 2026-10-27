@@ -247,6 +247,17 @@ $ echo '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/billing/invoice
 
 Each rule comes with its id, context, summary, rule file and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config. The hook never blocks an edit and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, unreadable input or any error, it prints nothing and exits 0.
 
+### `mcp [--project <dir>]`
+
+An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with two read-only tools:
+
+| Tool         | Input                                                  | Answers                                       |
+| ------------ | ------------------------------------------------------ | --------------------------------------------- |
+| `rules_for`  | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints |
+| `rules_show` | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints  |
+
+The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.`
+
 ### `lint [--base <ref>] [--json]`
 
 Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, followed by a count.
