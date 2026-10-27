@@ -36,13 +36,13 @@ function event(filePath: string, extra: Record<string, unknown> = {}): string {
   });
 }
 
-function context(stdout: string): string {
+function context(stdout: string, eventName = 'PreToolUse'): string {
   const output = JSON.parse(stdout) as {
     hookSpecificOutput: { hookEventName: string; additionalContext: string };
   };
   expect(Object.keys(output)).toEqual(['hookSpecificOutput']);
   expect(Object.keys(output.hookSpecificOutput)).toEqual(['hookEventName', 'additionalContext']);
-  expect(output.hookSpecificOutput.hookEventName).toBe('PreToolUse');
+  expect(output.hookSpecificOutput.hookEventName).toBe(eventName);
   return output.hookSpecificOutput.additionalContext;
 }
 
@@ -57,7 +57,7 @@ describe('hook', () => {
     expect(result.stderr).toBe('');
     expect(context(result.stdout)).toBe(
       [
-        'Business rules anchored to src/clients/create.go (rulebookguard). They are the source of truth: keep the code consistent with them, and change the rule first if this edit changes its behavior.',
+        'Business rules anchored to src/clients/create.go (rulebookguard). They are the source of truth: keep any change to this file consistent with them, and change the rule first if a change alters its behavior.',
         '',
         '## R-BIL-001 (billing): Every new client gets a zero-balance account.',
         'Rule file: docs/rules/billing/R-BIL-001.md',
@@ -74,6 +74,31 @@ describe('hook', () => {
     );
   });
 
+  it('answers a PostToolUse event of Read, so the rules arrive with the file contents', async () => {
+    const repo = await scratchRepo();
+    const input = JSON.stringify({
+      hook_event_name: 'PostToolUse',
+      tool_name: 'Read',
+      tool_input: { file_path: join(repo, 'src/billing/invoice.go') },
+      tool_response: { type: 'text' },
+    });
+
+    const result = await hook(input, repo);
+
+    expect(context(result.stdout, 'PostToolUse')).toContain('## R-BIL-001 (billing)');
+  });
+
+  it('prints nothing for an event other than PreToolUse or PostToolUse', async () => {
+    const repo = await scratchRepo();
+
+    const result = await hook(
+      event(join(repo, 'src/billing/invoice.go'), { hook_event_name: 'UserPromptSubmit' }),
+      repo,
+    );
+
+    expect(result).toEqual({ status: 0, stdout: '', stderr: '' });
+  });
+
   it('writes the header in the configured language', async () => {
     const repo = await scratchRepo();
     const config = join(repo, 'rulebookguard.config.yaml');
@@ -82,7 +107,7 @@ describe('hook', () => {
     const result = await hook(event(join(repo, 'src/billing/invoice.go')), repo);
 
     expect(context(result.stdout).split('\n').slice(0, 3)).toEqual([
-      'Reglas de negocio ancladas a src/billing/invoice.go (rulebookguard). Son la fuente de verdad: mantén el código coherente con ellas y, si esta edición cambia su comportamiento, cambia primero la regla.',
+      'Reglas de negocio ancladas a src/billing/invoice.go (rulebookguard). Son la fuente de verdad: mantén cualquier cambio a este archivo coherente con ellas y, si un cambio altera su comportamiento, cambia primero la regla.',
       '',
       '## R-BIL-001 (billing): Every new client gets a zero-balance account.',
     ]);
@@ -136,6 +161,14 @@ describe('hook', () => {
     ['a file no active rule is anchored to', (repo: string) => event(join(repo, 'README.md'))],
     ['a file outside any rulebook', (_repo: string) => event('/nonexistent/rulebookguard/x.go')],
     ['input that is not JSON', (_repo: string) => 'not json'],
+    [
+      'an event without a name',
+      (repo: string) =>
+        JSON.stringify({
+          tool_name: 'Edit',
+          tool_input: { file_path: join(repo, 'src/billing/invoice.go') },
+        }),
+    ],
     [
       'an event without a file path',
       (_repo: string) => JSON.stringify({ tool_name: 'Edit', tool_input: {} }),
