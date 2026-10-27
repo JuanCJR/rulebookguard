@@ -1,4 +1,4 @@
-import { cp } from 'node:fs/promises';
+import { cp, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { initRepo } from '../git.ts';
@@ -75,6 +75,12 @@ describe('list', () => {
     );
   });
 
+  it('says when no rule matches the filters', async () => {
+    expect(await ok(['list', '--context', 'billing', '--status', 'deprecated'])).toBe(
+      'No rules found.\n',
+    );
+  });
+
   it('prints JSON', async () => {
     expect(await json(['list', '--context', 'billing'])).toEqual({
       rules: [
@@ -119,7 +125,8 @@ describe('show', () => {
         'context: billing',
         'status: active',
         'entities: Invoice',
-        'anchors: src/billing/invoice.go',
+        'anchors:',
+        '  src/billing/invoice.go',
         'supersedes: R-BIL-000',
         'file: docs/rules/billing/R-BIL-002.md',
         '',
@@ -304,10 +311,22 @@ describe('errors and usage', () => {
     );
 
     expect(result.status).toBe(0);
-    expect(result.stdout).toBe('');
+    expect(result.stdout).toBe('No rules found.\n');
     expect(result.stderr).toBe(
-      'warning: the catalog has 8 issues; run "rulebookguard lint" for details.\n',
+      'warning: the catalog has 8 format issues; run "rulebookguard lint" to see them and to check anchors and test tags.\n',
     );
+  });
+
+  it('says when no context or rule exists', async () => {
+    const dir = await scratchDir();
+    await writeFile(join(dir, 'rulebookguard.config.yaml'), 'schema: 1\ntestGlobs: []\n');
+    await mkdir(join(dir, 'docs/rules'), { recursive: true });
+
+    expect(await ok(['contexts'], dir)).toBe(
+      'No contexts found. Create one with "rulebookguard new <context>".\n',
+    );
+    expect(await ok(['list'], dir)).toBe('No rules found.\n');
+    expect(await json(['list'], dir)).toEqual({ rules: [] });
   });
 
   it('fails when no config is found', async () => {

@@ -67,6 +67,10 @@ export function contextsCommand(catalog: Catalog, io: CliIo, json: boolean): voi
     writeJson(io, { contexts } satisfies ContextsJson);
     return;
   }
+  if (contexts.length === 0) {
+    writeLines(io, [messages(catalog.config.language).noContexts]);
+    return;
+  }
   writeLines(
     io,
     contexts.map(
@@ -97,6 +101,10 @@ export function listCommand(
     writeJson(io, { rules } satisfies ListJson);
     return;
   }
+  if (rules.length === 0) {
+    writeLines(io, [text.noRules]);
+    return;
+  }
   writeLines(
     io,
     rules.map((rule) => `${rule.id} [${rule.status}] ${rule.summary}`),
@@ -123,7 +131,8 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
     `context: ${rule.context}`,
     `status: ${rule.status}`,
     `entities: ${rule.entities.join(', ')}`,
-    `anchors: ${rule.anchors.join(', ')}`,
+    'anchors:',
+    ...indent(rule.anchors, messages(catalog.config.language).none),
     ...(rule.supersedes === undefined ? [] : [`supersedes: ${rule.supersedes}`]),
     `file: ${rule.file}`,
   ];

@@ -22,8 +22,9 @@ Commands:
                                                      --prefix: its id prefix (default: first 3 letters)
   lint [--base <ref>] [--json]                       check the catalog, anchors and test tags;
                                                      --base: rules changed since <ref> need a changed test
-  hook                                               Claude Code PreToolUse hook: reads the event on stdin
-                                                     and prints the rules anchored to the edited file
+  hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
+                                                     the event on stdin and prints the rules anchored to
+                                                     the file of the tool (Read, Edit, Write...)
   mcp [--project <dir>]                              MCP server over stdio with rules_for and rules_show;
                                                      --project: directory to find the rulebook from (default: cwd)
   site:generate [--out <dir>] [--base <path>]        build the read-only static site of the rulebook (alias: site);

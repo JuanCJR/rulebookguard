@@ -184,7 +184,7 @@ $ rulebookguard list --context clients --status active
 R-CLI-001 [active] A client document number is unique per country.
 ```
 
-Exits 1 for an unknown context and 2 for an invalid status.
+Prints `No rules found.` when no rule matches, and `contexts` says so when the catalog has no context yet. Exits 1 for an unknown context and 2 for an invalid status.
 
 ### `show <id>` (L2)
 
@@ -194,7 +194,9 @@ R-CLI-001: A client document number is unique per country.
 context: clients
 status: active
 entities: Client
-anchors: src/clients/**/*.ts, src/api/clients.controller.ts
+anchors:
+  src/clients/**/*.ts
+  src/api/clients.controller.ts
 supersedes: R-CLI-000
 file: docs/rules/clients/R-CLI-001.md
 

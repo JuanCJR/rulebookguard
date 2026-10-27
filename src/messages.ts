@@ -28,6 +28,8 @@ export interface Messages {
   gitFallback: (reason: string) => string;
   submoduleSkipped: (submodule: string, reason: string) => string;
   ruleCount: (count: number) => string;
+  noContexts: string;
+  noRules: string;
   noActiveRulesFor: (path: string) => string;
   filesMatched: (count: number) => string;
   testsTagging: (id: string, count: number) => string;
@@ -75,7 +77,7 @@ const EN: Messages = {
   idPrefixMismatch: (prefix) => `must use the context prefix "${prefix}"`,
   duplicateId: (first) => `duplicates the id of ${first}`,
   catalogWarning: (count) =>
-    `warning: the catalog has ${count} ${count === 1 ? 'issue' : 'issues'}; run "rulebookguard lint" for details.`,
+    `warning: the catalog has ${count} format ${count === 1 ? 'issue' : 'issues'}; run "rulebookguard lint" to see them and to check anchors and test tags.`,
   unknownRule: (id) => `Unknown rule id "${id}". Run "rulebookguard list" to list them.`,
   unknownContext: (name) => `Unknown context "${name}". Run "rulebookguard contexts" to list them.`,
   invalidStatus: (status, allowed) => `Invalid status "${status}": expected one of ${allowed}.`,
@@ -85,6 +87,8 @@ const EN: Messages = {
   submoduleSkipped: (submodule, reason) =>
     `warning: could not list files of submodule "${submodule}" (${reason}); skipping it.`,
   ruleCount: (count) => `${count} ${count === 1 ? 'rule' : 'rules'}`,
+  noContexts: 'No contexts found. Create one with "rulebookguard new <context>".',
+  noRules: 'No rules found.',
   noActiveRulesFor: (path) => `No active rules anchored to ${path}.`,
   filesMatched: (count) => `Files matched by anchors (${count}):`,
   testsTagging: (id, count) => `Tests tagging ${id} (${count}):`,
@@ -140,7 +144,7 @@ const ES: Messages = {
   idPrefixMismatch: (prefix) => `debe usar el prefijo del contexto "${prefix}"`,
   duplicateId: (first) => `repite el id de ${first}`,
   catalogWarning: (count) =>
-    `aviso: el catálogo tiene ${count} ${count === 1 ? 'problema' : 'problemas'}; ejecuta "rulebookguard lint" para ver el detalle.`,
+    `aviso: el catálogo tiene ${count} ${count === 1 ? 'problema' : 'problemas'} de formato; ejecuta "rulebookguard lint" para verlos y para revisar anchors y etiquetas de test.`,
   unknownRule: (id) =>
     `No existe la regla "${id}". Ejecuta "rulebookguard list" para ver las reglas.`,
   unknownContext: (name) =>
@@ -152,6 +156,8 @@ const ES: Messages = {
   submoduleSkipped: (submodule, reason) =>
     `aviso: no se pudieron listar los archivos del submódulo "${submodule}" (${reason}); se omite.`,
   ruleCount: (count) => `${count} ${count === 1 ? 'regla' : 'reglas'}`,
+  noContexts: 'No se encontraron contextos. Crea uno con "rulebookguard new <contexto>".',
+  noRules: 'No se encontraron reglas.',
   noActiveRulesFor: (path) => `No hay reglas activas ancladas a ${path}.`,
   filesMatched: (count) => `Archivos que cubren los anchors (${count}):`,
   testsTagging: (id, count) => `Tests que etiquetan ${id} (${count}):`,
