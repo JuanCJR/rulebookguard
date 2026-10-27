@@ -24,8 +24,11 @@ Commands:
                                                      and prints the rules anchored to the edited file
   mcp [--project <dir>]                              MCP server over stdio with rules_for and rules_show;
                                                      --project: directory to find the rulebook from (default: cwd)
-  site [--out <dir>] [--base <path>]                 build the read-only static site of the rulebook;
+  site:generate [--out <dir>] [--base <path>]        build the read-only static site of the rulebook (alias: site);
                                                      --out: output directory (default: site), --base: URL path
+  site:run [--out <dir>] [--base <path>] [--port <n>]
+                                                     build the site, then serve it on 127.0.0.1 until Ctrl+C;
+                                                     --port: port to serve on (default: 4321)
 
 Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 `;
@@ -37,6 +40,8 @@ interface CommandSpec {
 }
 
 const JSON_OPTION: ParseArgsOptionsConfig = { json: { type: 'boolean' } };
+
+const SITE_OPTIONS: ParseArgsOptionsConfig = { out: { type: 'string' }, base: { type: 'string' } };
 
 const COMMANDS: Record<string, CommandSpec> = {
   contexts: { usage: 'rulebookguard contexts [--json]', options: JSON_OPTION },
@@ -52,7 +57,15 @@ const COMMANDS: Record<string, CommandSpec> = {
   mcp: { usage: 'rulebookguard mcp [--project <dir>]', options: { project: { type: 'string' } } },
   site: {
     usage: 'rulebookguard site [--out <dir>] [--base <path>]',
-    options: { out: { type: 'string' }, base: { type: 'string' } },
+    options: SITE_OPTIONS,
+  },
+  'site:generate': {
+    usage: 'rulebookguard site:generate [--out <dir>] [--base <path>]',
+    options: SITE_OPTIONS,
+  },
+  'site:run': {
+    usage: 'rulebookguard site:run [--out <dir>] [--base <path>] [--port <n>]',
+    options: { ...SITE_OPTIONS, port: { type: 'string' } },
   },
   lint: {
     usage: 'rulebookguard lint [--base <ref>] [--json]',
@@ -96,11 +109,13 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
     await mcpCommand(io, values.project as string | undefined);
     return EXIT_OK;
   }
-  if (name === 'site') {
+  if (name === 'site' || name === 'site:generate' || name === 'site:run') {
     const { siteCommand } = await import('./site.ts');
     await siteCommand(io, {
       out: values.out as string | undefined,
       base: values.base as string | undefined,
+      serve: name === 'site:run',
+      port: sitePort(values.port as string | undefined, spec.usage),
     });
     return EXIT_OK;
   }
@@ -133,6 +148,17 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       break;
   }
   return EXIT_OK;
+}
+
+function sitePort(value: string | undefined, usage: string): number | undefined {
+  if (value === undefined) {
+    return undefined;
+  }
+  const port = Number(value);
+  if (!/^\d+$/.test(value) || port > 65535) {
+    throw new CliError(`--port must be a number from 0 to 65535.\nUsage: ${usage}`, EXIT_USAGE);
+  }
+  return port;
 }
 
 function parse(
