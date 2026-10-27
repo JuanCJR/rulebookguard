@@ -7,6 +7,7 @@ export { findRuleTags, RULE_TAG_PATTERN, type RuleTag } from './format/tag.ts';
 export type {
   ContextDoc,
   ContextFrontmatter,
+  ParseOptions,
   RuleDoc,
   RuleFrontmatter,
   RulebookConfig,

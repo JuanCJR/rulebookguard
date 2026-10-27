@@ -4,7 +4,14 @@ import { CONFIG_FILE_NAME, loadConfig } from '../format/config.ts';
 import { CONTEXT_FILE_NAME, loadContext } from '../format/context.ts';
 import { FormatError, type FormatIssue } from '../format/errors.ts';
 import { isRuleId, loadRule } from '../format/rule.ts';
-import type { ContextDoc, RuleDoc, RulebookConfig } from '../format/types.ts';
+import type {
+  ContextDoc,
+  ParseOptions,
+  RuleDoc,
+  RuleLanguage,
+  RulebookConfig,
+} from '../format/types.ts';
+import { messages } from '../messages.ts';
 import { toRepoPath } from './files.ts';
 
 export type CatalogIssueCode =
@@ -59,14 +66,14 @@ export async function loadCatalog(root: string): Promise<Catalog> {
     catalog.issues.push({
       code: 'missing-rules-dir',
       file: rulesDir,
-      message: 'directory does not exist',
+      message: messages(config.language).missingRulesDir,
     });
     return catalog;
   }
   for (const entry of directories.filter((item) => item.isDirectory())) {
     await loadContextDirectory(catalog, `${rulesDir}/${entry.name}`, entry.name);
   }
-  catalog.issues.push(...findDuplicateIds(catalog.rules));
+  catalog.issues.push(...findDuplicateIds(catalog.rules, config.language));
   return catalog;
 }
 
@@ -82,7 +89,11 @@ async function loadContextDirectory(catalog: Catalog, dir: string, name: string)
       checkContextName(catalog, context, name);
     }
   } else {
-    catalog.issues.push({ code: 'missing-context-file', file: dir, message: 'has no _context.md' });
+    catalog.issues.push({
+      code: 'missing-context-file',
+      file: dir,
+      message: messages(catalog.config.language).missingContextFile,
+    });
   }
   for (const file of files.filter((item) => item !== CONTEXT_FILE_NAME)) {
     const rule = await load(catalog, `${dir}/${file}`, loadRule);
@@ -100,10 +111,13 @@ async function loadContextDirectory(catalog: Catalog, dir: string, name: string)
 async function load<T extends { file: string }>(
   catalog: Catalog,
   file: string,
-  loader: (path: string) => Promise<T>,
+  loader: (path: string, options: ParseOptions) => Promise<T>,
 ): Promise<T | undefined> {
   try {
-    return { ...(await loader(join(catalog.root, file))), file };
+    return {
+      ...(await loader(join(catalog.root, file), { language: catalog.config.language })),
+      file,
+    };
   } catch (error) {
     if (!(error instanceof FormatError)) {
       throw error;
@@ -121,7 +135,7 @@ function checkContextName(catalog: Catalog, doc: { file: string; context: string
       code: 'context-mismatch',
       file: doc.file,
       field: 'context',
-      message: `must match its directory name "${name}"`,
+      message: messages(catalog.config.language).contextMismatch(name),
     });
   }
 }
@@ -138,7 +152,7 @@ function checkRule(
       code: 'file-name-mismatch',
       file: rule.file,
       field: 'id',
-      message: `must match the file name "${baseName}"`,
+      message: messages(catalog.config.language).fileNameMismatch(baseName),
     });
   }
   if (context !== undefined && !rule.id.startsWith(`R-${context.prefix}-`)) {
@@ -146,13 +160,13 @@ function checkRule(
       code: 'id-prefix-mismatch',
       file: rule.file,
       field: 'id',
-      message: `must use the context prefix "${context.prefix}"`,
+      message: messages(catalog.config.language).idPrefixMismatch(context.prefix),
     });
   }
   checkContextName(catalog, rule, directory);
 }
 
-function findDuplicateIds(rules: RuleDoc[]): CatalogIssue[] {
+function findDuplicateIds(rules: RuleDoc[], language: RuleLanguage | undefined): CatalogIssue[] {
   const firstFile = new Map<string, string>();
   const issues: CatalogIssue[] = [];
   for (const rule of rules) {
@@ -164,7 +178,7 @@ function findDuplicateIds(rules: RuleDoc[]): CatalogIssue[] {
         code: 'duplicate-id',
         file: rule.file,
         field: 'id',
-        message: `duplicates the id of ${first}`,
+        message: messages(language).duplicateId(first),
       });
     }
   }

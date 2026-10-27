@@ -2,6 +2,7 @@ import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../c
 import { changedSince, gitFailureReason, isCommitRef, isInsideWorkTree } from '../catalog/git.ts';
 import { loadCatalog, relativeToRoot, type Catalog } from '../catalog/load.ts';
 import { FormatError } from '../format/errors.ts';
+import { messages, type Messages } from '../messages.ts';
 import { scanTestTags, type TagIndex } from '../catalog/tags.ts';
 import {
   CliError,
@@ -47,35 +48,38 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
     return report(
       io,
       error.issues.map((issue) =>
-        issueFinding('schema', { ...issue, file: relativeToRoot(root, issue.file) }),
+        issueFinding(
+          'schema',
+          { ...issue, file: relativeToRoot(root, issue.file) },
+          messages('en'),
+        ),
       ),
       options.json,
+      messages('en'),
     );
   }
+  const text = messages(catalog.config.language);
   const changed =
-    options.base === undefined ? undefined : await changedFiles(catalog.root, options.base);
-  const warn = gitFallbackWarning(io);
+    options.base === undefined ? undefined : await changedFiles(catalog.root, options.base, text);
+  const warn = gitFallbackWarning(io, catalog.config.language);
   const tags = await scanTestTags(catalog.root, catalog.config.testGlobs, warn);
   const findings = await lintCatalog(catalog, tags, warn);
   if (options.base !== undefined && changed !== undefined) {
     findings.push(...pendingImplementation(catalog, tags, options.base, changed));
   }
-  return report(io, findings, options.json);
+  return report(io, findings, options.json, text);
 }
 
-function report(io: CliIo, findings: LintFinding[], json: boolean): number {
+function report(io: CliIo, findings: LintFinding[], json: boolean, text: Messages): number {
   const sorted = sortFindings(findings);
   const errors = sorted.filter((finding) => finding.severity === 'error').length;
   const warnings = sorted.length - errors;
   if (json) {
     writeJson(io, { findings: sorted, errors, warnings } satisfies LintJson);
   } else if (sorted.length === 0) {
-    writeLines(io, ['No issues found.']);
+    writeLines(io, [text.noIssues]);
   } else {
-    writeLines(io, [
-      ...sorted.map(formatFinding),
-      `${plural(errors, 'error')}, ${plural(warnings, 'warning')}`,
-    ]);
+    writeLines(io, [...sorted.map(formatFinding), text.lintSummary(errors, warnings)]);
   }
   return errors > 0 ? EXIT_FAILURE : EXIT_OK;
 }
@@ -83,8 +87,9 @@ function report(io: CliIo, findings: LintFinding[], json: boolean): number {
 function issueFinding(
   code: string,
   { file, field, message }: { file: string; field?: string | undefined; message: string },
+  text: Messages,
 ): LintFinding {
-  return error(code, file, field === undefined ? message : `field "${field}" ${message}`);
+  return error(code, file, field === undefined ? message : `${text.field(field)} ${message}`);
 }
 
 export async function lintCatalog(
@@ -94,19 +99,20 @@ export async function lintCatalog(
 ): Promise<LintFinding[]> {
   const tagIndex =
     tags ?? (await scanTestTags(catalog.root, catalog.config.testGlobs, onGitFallback));
-  const findings: LintFinding[] = catalog.issues.map((issue) => issueFinding(issue.code, issue));
+  const text = messages(catalog.config.language);
+  const findings: LintFinding[] = catalog.issues.map((issue) =>
+    issueFinding(issue.code, issue, text),
+  );
   const files = await listRepoFiles(catalog.root, onGitFallback);
   const status = new Map(catalog.rules.map((rule) => [rule.id, rule.status]));
   const invalid = new Set(catalog.invalidRuleIds);
   for (const rule of catalog.rules) {
     if (rule.status === 'active' && !tagIndex.has(rule.id)) {
-      findings.push(
-        error('untested-rule', rule.file, `active rule ${rule.id} has no test tagging it`),
-      );
+      findings.push(error('untested-rule', rule.file, text.untestedRule(rule.id)));
     }
     for (const anchor of rule.anchors) {
       if (!files.some(createGlobMatcher([anchor]))) {
-        findings.push(error('unmatched-anchor', rule.file, `anchor "${anchor}" matches no file`));
+        findings.push(error('unmatched-anchor', rule.file, text.unmatchedAnchor(anchor)));
       }
     }
   }
@@ -118,8 +124,8 @@ export async function lintCatalog(
     for (const { file, line } of locations) {
       findings.push(
         ruleStatus === undefined
-          ? { ...error('unknown-rule-tag', file, `tags ${id}, which does not exist`), line }
-          : { ...error('deprecated-rule-tag', file, `tags ${id}, which is deprecated`), line },
+          ? { ...error('unknown-rule-tag', file, text.unknownRuleTag(id)), line }
+          : { ...error('deprecated-rule-tag', file, text.deprecatedRuleTag(id)), line },
       );
     }
   }
@@ -131,7 +137,7 @@ export async function lintCatalog(
         severity: 'warning',
         code: 'context-over-budget',
         file: context.file,
-        message: `context "${context.context}" has ${count} rules, more than the contextBudget of ${budget}`,
+        message: text.contextOverBudget(context.context, count, budget),
       });
     }
   }
@@ -144,31 +150,28 @@ export function pendingImplementation(
   base: string,
   changed: string[],
 ): LintFinding[] {
+  const text = messages(catalog.config.language);
   const changedSet = new Set(changed);
   return catalog.rules
     .filter((rule) => rule.status === 'active' && changedSet.has(rule.file))
     .filter((rule) => (tags.get(rule.id) ?? []).length > 0)
     .filter((rule) => !(tags.get(rule.id) ?? []).some(({ file }) => changedSet.has(file)))
     .map((rule) =>
-      error(
-        'pending-implementation',
-        rule.file,
-        `rule ${rule.id} changed since ${base} but none of the tests tagging it changed`,
-      ),
+      error('pending-implementation', rule.file, text.pendingImplementation(rule.id, base)),
     );
 }
 
-async function changedFiles(root: string, base: string): Promise<string[]> {
+async function changedFiles(root: string, base: string, text: Messages): Promise<string[]> {
   if (!(await isInsideWorkTree(root))) {
-    throw new CliError(`lint --base needs a git work tree, but ${root} is not inside one.`);
+    throw new CliError(text.needsWorkTree(root));
   }
   if (!(await isCommitRef(root, base))) {
-    throw new CliError(`Unknown git ref "${base}".`);
+    throw new CliError(text.unknownRef(base));
   }
   try {
     return await changedSince(root, base);
   } catch (error) {
-    throw new CliError(`Cannot list the files changed since "${base}": ${gitFailureReason(error)}`);
+    throw new CliError(text.cannotListChanged(base, gitFailureReason(error)));
   }
 }
 
@@ -185,10 +188,6 @@ function sortFindings(findings: LintFinding[]): LintFinding[] {
   return [...findings].sort(
     (a, b) => compare(a.file, b.file) || (a.line ?? 0) - (b.line ?? 0) || compare(a.code, b.code),
   );
-}
-
-function plural(count: number, noun: string): string {
-  return `${count} ${noun}${count === 1 ? '' : 's'}`;
 }
 
 function compare(a: string, b: string): number {

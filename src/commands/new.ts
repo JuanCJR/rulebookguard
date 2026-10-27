@@ -2,14 +2,16 @@ import { readdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import type { Catalog } from '../catalog/load.ts';
 import type { RuleLanguage } from '../format/types.ts';
+import { messages } from '../messages.ts';
 import { CliError, type CliIo, writeLines } from './io.ts';
 
 const MAX_NUMBER = 999;
 
 export async function newCommand(catalog: Catalog, io: CliIo, name: string): Promise<void> {
+  const text = messages(catalog.config.language);
   const context = catalog.contexts.find((item) => item.context === name);
   if (context === undefined) {
-    throw new CliError(`Unknown context "${name}". Run "rulebookguard contexts" to list them.`);
+    throw new CliError(text.unknownContext(name));
   }
   const directory = context.file.slice(0, context.file.lastIndexOf('/'));
   const idPattern = new RegExp(`^R-${context.prefix}-([0-9]{3})$`);
@@ -22,9 +24,7 @@ export async function newCommand(catalog: Catalog, io: CliIo, name: string): Pro
     .map(Number);
   const last = Math.max(0, ...taken);
   if (last >= MAX_NUMBER) {
-    throw new CliError(
-      `No free rule id left in context "${name}" (R-${context.prefix}-${MAX_NUMBER} is taken).`,
-    );
+    throw new CliError(text.noFreeId(name, `R-${context.prefix}-${MAX_NUMBER}`));
   }
   const id = `R-${context.prefix}-${String(last + 1).padStart(3, '0')}`;
   const file = `${directory}/${id}.md`;
@@ -36,7 +36,7 @@ export async function newCommand(catalog: Catalog, io: CliIo, name: string): Pro
     );
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
-      throw new CliError(`${file} already exists; nothing was written.`);
+      throw new CliError(text.alreadyExists(file));
     }
     throw error;
   }

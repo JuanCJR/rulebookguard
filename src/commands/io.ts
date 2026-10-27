@@ -1,7 +1,8 @@
 import { findRulebookRoot, loadCatalog, type Catalog } from '../catalog/load.ts';
 import type { GitFallbackListener } from '../catalog/files.ts';
 import { CONFIG_FILE_NAME } from '../format/config.ts';
-import type { RuleDoc } from '../format/types.ts';
+import type { RuleDoc, RuleLanguage } from '../format/types.ts';
+import { messages } from '../messages.ts';
 
 export const EXIT_OK = 0;
 export const EXIT_FAILURE = 1;
@@ -36,9 +37,7 @@ export async function openCatalog(io: CliIo): Promise<Catalog> {
   const catalog = await loadCatalog(await requireRulebookRoot(io));
   const count = catalog.issues.length;
   if (count > 0) {
-    io.stderr(
-      `warning: the catalog has ${count} ${count === 1 ? 'issue' : 'issues'}; run "rulebookguard lint" for details.\n`,
-    );
+    io.stderr(`${messages(catalog.config.language).catalogWarning(count)}\n`);
   }
   return catalog;
 }
@@ -46,7 +45,7 @@ export async function openCatalog(io: CliIo): Promise<Catalog> {
 export function findRule(catalog: Catalog, id: string): RuleDoc {
   const rule = catalog.rules.find((item) => item.id === id);
   if (rule === undefined) {
-    throw new CliError(`Unknown rule id "${id}". Run "rulebookguard list" to list them.`);
+    throw new CliError(messages(catalog.config.language).unknownRule(id));
   }
   return rule;
 }
@@ -59,7 +58,8 @@ export function writeLines(io: CliIo, lines: string[]): void {
   io.stdout(lines.map((line) => `${line}\n`).join(''));
 }
 
-export function gitFallbackWarning(io: CliIo): GitFallbackListener {
+export function gitFallbackWarning(io: CliIo, language?: RuleLanguage): GitFallbackListener {
+  const text = messages(language);
   let warned = false;
   // lint lists files twice (tags and anchors); warn once per submodule.
   const skipped = new Set<string>();
@@ -67,15 +67,13 @@ export function gitFallbackWarning(io: CliIo): GitFallbackListener {
     if (submodule !== undefined) {
       if (!skipped.has(submodule)) {
         skipped.add(submodule);
-        io.stderr(
-          `warning: could not list files of submodule "${submodule}" (${reason}); skipping it.\n`,
-        );
+        io.stderr(`${text.submoduleSkipped(submodule, reason)}\n`);
       }
       return;
     }
     if (!warned) {
       warned = true;
-      io.stderr(`warning: git could not list files (${reason}); walking the directory instead.\n`);
+      io.stderr(`${text.gitFallback(reason)}\n`);
     }
   };
 }

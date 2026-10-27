@@ -92,7 +92,10 @@ async function buildSite(
   base: string,
   io: CliIo,
 ): Promise<void> {
-  const files = sitePages(await siteData(catalog, gitFallbackWarning(io)), { language, base });
+  const files = sitePages(await siteData(catalog, gitFallbackWarning(io, language)), {
+    language,
+    base,
+  });
   const text = siteText(language);
   const sidebar = [
     { label: text.allRules, link: '/rules/' },

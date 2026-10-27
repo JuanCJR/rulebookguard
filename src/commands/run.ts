@@ -83,7 +83,7 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
       return error.exitCode;
     }
     if (error instanceof FormatError) {
-      io.stderr(`${error.issues.map(formatIssue).join('\n')}\n`);
+      io.stderr(`${error.issues.map((issue) => formatIssue(issue)).join('\n')}\n`);
       return EXIT_FAILURE;
     }
     throw error;
