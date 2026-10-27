@@ -8,9 +8,5 @@
   "homepage": "https://github.com/JuanCJR/rulebookguard#claude-code-plugin",
   "repository": "https://github.com/JuanCJR/rulebookguard",
   "license": "MIT",
-  "keywords": [
-    "business-rules",
-    "hooks",
-    "mcp"
-  ]
+  "keywords": ["business-rules", "hooks", "mcp"]
 }
