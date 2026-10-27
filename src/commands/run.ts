@@ -24,6 +24,8 @@ Commands:
                                                      and prints the rules anchored to the edited file
   mcp [--project <dir>]                              MCP server over stdio with rules_for and rules_show;
                                                      --project: directory to find the rulebook from (default: cwd)
+  site [--out <dir>] [--base <path>]                 build the read-only static site of the rulebook;
+                                                     --out: output directory (default: site), --base: URL path
 
 Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 `;
@@ -48,6 +50,10 @@ const COMMANDS: Record<string, CommandSpec> = {
   new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
   hook: { usage: 'rulebookguard hook', options: {} },
   mcp: { usage: 'rulebookguard mcp [--project <dir>]', options: { project: { type: 'string' } } },
+  site: {
+    usage: 'rulebookguard site [--out <dir>] [--base <path>]',
+    options: { out: { type: 'string' }, base: { type: 'string' } },
+  },
   lint: {
     usage: 'rulebookguard lint [--base <ref>] [--json]',
     options: { ...JSON_OPTION, base: { type: 'string' } },
@@ -88,6 +94,14 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   }
   if (name === 'mcp') {
     await mcpCommand(io, values.project as string | undefined);
+    return EXIT_OK;
+  }
+  if (name === 'site') {
+    const { siteCommand } = await import('./site.ts');
+    await siteCommand(io, {
+      out: values.out as string | undefined,
+      base: values.base as string | undefined,
+    });
     return EXIT_OK;
   }
   if (name === 'lint') {
