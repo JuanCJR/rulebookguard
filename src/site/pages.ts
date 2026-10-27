@@ -9,6 +9,14 @@ export interface SiteOptions {
 
 const STATUSES: RuleStatus[] = ['active', 'proposed', 'deprecated'];
 
+// Starlight links /favicon.svg from every page; without it each page view logs a 404.
+const FAVICON = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <rect width="32" height="32" rx="7" fill="#3c51e8"/>
+  <path d="M9 8h10a4 4 0 0 1 4 4v12H13a4 4 0 0 1-4-4z" fill="#fff"/>
+  <path d="m13 16 2.5 2.5L20 14" fill="none" stroke="#3c51e8" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+`;
+
 const TEXT = {
   en: {
     title: 'Business rules',
@@ -117,6 +125,8 @@ export function sitePages(data: SiteData, options: SiteOptions): Map<string, str
     return path === undefined ? id : `[${id}](${path})`;
   };
   const files = new Map<string, string>();
+
+  files.set('public/favicon.svg', FAVICON);
 
   files.set(
     'src/content.config.ts',
@@ -274,7 +284,7 @@ function rulesPage(data: SiteData, text: Text, rulePath: Map<string, string>): s
   const rows = data.rules.map(({ rule }) => {
     const search = [rule.id, rule.context, rule.summary].join(' ').toLowerCase();
     return `      <tr data-context="${html(rule.context)}" data-status="${rule.status}" data-search="${html(search)}">
-        <td><a href="${rulePath.get(rule.id) ?? ''}">${rule.id}</a></td>
+        <td class="rbg-id"><a href="${rulePath.get(rule.id) ?? ''}">${rule.id}</a></td>
         <td>${html(rule.context)}</td>
         <td>${rule.status}</td>
         <td>${html(rule.summary)}</td>
@@ -296,6 +306,7 @@ ${contexts.map((context) => `      <option value="${html(context)}">${html(conte
 ${STATUSES.map((status) => `      <option value="${status}">${status}</option>`).join('\n')}
     </select>
   </div>
+  <div class="rbg-table">
   <table class="rbg-rules">
     <thead>
       <tr><th>${html(text.rule)}</th><th>${html(text.context)}</th><th>${html(text.status)}</th><th>${html(text.summary)}</th></tr>
@@ -304,12 +315,32 @@ ${STATUSES.map((status) => `      <option value="${status}">${status}</option>`)
 ${rows.join('\n')}
     </tbody>
   </table>
+  </div>
   <p class="rbg-empty" hidden>${html(text.noMatch)}</p>
 </StarlightPage>
 
 <style>
-  .rbg-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+  .rbg-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 1rem; }
+  /* Starlight spaces sibling content blocks with margin-top; inside the filter row it misaligns the controls. */
+  .rbg-filters > * { margin: 0; }
+  .rbg-filters :is(input, select) {
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background-color: var(--sl-color-bg);
+    color: var(--sl-color-white);
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    padding: 0.5rem 0.75rem;
+    height: 2.5rem;
+    box-sizing: border-box;
+  }
   .rbg-filters input { flex: 1 1 16rem; }
+  .rbg-filters select { flex: 1 1 12rem; cursor: pointer; }
+  .rbg-filters :is(input, select):focus-visible { outline: 2px solid var(--sl-color-accent); outline-offset: 1px; }
+  .rbg-id { white-space: nowrap; }
+  .rbg-table { overflow-x: auto; }
+  .rbg-table table { margin: 0; }
+  .rbg-rules td:last-child { min-width: 16rem; }
 </style>
 
 <script>

@@ -17,6 +17,7 @@ describe('sitePages', () => {
     const files = await pages();
 
     expect([...files.keys()].sort()).toEqual([
+      'public/favicon.svg',
       'src/content.config.ts',
       'src/content/docs/billing/index.md',
       'src/content/docs/billing/r-bil-001.md',
@@ -74,6 +75,33 @@ describe('sitePages', () => {
     expect(files.get('src/content/docs/billing/r-bil-002.md')).toContain(
       '| Superseded by | [R-BIL-003](/billing/r-bil-003/) |',
     );
+  });
+
+  it('ships the favicon Starlight links to', async () => {
+    const favicon = (await pages()).get('public/favicon.svg') ?? '';
+
+    expect(favicon).toMatch(/^<svg xmlns="http:\/\/www\.w3\.org\/2000\/svg"[^>]*>/);
+    expect(favicon.trimEnd()).toMatch(/<\/svg>$/);
+  });
+
+  it('styles the filters with Starlight tokens and keeps rule ids on one line', async () => {
+    const list = (await pages()).get('src/pages/rules.astro') ?? '';
+
+    expect(list).toContain('<td class="rbg-id">');
+    expect(list).toMatch(/\.rbg-id \{[^}]*white-space: nowrap;/);
+    expect(list).toMatch(
+      /\.rbg-filters :is\(input, select\) \{[^}]*border: 1px solid var\(--sl-color-gray-5\);/,
+    );
+    expect(list).toMatch(
+      /\.rbg-filters :is\(input, select\) \{[^}]*background-color: var\(--sl-color-bg\);/,
+    );
+    expect(list).toMatch(
+      /\.rbg-filters :is\(input, select\) \{[^}]*color: var\(--sl-color-white\);/,
+    );
+    expect(list).toMatch(/\.rbg-filters > \* \{[^}]*margin: 0;/);
+    expect(list).toMatch(/\.rbg-filters :is\(input, select\) \{[^}]*height: 2\.5rem;/);
+    expect(list).toMatch(/<div class="rbg-table">\s*<table class="rbg-rules">/);
+    expect(list).toMatch(/\.rbg-table \{[^}]*overflow-x: auto;/);
   });
 
   it('lists every rule in the filterable page with its filter attributes', async () => {
