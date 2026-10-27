@@ -236,6 +236,17 @@ docs/rules/clients/R-CLI-004.md
 
 Exits 1 for an unknown context or when the context has no free id left.
 
+### `hook`
+
+A Claude Code `PreToolUse` hook for the `Edit` and `Write` tools (the Claude Code plugin below wires it up). It reads the hook event as JSON on stdin, takes `tool_input.file_path` (relative paths resolve against the event's `cwd`), finds `rulebookguard.config.yaml` by walking up from that file, and prints the active rules anchored to it as additional context for Claude:
+
+```sh
+$ echo '{"tool_name":"Edit","tool_input":{"file_path":"/repo/src/billing/invoice.go"}}' | rulebookguard hook
+{"hookSpecificOutput":{"hookEventName":"PreToolUse","additionalContext":"Business rules anchored to src/billing/invoice.go (rulebookguard). …"}}
+```
+
+Each rule comes with its id, context, summary, rule file and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config. The hook never blocks an edit and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, unreadable input or any error, it prints nothing and exits 0.
+
 ### `lint [--base <ref>] [--json]`
 
 Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, followed by a count.

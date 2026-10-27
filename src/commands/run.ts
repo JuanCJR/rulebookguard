@@ -1,6 +1,7 @@
 import { parseArgs, type ParseArgsConfig } from 'node:util';
 import { formatIssue, FormatError } from '../format/errors.ts';
 import { CliError, EXIT_FAILURE, EXIT_OK, EXIT_USAGE, openCatalog, type CliIo } from './io.ts';
+import { hookCommand } from './hook.ts';
 import { lintCommand } from './lint.ts';
 import { newCommand } from './new.ts';
 import { contextsCommand, forCommand, impactCommand, listCommand, showCommand } from './read.ts';
@@ -18,6 +19,8 @@ Commands:
   new <context>                                      scaffold the next free rule id as a proposed rule
   lint [--base <ref>] [--json]                       check the catalog, anchors and test tags;
                                                      --base: rules changed since <ref> need a changed test
+  hook                                               Claude Code PreToolUse hook: reads the event on stdin
+                                                     and prints the rules anchored to the edited file
 
 Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 `;
@@ -40,6 +43,7 @@ const COMMANDS: Record<string, CommandSpec> = {
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
   new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
+  hook: { usage: 'rulebookguard hook', options: {} },
   lint: {
     usage: 'rulebookguard lint [--base <ref>] [--json]',
     options: { ...JSON_OPTION, base: { type: 'string' } },
@@ -74,6 +78,10 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   }
   const { values, argument } = parse(spec, rest);
   const json = values.json === true;
+  if (name === 'hook') {
+    await hookCommand(io);
+    return EXIT_OK;
+  }
   if (name === 'lint') {
     return lintCommand(io, { base: values.base as string | undefined, json });
   }
