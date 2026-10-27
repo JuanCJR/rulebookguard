@@ -1,8 +1,10 @@
 {
   "name": "rulebookguard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Business rules as the source of truth: injects the rules anchored to a file before Claude edits it, and serves them over MCP.",
-  "author": { "name": "Juan Carlos Jimenez" },
+  "author": {
+    "name": "Juan Carlos Jimenez"
+  },
   "homepage": "https://github.com/JuanCJR/rulebookguard#claude-code-plugin",
   "repository": "https://github.com/JuanCJR/rulebookguard",
   "license": "MIT",
