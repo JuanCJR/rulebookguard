@@ -13,7 +13,7 @@ It is language-agnostic: rules are Markdown, and tests in any language link to t
 
 ## Install
 
-Requires Node.js 22 or later.
+Requires Node.js 22.23.4 or later (the `site` command builds with Astro 7, which needs it).
 
 ```sh
 npx rulebookguard lint
@@ -259,6 +259,26 @@ An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with 
 | `rules_show` | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints  |
 
 The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.`
+
+### `site [--out <dir>] [--base <path>]`
+
+Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
+
+```sh
+$ rulebookguard site --out public/rules --base /rules
+public/rules
+```
+
+The site has:
+
+- **Home:** the contexts map, with how many rules of each status every context holds.
+- **A page per context** with its description and rules.
+- **All rules:** one table filterable by text, context and status.
+- **A page per rule:** summary, status, entities, rule file, the supersedes chain both ways, the rule text, its anchors and the files they match, the tests tagging it, and the git history of the rule file.
+- **Health:** the `lint` findings when the site was built.
+- Full-text search (Pagefind).
+
+Generated text and the interface follow `language` in the config. The site is a view: rules are still edited in their files, through pull requests. `site` replaces `--out` only when it is empty or was written by an earlier `site`; any other non-empty directory makes it fail, exit 1, without touching it. Add the output directory to `.gitignore` unless you mean to commit it.
 
 ### `lint [--base <ref>] [--json]`
 

@@ -1,6 +1,6 @@
 {
   "name": "rulebookguard",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Keep business rules as the single source of truth, bound to code and tests.",
   "homepage": "https://github.com/JuanCJR/rulebookguard#readme",
   "bugs": {
@@ -28,8 +28,11 @@
     "./package.json": "./package.json"
   },
   "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.2",
+    "@astrojs/starlight": "^0.42.6",
     "@modelcontextprotocol/server": "^2.3.1",
     "ajv": "^8.20.0",
+    "astro": "^7.3.8",
     "picomatch": "^4.0.7",
     "yaml": "^2.9.1",
     "zod": "^4.6.7"
@@ -42,6 +45,6 @@
     "vite-plus": "^1.4.0"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22.23.4"
   }
 }
