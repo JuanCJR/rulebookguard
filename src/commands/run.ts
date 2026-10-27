@@ -17,7 +17,9 @@ Commands:
   show <id> [--json]                                 L2: the full rule
   for <path> [--json]                                active rules anchored to a path
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
-  new <context>                                      scaffold the next free rule id as a proposed rule
+  new <context> [--prefix <P>]                       scaffold the next free rule id as a proposed rule;
+                                                     creates the context first when it does not exist,
+                                                     --prefix: its id prefix (default: first 3 letters)
   lint [--base <ref>] [--json]                       check the catalog, anchors and test tags;
                                                      --base: rules changed since <ref> need a changed test
   hook                                               Claude Code PreToolUse hook: reads the event on stdin
@@ -53,7 +55,11 @@ const COMMANDS: Record<string, CommandSpec> = {
   show: { usage: 'rulebookguard show <id> [--json]', argument: 'id', options: JSON_OPTION },
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
-  new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
+  new: {
+    usage: 'rulebookguard new <context> [--prefix <P>]',
+    argument: 'context',
+    options: { prefix: { type: 'string' } },
+  },
   hook: { usage: 'rulebookguard hook', options: {} },
   mcp: { usage: 'rulebookguard mcp [--project <dir>]', options: { project: { type: 'string' } } },
   site: {
@@ -145,7 +151,7 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       await impactCommand(catalog, io, argument, json);
       break;
     case 'new':
-      await newCommand(catalog, io, argument);
+      await newCommand(catalog, io, argument, values.prefix as string | undefined);
       break;
   }
   return EXIT_OK;

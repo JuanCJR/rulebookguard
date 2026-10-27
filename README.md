@@ -231,7 +231,7 @@ Tests tagging R-CLI-001 (1):
 
 Exits 1 for an unknown id.
 
-### `new <context>`
+### `new <context> [--prefix <P>]`
 
 Scaffolds the next free id of a context as a `proposed` rule and prints its path. Ids are never reused, and an existing file is never overwritten. The placeholder text of the new rule follows `language` in the config.
 
@@ -240,7 +240,15 @@ $ rulebookguard new clients
 docs/rules/clients/R-CLI-004.md
 ```
 
-Exits 1 for an unknown context or when the context has no free id left.
+When the context does not exist yet, `new` creates its `_context.md` first and prints both paths. The prefix defaults to the first three letters and digits of the name, upper-cased; `--prefix` sets another one.
+
+```sh
+$ rulebookguard new inventory
+docs/rules/inventory/_context.md
+docs/rules/inventory/R-INV-001.md
+```
+
+Exits 1, writing nothing, when the context has no free id left, when the name is not lowercase letters, digits, `-` or `_`, when the prefix is invalid or already used by another context, or when `--prefix` differs from the prefix of an existing context.
 
 ### `hook`
 

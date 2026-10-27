@@ -1,7 +1,7 @@
 import { cp, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
-import { parseRule } from '../../src/index.ts';
+import { parseContext, parseRule } from '../../src/index.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
 
@@ -91,20 +91,95 @@ describe('new', () => {
     );
   });
 
-  it('rejects an unknown context', async () => {
+  it('creates a missing context and its first rule, printing both paths', async () => {
     const repo = await scratchRepo();
 
-    expect(await runCli(['new', 'sales'], repo)).toEqual({
-      status: 1,
-      stdout: '',
-      stderr: 'Unknown context "sales". Run "rulebookguard contexts" to list them.\n',
+    const result = await runCli(['new', 'inventory'], repo);
+
+    expect(result).toEqual({
+      status: 0,
+      stdout: 'docs/rules/inventory/_context.md\ndocs/rules/inventory/R-INV-001.md\n',
+      stderr: '',
     });
+    const file = 'docs/rules/inventory/_context.md';
+    expect(parseContext(await readFile(join(repo, file), 'utf8'), file)).toMatchObject({
+      context: 'inventory',
+      prefix: 'INV',
+      summary: 'TODO: one-line summary of the context.',
+    });
+    expect((await runCli(['contexts'], repo)).stdout).toContain(
+      'inventory (INV, 1 rule): TODO: one-line summary of the context.\n',
+    );
+    expect((await runCli(['show', 'R-INV-001'], repo)).status).toBe(0);
+  });
+
+  it('uses --prefix for a new context', async () => {
+    const repo = await scratchRepo();
+
+    const result = await runCli(['new', 'inventory', '--prefix', 'STK'], repo);
+
+    expect(result.stdout).toBe(
+      'docs/rules/inventory/_context.md\ndocs/rules/inventory/R-STK-001.md\n',
+    );
+  });
+
+  it('writes the context template in the configured language', async () => {
+    const repo = await scratchRepo();
+    const config = join(repo, 'rulebookguard.config.yaml');
+    await writeFile(config, `${await readFile(config, 'utf8')}language: es\n`);
+
+    await runCli(['new', 'inventory'], repo);
+
+    const file = 'docs/rules/inventory/_context.md';
+    const context = parseContext(await readFile(join(repo, file), 'utf8'), file);
+    expect(context.summary).toBe('TODO: resumen del contexto en una línea.');
+    expect(context.body).toBe('TODO: describe qué cubre este contexto y qué queda fuera.\n');
+  });
+
+  it('accepts --prefix equal to the prefix of an existing context', async () => {
+    const repo = await scratchRepo();
+
+    const result = await runCli(['new', 'clients', '--prefix', 'CLI'], repo);
+
+    expect(result).toEqual({ status: 0, stdout: `${CLIENTS}/R-CLI-004.md\n`, stderr: '' });
+  });
+
+  it.each([
+    [
+      ['new', 'clients', '--prefix', 'CLX'],
+      'Context "clients" already exists with prefix "CLI", not "CLX".',
+    ],
+    [
+      ['new', 'clientele'],
+      'Prefix "CLI" is already used by context "clients". Pass another one with --prefix.',
+    ],
+    [
+      ['new', '2024-plans'],
+      'Invalid prefix "202": use uppercase letters and digits, starting with a letter. Pass one with --prefix.',
+    ],
+    [
+      ['new', 'inventory', '--prefix', 'inv'],
+      'Invalid prefix "inv": use uppercase letters and digits, starting with a letter. Pass one with --prefix.',
+    ],
+    [
+      ['new', '../outside'],
+      'Invalid context name "../outside": use lowercase letters, digits, "-" or "_", starting with a letter or digit.',
+    ],
+  ])('rejects %j and writes nothing', async (args, message) => {
+    const repo = await scratchRepo();
+    const before = await readdir(join(repo, 'docs/rules'), { recursive: true });
+
+    expect(await runCli(args, repo)).toEqual({ status: 1, stdout: '', stderr: `${message}\n` });
+    expect(await readdir(join(repo, 'docs/rules'), { recursive: true })).toEqual(before);
+    expect(await readdir(repo)).not.toContain('outside');
   });
 
   it('requires a context', async () => {
     const result = await runCli(['new'], fixtureRoot('repo'));
 
     expect(result.status).toBe(2);
-    expect(result.stderr).toBe('Missing argument <context>. Usage: rulebookguard new <context>\n');
+    expect(result.stderr).toBe(
+      'Missing argument <context>. Usage: rulebookguard new <context> [--prefix <P>]\n',
+    );
   });
 });

@@ -34,6 +34,12 @@ export interface Messages {
   none: string;
   noFreeId: (context: string, lastId: string) => string;
   alreadyExists: (file: string) => string;
+  invalidContextName: (name: string) => string;
+  invalidPrefix: (prefix: string) => string;
+  prefixTaken: (prefix: string, context: string) => string;
+  prefixMismatch: (context: string, prefix: string, given: string) => string;
+  contextTemplateSummary: string;
+  contextTemplateBody: string;
   untestedRule: (id: string) => string;
   unmatchedAnchor: (anchor: string) => string;
   unknownRuleTag: (id: string) => string;
@@ -86,6 +92,16 @@ const EN: Messages = {
   noFreeId: (context, lastId) =>
     `No free rule id left in context "${context}" (${lastId} is taken).`,
   alreadyExists: (file) => `${file} already exists; nothing was written.`,
+  invalidContextName: (name) =>
+    `Invalid context name "${name}": use lowercase letters, digits, "-" or "_", starting with a letter or digit.`,
+  invalidPrefix: (prefix) =>
+    `Invalid prefix "${prefix}": use uppercase letters and digits, starting with a letter. Pass one with --prefix.`,
+  prefixTaken: (prefix, context) =>
+    `Prefix "${prefix}" is already used by context "${context}". Pass another one with --prefix.`,
+  prefixMismatch: (context, prefix, given) =>
+    `Context "${context}" already exists with prefix "${prefix}", not "${given}".`,
+  contextTemplateSummary: 'TODO: one-line summary of the context.',
+  contextTemplateBody: 'TODO: describe what this context covers and what it leaves out.',
   untestedRule: (id) => `active rule ${id} has no test tagging it`,
   unmatchedAnchor: (anchor) => `anchor "${anchor}" matches no file`,
   unknownRuleTag: (id) => `tags ${id}, which does not exist`,
@@ -143,6 +159,16 @@ const ES: Messages = {
   noFreeId: (context, lastId) =>
     `No quedan ids libres en el contexto "${context}" (${lastId} ya existe).`,
   alreadyExists: (file) => `${file} ya existe; no se escribió nada.`,
+  invalidContextName: (name) =>
+    `Nombre de contexto "${name}" inválido: usa minúsculas, dígitos, "-" o "_", empezando por una letra o un dígito.`,
+  invalidPrefix: (prefix) =>
+    `Prefijo "${prefix}" inválido: usa mayúsculas y dígitos, empezando por una letra. Indica uno con --prefix.`,
+  prefixTaken: (prefix, context) =>
+    `El prefijo "${prefix}" ya lo usa el contexto "${context}". Indica otro con --prefix.`,
+  prefixMismatch: (context, prefix, given) =>
+    `El contexto "${context}" ya existe con el prefijo "${prefix}", no "${given}".`,
+  contextTemplateSummary: 'TODO: resumen del contexto en una línea.',
+  contextTemplateBody: 'TODO: describe qué cubre este contexto y qué queda fuera.',
   untestedRule: (id) => `la regla activa ${id} no tiene ningún test que la etiquete`,
   unmatchedAnchor: (anchor) => `el anchor "${anchor}" no coincide con ningún archivo`,
   unknownRuleTag: (id) => `etiqueta ${id}, que no existe`,
