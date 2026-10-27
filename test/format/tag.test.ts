@@ -20,6 +20,18 @@ describe('findRuleTags', () => {
     ]);
   });
 
+  it('finds tags outside comments, such as in a test name or a string', () => {
+    const source = [
+      "it('rejects a duplicate @rule R-CLI-001', () => {});",
+      'const note = "@rule R-CLI-002";',
+    ].join('\n');
+
+    expect(findRuleTags(source)).toEqual([
+      { id: 'R-CLI-001', line: 1 },
+      { id: 'R-CLI-002', line: 2 },
+    ]);
+  });
+
   it('finds several tags on one line', () => {
     expect(findRuleTags('// @rule R-CLI-001 @rule R-OPS-010')).toEqual([
       { id: 'R-CLI-001', line: 1 },

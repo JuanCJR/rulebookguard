@@ -116,7 +116,13 @@ The Markdown body holds the full rule and its examples (Gherkin scenarios or tab
 
 ## The `@rule` tag
 
-A test links to a rule with `@rule <ID>` inside any comment, in any file matched by `testGlobs`. One comment can carry several tags.
+A test links to a rule with `@rule <ID>` anywhere in a file matched by `testGlobs`. One line can carry several tags. A comment is the usual place, but the tag is matched as text, so it also counts inside a test name or a string:
+
+```ts
+it('rejects a duplicate document @rule R-CLI-001', () => {});
+```
+
+To mention a rule in a test file without linking to it, write the id without the `@rule` prefix.
 
 TypeScript or JavaScript:
 
