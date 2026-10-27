@@ -251,10 +251,10 @@ Each rule comes with its id, context, summary, rule file and full text; when the
 
 An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with two read-only tools:
 
-| Tool | Input | Answers |
-| --- | --- | --- |
-| `rules_for` | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints |
-| `rules_show` | `id`: a rule id | what `rulebookguard show <id> --json` prints |
+| Tool         | Input                                                  | Answers                                       |
+| ------------ | ------------------------------------------------------ | --------------------------------------------- |
+| `rules_for`  | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints |
+| `rules_show` | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints  |
 
 The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.`
 
