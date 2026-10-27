@@ -47,7 +47,11 @@ describe('rulebookguard cli', () => {
   it.skipIf(cannotRunTypeScript)('hook reads the event from stdin', () => {
     const file = join(repoFixture, 'src/billing/invoice.go');
     const result = spawnSync(process.execPath, [cliPath, 'hook'], {
-      input: JSON.stringify({ tool_name: 'Edit', tool_input: { file_path: file } }),
+      input: JSON.stringify({
+        hook_event_name: 'PreToolUse',
+        tool_name: 'Edit',
+        tool_input: { file_path: file },
+      }),
       encoding: 'utf8',
     });
 

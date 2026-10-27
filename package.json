@@ -1,6 +1,6 @@
 {
   "name": "rulebookguard",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Keep business rules as the single source of truth, bound to code and tests.",
   "homepage": "https://github.com/JuanCJR/rulebookguard#readme",
   "bugs": {

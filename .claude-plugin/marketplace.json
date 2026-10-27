@@ -1,0 +1,14 @@
+{
+  "name": "rulebookguard",
+  "owner": {
+    "name": "Juan Carlos Jimenez"
+  },
+  "description": "Business rules as the source of truth for Claude Code: rulebookguard's hook, MCP server and skill.",
+  "plugins": [
+    {
+      "name": "rulebookguard",
+      "source": "./plugin",
+      "description": "Injects the business rules anchored to a file before Claude edits it, and serves them over MCP."
+    }
+  ]
+}

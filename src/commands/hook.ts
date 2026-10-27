@@ -12,25 +12,26 @@ const TEXT: Record<
 > = {
   en: {
     header: (path) =>
-      `Business rules anchored to ${path} (rulebookguard). They are the source of truth: keep the code consistent with them, and change the rule first if this edit changes its behavior.`,
+      `Business rules anchored to ${path} (rulebookguard). They are the source of truth: keep any change to this file consistent with them, and change the rule first if a change alters its behavior.`,
     ruleFile: 'Rule file',
     omitted: `Rule texts omitted (over ${HOOK_BODY_LIMIT} characters); run \`rulebookguard show <id>\` for the full text.`,
   },
   es: {
     header: (path) =>
-      `Reglas de negocio ancladas a ${path} (rulebookguard). Son la fuente de verdad: mantén el código coherente con ellas y, si esta edición cambia su comportamiento, cambia primero la regla.`,
+      `Reglas de negocio ancladas a ${path} (rulebookguard). Son la fuente de verdad: mantén cualquier cambio a este archivo coherente con ellas y, si un cambio altera su comportamiento, cambia primero la regla.`,
     ruleFile: 'Archivo de la regla',
     omitted: `Se omitió el texto de las reglas (más de ${HOOK_BODY_LIMIT} caracteres); ejecuta \`rulebookguard show <id>\` para verlo completo.`,
   },
 };
 
-// A PreToolUse hook must never block an edit: every failure ends with no output and exit 0.
+// A tool hook must never block the tool: every failure ends with no output and exit 0.
 export async function hookCommand(io: CliIo): Promise<void> {
   try {
-    const context = await hookContext(await (io.stdin?.() ?? Promise.resolve('')), io.cwd);
-    if (context !== undefined) {
+    const event = parseEvent(await (io.stdin?.() ?? Promise.resolve('')));
+    const context = event === undefined ? undefined : await hookContext(event, io.cwd);
+    if (event !== undefined && context !== undefined) {
       io.stdout(
-        `${JSON.stringify({ hookSpecificOutput: { hookEventName: 'PreToolUse', additionalContext: context } })}\n`,
+        `${JSON.stringify({ hookSpecificOutput: { hookEventName: event.name, additionalContext: context } })}\n`,
       );
     }
   } catch {
@@ -38,11 +39,15 @@ export async function hookCommand(io: CliIo): Promise<void> {
   }
 }
 
-async function hookContext(input: string, cwd: string): Promise<string | undefined> {
-  const event = parseEvent(input);
-  if (event === undefined) {
-    return undefined;
-  }
+const TOOL_EVENTS = ['PreToolUse', 'PostToolUse'] as const;
+
+interface ToolEvent {
+  name: (typeof TOOL_EVENTS)[number];
+  filePath: string;
+  cwd?: string;
+}
+
+async function hookContext(event: ToolEvent, cwd: string): Promise<string | undefined> {
   const file = resolve(event.cwd ?? cwd, event.filePath);
   const root = await findRulebookRoot(dirname(file));
   if (root === undefined) {
@@ -61,7 +66,7 @@ async function hookContext(input: string, cwd: string): Promise<string | undefin
   return render(repoPath, rules, TEXT[catalog.config.language ?? 'en']);
 }
 
-function parseEvent(input: string): { filePath: string; cwd?: string } | undefined {
+function parseEvent(input: string): ToolEvent | undefined {
   let event: unknown;
   try {
     event = JSON.parse(input);
@@ -71,12 +76,19 @@ function parseEvent(input: string): { filePath: string; cwd?: string } | undefin
   if (typeof event !== 'object' || event === null) {
     return undefined;
   }
-  const { tool_input: toolInput, cwd } = event as { tool_input?: unknown; cwd?: unknown };
+  const {
+    hook_event_name: name,
+    tool_input: toolInput,
+    cwd,
+  } = event as { hook_event_name?: unknown; tool_input?: unknown; cwd?: unknown };
   const filePath = (toolInput as { file_path?: unknown } | undefined)?.file_path;
-  if (typeof filePath !== 'string' || filePath === '') {
+  const toolEvent = TOOL_EVENTS.find((candidate) => candidate === name);
+  if (toolEvent === undefined || typeof filePath !== 'string' || filePath === '') {
     return undefined;
   }
-  return typeof cwd === 'string' ? { filePath, cwd } : { filePath };
+  return typeof cwd === 'string'
+    ? { name: toolEvent, filePath, cwd }
+    : { name: toolEvent, filePath };
 }
 
 function render(path: string, rules: RuleDoc[], text: (typeof TEXT)[RuleLanguage]): string {
