@@ -1,0 +1,35 @@
+{
+  "name": "@rulebookguard/site",
+  "version": "0.5.0",
+  "description": "Astro Starlight builder for the rulebookguard site commands.",
+  "homepage": "https://github.com/JuanCJR/rulebookguard#readme",
+  "bugs": {
+    "url": "https://github.com/JuanCJR/rulebookguard/issues"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JuanCJR/rulebookguard.git",
+    "directory": "packages/site"
+  },
+  "files": [
+    "index.mjs",
+    "index.d.mts"
+  ],
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./index.d.mts",
+      "default": "./index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "dependencies": {
+    "@astrojs/markdown-remark": "^7.3.2",
+    "@astrojs/starlight": "^0.42.6",
+    "astro": "^7.3.8"
+  },
+  "engines": {
+    "node": ">=22.23.4"
+  }
+}

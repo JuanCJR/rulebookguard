@@ -1,19 +1,18 @@
-import { execFile } from 'node:child_process';
-import { randomUUID } from 'node:crypto';
-import { existsSync, readFileSync } from 'node:fs';
-import { cp, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/promises';
+import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
+import { createRequire } from 'node:module';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { promisify } from 'node:util';
+import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import type { Catalog } from '../catalog/load.ts';
 import type { RuleLanguage } from '../format/types.ts';
 import { siteData } from '../site/data.ts';
 import { normalizeBase, sitePages, siteText } from '../site/pages.ts';
 import { CliError, gitFallbackWarning, openCatalog, writeLines, type CliIo } from './io.ts';
 
-const execFileAsync = promisify(execFile);
+type SitePackage = typeof import('@rulebookguard/site');
+
+const SITE_PACKAGE = '@rulebookguard/site';
 
 /** Marks an output directory as written by `site`, so a rebuild may replace it. */
 const MARKER = '.rulebookguard-site';
@@ -42,12 +41,13 @@ export async function siteCommand(
     fromCwd === '' ? '.' : fromCwd.startsWith('..') || isAbsolute(fromCwd) ? out : fromCwd;
   await assertReplaceable(out, shown);
 
+  const site = await importSitePackage([catalog.root, dirname(fileURLToPath(import.meta.url))]);
   const language = catalog.config.language ?? 'en';
   const base = normalizeBase(options.base ?? '/');
   // Claim the port before the build, so a taken port fails in milliseconds rather than after it.
   const server = options.serve ? await listen(out, base, options.port ?? DEFAULT_PORT) : undefined;
   try {
-    await buildSite(catalog, out, language, base, io);
+    await buildSite(site, catalog, out, language, base, io);
   } catch (error) {
     server?.close();
     throw error;
@@ -65,7 +65,27 @@ export async function siteCommand(
   });
 }
 
+/** Imports the site builder from the first of `from` that resolves it. */
+export async function importSitePackage(from: readonly string[]): Promise<SitePackage> {
+  for (const directory of from) {
+    let entry: string;
+    try {
+      entry = createRequire(join(directory, 'package.json')).resolve(SITE_PACKAGE);
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
+        continue;
+      }
+      throw error;
+    }
+    return (await import(pathToFileURL(entry).href)) as SitePackage;
+  }
+  throw new CliError(
+    `The site commands need the ${SITE_PACKAGE} package. Install it next to rulebookguard: npm install --save-dev ${SITE_PACKAGE}`,
+  );
+}
+
 async function buildSite(
+  site: SitePackage,
   catalog: Catalog,
   out: string,
   language: RuleLanguage,
@@ -84,19 +104,12 @@ async function buildSite(
   ];
   files.set('astro.config.mjs', astroConfig(text.title, language, base, sidebar));
 
-  const work = join(siteWorkRoot(), randomUUID());
   try {
-    for (const [path, content] of files) {
-      await mkdir(dirname(join(work, path)), { recursive: true });
-      await writeFile(join(work, path), content);
-    }
-    await buildWithAstro(work);
-    await rm(out, { recursive: true, force: true });
-    await cp(join(work, 'dist'), out, { recursive: true });
-    await writeFile(join(out, MARKER), '');
-  } finally {
-    await rm(work, { recursive: true, force: true });
+    await site.buildSite(files, out);
+  } catch (error) {
+    throw error instanceof site.SiteBuildError ? new CliError(error.message) : error;
   }
+  await writeFile(join(out, MARKER), '');
 }
 
 function untilInterrupted(): Promise<void> {
@@ -189,32 +202,6 @@ async function sendNotFound(out: string, response: ServerResponse): Promise<void
   response.writeHead(404, { 'content-type': CONTENT_TYPES['.html'] }).end(page);
 }
 
-/**
- * Starlight injects its routes as package specifiers that Astro resolves from the project root, so the generated
- * project must live inside the node_modules directory that holds rulebookguard's own dependencies.
- */
-export function siteWorkRoot(): string {
-  let directory = dirname(fileURLToPath(import.meta.url));
-  while (!isOwnPackageRoot(directory)) {
-    const parent = dirname(directory);
-    if (parent === directory) {
-      throw new Error('rulebookguard package root not found');
-    }
-    directory = parent;
-  }
-  const parent = dirname(directory);
-  const modules = basename(parent) === 'node_modules' ? parent : join(directory, 'node_modules');
-  return join(modules, '.rulebookguard-site');
-}
-
-function isOwnPackageRoot(directory: string): boolean {
-  const file = join(directory, 'package.json');
-  return (
-    existsSync(file) &&
-    (JSON.parse(readFileSync(file, 'utf8')) as { name?: unknown }).name === 'rulebookguard'
-  );
-}
-
 async function assertReplaceable(out: string, shown: string): Promise<void> {
   let entries: string[];
   try {
@@ -230,36 +217,6 @@ async function assertReplaceable(out: string, shown: string): Promise<void> {
       `${shown} is not empty and was not written by "rulebookguard site"; choose another --out or empty it first.`,
     );
   }
-}
-
-// Astro writes temporary prerender files under the process cwd, so it runs in its own process from the project.
-async function buildWithAstro(work: string): Promise<void> {
-  const astro = join(dirname(siteWorkRoot()), 'astro');
-  const { bin } = JSON.parse(readFileSync(join(astro, 'package.json'), 'utf8')) as {
-    bin: { astro: string };
-  };
-  try {
-    await execFileAsync(process.execPath, [join(astro, bin.astro), 'build', '--silent'], {
-      cwd: work,
-      env: { ...process.env, ASTRO_TELEMETRY_DISABLED: '1' },
-      maxBuffer: 64 * 1024 * 1024,
-    });
-  } catch (error) {
-    const { stderr, stdout } = error as { stderr?: string; stdout?: string };
-    throw new CliError(
-      `The site build failed:\n${astroFailureDetail(`${stderr ?? ''}${stdout ?? ''}`)}`,
-    );
-  }
-}
-
-/** The first lines of Astro's error output, without its stack trace. */
-export function astroFailureDetail(output: string): string {
-  return output
-    .split('\n')
-    .filter((line) => !/^\s*at /.test(line) && !/^\s*Stack trace:/.test(line))
-    .filter((line) => line.trim() !== '')
-    .slice(0, 12)
-    .join('\n');
 }
 
 function astroConfig(title: string, language: string, base: string, sidebar: unknown[]): string {
