@@ -1,7 +1,7 @@
-import { cp, mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vite-plus/test';
-import { siteWorkRoot } from '../../src/commands/site.ts';
+import { describe, expect, it, onTestFinished } from 'vite-plus/test';
+import { astroFailureDetail, siteWorkRoot } from '../../src/commands/site.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
 
@@ -83,6 +83,48 @@ describe('site', () => {
         'docs/site is not empty and was not written by "rulebookguard site"; choose another --out or empty it first.\n',
     });
     expect(await read(repo, 'docs/site/keep.md')).toBe('mine');
+  });
+
+  it('builds when an older copy of an Astro dependency is hoisted above the work directory', async () => {
+    // pnpm hoists packages into node_modules/.pnpm/node_modules, which sits on the resolution path of the generated
+    // project; Kuadra has express's cookie 0.7 there, without the parseCookie export Astro imports.
+    const shadow = join(siteWorkRoot(), 'node_modules/cookie');
+    await mkdir(shadow, { recursive: true });
+    onTestFinished(() =>
+      rm(join(siteWorkRoot(), 'node_modules'), { recursive: true, force: true }),
+    );
+    await writeFile(
+      join(shadow, 'package.json'),
+      '{"name":"cookie","version":"0.7.2","main":"index.js"}',
+    );
+    await writeFile(
+      join(shadow, 'index.js'),
+      'exports.parse = () => ({});\nexports.serialize = () => "";\n',
+    );
+    const repo = await scratchRepo();
+
+    const result = await runCli(['site'], repo);
+
+    expect(result).toEqual({ status: 0, stdout: 'site\n', stderr: '' });
+  });
+
+  it('reports the cause of a failed build, not its stack trace', () => {
+    const output = [
+      "12:00:00 [ERROR] Named export 'parseCookie' not found.",
+      '  Hint:',
+      '    Use the default export.',
+      '  Stack trace:',
+      '    at ModuleJob._instantiate (node:internal/modules/esm/module_job:180:21)',
+      '    at async generatePages (file:///x/astro/dist/core/build/generate.js:82:2)',
+    ].join('\n');
+
+    expect(astroFailureDetail(output)).toBe(
+      [
+        "12:00:00 [ERROR] Named export 'parseCookie' not found.",
+        '  Hint:',
+        '    Use the default export.',
+      ].join('\n'),
+    );
   });
 
   it('leaves no work directory behind', async () => {

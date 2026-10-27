@@ -114,9 +114,20 @@ async function buildWithAstro(work: string): Promise<void> {
     });
   } catch (error) {
     const { stderr, stdout } = error as { stderr?: string; stdout?: string };
-    const detail = `${stderr ?? ''}${stdout ?? ''}`.trim().split('\n').slice(-5).join('\n');
-    throw new CliError(`The site build failed:\n${detail}`);
+    throw new CliError(
+      `The site build failed:\n${astroFailureDetail(`${stderr ?? ''}${stdout ?? ''}`)}`,
+    );
   }
+}
+
+/** The first lines of Astro's error output, without its stack trace. */
+export function astroFailureDetail(output: string): string {
+  return output
+    .split('\n')
+    .filter((line) => !/^\s*at /.test(line) && !/^\s*Stack trace:/.test(line))
+    .filter((line) => line.trim() !== '')
+    .slice(0, 12)
+    .join('\n');
 }
 
 function astroConfig(title: string, language: string, base: string, sidebar: unknown[]): string {
@@ -127,6 +138,9 @@ export default defineConfig({
   base: ${JSON.stringify(base)},
   outDir: './dist',
   cacheDir: './.astro-cache',
+  // Bundle the prerender dependencies: left external, Node resolves them from this project, where a package manager
+  // may have hoisted other versions (pnpm's node_modules/.pnpm/node_modules) ahead of the ones Astro depends on.
+  vite: { environments: { prerender: { resolve: { noExternal: true } } } },
   integrations: [
     starlight({
       title: ${JSON.stringify(title)},
