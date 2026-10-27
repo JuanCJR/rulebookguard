@@ -13,7 +13,7 @@ It is language-agnostic: rules are Markdown, and tests in any language link to t
 
 ## Install
 
-Requires Node.js 22.23.4 or later (the `site:generate` and `site:run` commands build with Astro 7, which needs it).
+Requires Node.js 22 or later.
 
 ```sh
 npx rulebookguard lint
@@ -261,6 +261,14 @@ An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with 
 The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.`
 
 ### `site:generate [--out <dir>] [--base <path>]`
+
+The site commands build with Astro, which lives in a separate package so that installing the linter does not download it. Install it next to `rulebookguard` (it requires Node.js 22.23.4 or later):
+
+```sh
+npm install --save-dev rulebookguard @rulebookguard/site
+```
+
+Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard -p @rulebookguard/site rulebookguard site:run`.
 
 Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
 

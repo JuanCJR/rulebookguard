@@ -29,6 +29,7 @@ Commands:
   site:run [--out <dir>] [--base <path>] [--port <n>]
                                                      build the site, then serve it on 127.0.0.1 until Ctrl+C;
                                                      --port: port to serve on (default: 4321)
+                                                     site commands need @rulebookguard/site installed
 
 Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 `;

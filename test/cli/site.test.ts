@@ -1,11 +1,17 @@
+import { spawnSync } from 'node:child_process';
 import { cp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { describe, expect, it, onTestFinished } from 'vite-plus/test';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { astroFailureDetail, siteCommand, siteWorkRoot } from '../../src/commands/site.ts';
+import { astroFailureDetail, siteWorkRoot } from '@rulebookguard/site';
+import { importSitePackage, siteCommand } from '../../src/commands/site.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
+
+// Node without type stripping cannot run src/commands/site.ts in a child process.
+const cannotRunTypeScript = !(process.features as { typescript?: unknown }).typescript;
 
 async function scratchRepo(): Promise<string> {
   const dir = await scratchDir();
@@ -149,6 +155,63 @@ describe('site:generate', () => {
     await runCli(['site'], repo);
 
     expect(await readdir(siteWorkRoot()).catch(() => [])).toEqual([]);
+  });
+});
+
+describe('@rulebookguard/site', () => {
+  // pnpm's bin shims put node_modules/.pnpm/node_modules, where the workspace package is linked, on NODE_PATH, so the
+  // lookup runs in a child process without it.
+  it.skipIf(cannotRunTypeScript)(
+    'fails with how to install it when it cannot be resolved',
+    async () => {
+      const dir = await scratchDir();
+      const site = new URL('../../src/commands/site.ts', import.meta.url).href;
+
+      const result = spawnSync(
+        process.execPath,
+        [
+          '--input-type=module',
+          '-e',
+          `import { importSitePackage } from ${JSON.stringify(site)};
+await importSitePackage([${JSON.stringify(dir)}]).catch((error) => console.log(error.message));`,
+        ],
+        { encoding: 'utf8', env: { ...process.env, NODE_PATH: '' } },
+      );
+
+      expect(result.stdout).toBe(
+        'The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site\n',
+      );
+    },
+  );
+
+  it('resolves the package from the first directory that has it', async () => {
+    const site = await importSitePackage([
+      await scratchDir(),
+      fileURLToPath(new URL('../..', import.meta.url)),
+    ]);
+
+    expect(site.siteWorkRoot()).toBe(
+      fileURLToPath(
+        new URL('../../packages/site/node_modules/.rulebookguard-site', import.meta.url),
+      ),
+    );
+  });
+
+  it('is an optional peer of the core, which does not depend on Astro', async () => {
+    const manifest = JSON.parse(
+      await readFile(new URL('../../package.json', import.meta.url), 'utf8'),
+    ) as {
+      version: string;
+      dependencies: Record<string, string>;
+      peerDependencies?: Record<string, string>;
+      peerDependenciesMeta?: Record<string, unknown>;
+      engines: unknown;
+    };
+
+    expect(Object.keys(manifest.dependencies).filter((name) => name.includes('astro'))).toEqual([]);
+    expect(manifest.peerDependencies?.['@rulebookguard/site']).toBe(`^${manifest.version}`);
+    expect(manifest.peerDependenciesMeta?.['@rulebookguard/site']).toEqual({ optional: true });
+    expect(manifest.engines).toEqual({ node: '>=22' });
   });
 });
 
