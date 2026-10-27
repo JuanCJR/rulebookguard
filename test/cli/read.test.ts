@@ -138,6 +138,16 @@ describe('show', () => {
     );
   });
 
+  it('prints (none) for empty entities and anchors', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    await runCli(['new', 'clients'], dir);
+
+    const out = await ok(['show', 'R-CLI-004'], dir);
+
+    expect(out).toContain('entities: (none)\nanchors:\n  (none)\n');
+  });
+
   it('prints JSON with supersedes null when absent', async () => {
     expect(await json(['show', 'R-CLI-001'])).toEqual({
       rule: {

@@ -126,13 +126,14 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
     } satisfies ShowJson);
     return;
   }
+  const none = messages(catalog.config.language).none;
   const header = [
     `${rule.id}: ${rule.summary}`,
     `context: ${rule.context}`,
     `status: ${rule.status}`,
-    `entities: ${rule.entities.join(', ')}`,
+    `entities: ${rule.entities.length === 0 ? none : rule.entities.join(', ')}`,
     'anchors:',
-    ...indent(rule.anchors, messages(catalog.config.language).none),
+    ...indent(rule.anchors, none),
     ...(rule.supersedes === undefined ? [] : [`supersedes: ${rule.supersedes}`]),
     `file: ${rule.file}`,
   ];
