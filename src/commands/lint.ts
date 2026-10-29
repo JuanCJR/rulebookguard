@@ -1,5 +1,13 @@
 import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../catalog/files.ts';
-import { changedSince, gitFailureReason, isCommitRef, isInsideWorkTree } from '../catalog/git.ts';
+import {
+  changedLines,
+  changedSince,
+  gitFailureReason,
+  isCommitRef,
+  isInsideWorkTree,
+  type ChangeSet,
+  type LineSpan,
+} from '../catalog/git.ts';
 import {
   loadCatalog,
   relativeToRoot,
@@ -7,8 +15,9 @@ import {
   type CatalogIssueCode,
 } from '../catalog/load.ts';
 import { FormatError } from '../format/errors.ts';
+import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
-import { scanTestRegions, type TagIndex, type TagScan } from '../catalog/tags.ts';
+import { scanTestRegions, type TagScan } from '../catalog/tags.ts';
 import {
   CliError,
   EXIT_FAILURE,
@@ -72,7 +81,8 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
   const scan = await scanTestRegions(catalog.root, catalog.config.testGlobs, warn);
   const findings = await lintCatalog(catalog, scan, warn);
   if (options.base !== undefined && changed !== undefined) {
-    findings.push(...pendingImplementation(catalog, scan.tags, options.base, changed));
+    const lines = await testLineChanges(catalog, scan, options.base, changed, text);
+    findings.push(...pendingImplementation(catalog, scan, options.base, changed.files, lines));
   }
   return report(io, findings, options.json, text);
 }
@@ -205,16 +215,21 @@ export async function lintCatalog(
 
 export function pendingImplementation(
   catalog: Catalog,
-  tags: TagIndex,
+  scan: TagScan,
   base: string,
   changed: string[],
+  lines: Map<string, LineSpan[]>,
 ): LintFinding[] {
   const text = messages(catalog.config.language);
-  const changedSet = new Set(changed);
-  return catalog.rules
-    .filter((rule) => rule.status === 'active' && changedSet.has(rule.file))
-    .filter((rule) => (tags.get(rule.id) ?? []).length > 0)
-    .filter((rule) => !(tags.get(rule.id) ?? []).some(({ file }) => changedSet.has(file)))
+  return changedActiveRules(catalog, scan, changed)
+    .filter(
+      (rule) =>
+        !(scan.regions.get(rule.id) ?? []).some((region) =>
+          (lines.get(region.file) ?? []).some(
+            ([start, end]) => start <= region.endLine && end >= region.line,
+          ),
+        ),
+    )
     .map((rule) =>
       error(
         'pending-implementation',
@@ -225,7 +240,46 @@ export function pendingImplementation(
     );
 }
 
-async function changedFiles(root: string, base: string, text: Messages): Promise<string[]> {
+function changedActiveRules(catalog: Catalog, scan: TagScan, changed: string[]): RuleDoc[] {
+  const changedSet = new Set(changed);
+  return catalog.rules.filter(
+    (rule) =>
+      rule.status === 'active' &&
+      changedSet.has(rule.file) &&
+      (scan.tags.get(rule.id) ?? []).length > 0,
+  );
+}
+
+async function testLineChanges(
+  catalog: Catalog,
+  scan: TagScan,
+  base: string,
+  changed: ChangeSet,
+  text: Messages,
+): Promise<Map<string, LineSpan[]>> {
+  const changedSet = new Set(changed.files);
+  const files = new Set(
+    changedActiveRules(catalog, scan, changed.files)
+      .flatMap((rule) => scan.regions.get(rule.id) ?? [])
+      .map((region) => region.file)
+      .filter((file) => changedSet.has(file)),
+  );
+  const lines = new Map<string, LineSpan[]>();
+  for (const file of files) {
+    if (changed.untracked.has(file)) {
+      lines.set(file, [[1, Number.POSITIVE_INFINITY]]);
+      continue;
+    }
+    try {
+      lines.set(file, await changedLines(catalog.root, base, file));
+    } catch (error) {
+      throw new CliError(text.cannotListChanged(base, gitFailureReason(error)));
+    }
+  }
+  return lines;
+}
+
+async function changedFiles(root: string, base: string, text: Messages): Promise<ChangeSet> {
   if (!(await isInsideWorkTree(root))) {
     throw new CliError(text.needsWorkTree(root));
   }

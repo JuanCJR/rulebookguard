@@ -75,7 +75,10 @@ describe('language: es', () => {
 
   it('prints no issues found in Spanish', async () => {
     const repo = await spanishCopy('repo');
-    await writeFile(join(repo, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n# @endrule R-BIL-002\n');
+    await writeFile(
+      join(repo, 'tests/billing/test_numbering.py'),
+      '# @rule R-BIL-002\n# @endrule R-BIL-002\n',
+    );
 
     expect(await runCli(['lint'], repo)).toEqual({
       status: 0,

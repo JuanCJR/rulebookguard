@@ -9,7 +9,10 @@ const lintFixture = fixtureRoot('lint');
 async function cleanRepo(): Promise<string> {
   const dir = await scratchDir();
   await cp(fixtureRoot('repo'), dir, { recursive: true });
-  await writeFile(join(dir, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n# @endrule R-BIL-002\n');
+  await writeFile(
+    join(dir, 'tests/billing/test_numbering.py'),
+    '# @rule R-BIL-002\n# @endrule R-BIL-002\n',
+  );
   return dir;
 }
 

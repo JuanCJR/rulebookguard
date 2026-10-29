@@ -323,23 +323,23 @@ Generated text and the interface follow `language` in the config. The site is a 
 
 Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, with a `hint:` line under it that says how to fix it, followed by a count.
 
-| Severity | Code                     | Meaning                                                          |
-| -------- | ------------------------ | ---------------------------------------------------------------- |
-| error    | `untested-rule`          | an active rule has no test tagging it                            |
-| error    | `unknown-rule-tag`       | a test tags a rule id that does not exist                        |
-| error    | `deprecated-rule-tag`    | a test tags a deprecated rule                                    |
-| error    | `unclosed-rule-tag`      | a `@rule` has no matching `@endrule`                             |
-| error    | `unmatched-endrule-tag`  | an `@endrule` has no open `@rule` of the same id                 |
-| error    | `unmatched-anchor`       | an anchor glob matches no file                                   |
-| error    | `schema`                 | a config, context or rule file breaks the JSON Schema            |
-| error    | `duplicate-id`           | two rule files share an id                                       |
-| error    | `file-name-mismatch`     | a rule file is not named `<id>.md`                               |
-| error    | `id-prefix-mismatch`     | a rule id does not use its context prefix                        |
-| error    | `context-mismatch`       | a `context` field does not match its directory                   |
-| error    | `missing-context-file`   | a context directory has no `_context.md`                         |
-| error    | `missing-rules-dir`      | `rulesDir` does not exist                                        |
-| error    | `pending-implementation` | with `--base`: an active rule changed, but none of its tests did |
-| warning  | `context-over-budget`    | a context holds more rules than `contextBudget`                  |
+| Severity | Code                     | Meaning                                                            |
+| -------- | ------------------------ | ------------------------------------------------------------------ |
+| error    | `untested-rule`          | an active rule has no test tagging it                              |
+| error    | `unknown-rule-tag`       | a test tags a rule id that does not exist                          |
+| error    | `deprecated-rule-tag`    | a test tags a deprecated rule                                      |
+| error    | `unclosed-rule-tag`      | a `@rule` has no matching `@endrule`                               |
+| error    | `unmatched-endrule-tag`  | an `@endrule` has no open `@rule` of the same id                   |
+| error    | `unmatched-anchor`       | an anchor glob matches no file                                     |
+| error    | `schema`                 | a config, context or rule file breaks the JSON Schema              |
+| error    | `duplicate-id`           | two rule files share an id                                         |
+| error    | `file-name-mismatch`     | a rule file is not named `<id>.md`                                 |
+| error    | `id-prefix-mismatch`     | a rule id does not use its context prefix                          |
+| error    | `context-mismatch`       | a `context` field does not match its directory                     |
+| error    | `missing-context-file`   | a context directory has no `_context.md`                           |
+| error    | `missing-rules-dir`      | `rulesDir` does not exist                                          |
+| error    | `pending-implementation` | with `--base`: an active rule changed, but none of its regions did |
+| warning  | `context-over-budget`    | a context holds more rules than `contextBudget`                    |
 
 ```sh
 $ rulebookguard lint
@@ -352,12 +352,12 @@ warning context-over-budget docs/rules/clients/_context.md context "clients" has
 
 Exits 1 when there is any error, and 0 when there are only warnings or nothing at all (`No issues found.`). An invalid `rulebookguard.config.yaml` is reported as `schema` findings too; tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
 
-With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff --name-only <ref>` plus untracked files, so uncommitted work counts). A rule whose file changed must come with a change in at least one test that tags it, otherwise it is reported as `pending-implementation`; an active rule that no test tags at all is reported only as `untested-rule`. Only rules whose status is `active` after the change are checked: new active rules are checked, `proposed` and `deprecated` rules are not. Outside a git work tree, with a ref git cannot resolve, or when git fails while listing the changes, lint fails with exit code 1.
+With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff --name-only <ref>` plus untracked files, so uncommitted work counts). A rule whose file changed must come with a change inside at least one of its `@rule` … `@endrule` regions (`git diff -U0 <ref>`; a test file that is still untracked counts whole, and a deletion counts when it falls strictly inside the region), otherwise it is reported as `pending-implementation`. A change elsewhere in the same test file, such as another test or a blank line between regions, does not count; an active rule that no test tags at all is reported only as `untested-rule`. Only rules whose status is `active` after the change are checked: new active rules are checked, `proposed` and `deprecated` rules are not. Outside a git work tree, with a ref git cannot resolve, or when git fails while listing the changes, lint fails with exit code 1.
 
 ```sh
 $ rulebookguard lint --base origin/main
 error pending-implementation docs/rules/clients/R-CLI-001.md rule R-CLI-001 changed since origin/main but none of the tests tagging it changed
-  hint: update or add a test tagging R-CLI-001 that covers the changed rule
+  hint: update or add a test inside an "@rule R-CLI-001" … "@endrule R-CLI-001" region that covers the changed rule
 1 error, 0 warnings
 ```
 

@@ -159,7 +159,7 @@ const EN: Messages = {
   contextOverBudgetHint:
     'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
   pendingImplementationHint: (id) =>
-    `update or add a test tagging ${id} that covers the changed rule`,
+    `update or add a test inside an "@rule ${id}" … "@endrule ${id}" region that covers the changed rule`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
   needsWorkTree: (root) => `lint --base needs a git work tree, but ${root} is not inside one.`,
@@ -261,7 +261,7 @@ const ES: Messages = {
   contextOverBudgetHint:
     'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
   pendingImplementationHint: (id) =>
-    `actualiza o agrega un test que etiquete ${id} y cubra el cambio de la regla`,
+    `actualiza o agrega un test dentro de una región "@rule ${id}" … "@endrule ${id}" que cubra el cambio de la regla`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errores'}, ${warnings} ${warnings === 1 ? 'aviso' : 'avisos'}`,
   needsWorkTree: (root) => `lint --base necesita un work tree de git, pero ${root} no está en uno.`,

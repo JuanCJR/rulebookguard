@@ -13,7 +13,10 @@ async function repoWithIgnoredBuild(): Promise<string> {
   await mkdir(join(dir, 'dist/src/clients'), { recursive: true });
   await writeFile(join(dir, 'dist/src/clients/create.go'), 'package clients\n');
   await mkdir(join(dir, 'dist/tests/clients'), { recursive: true });
-  await writeFile(join(dir, 'dist/tests/clients/test_build.py'), '# @rule R-CLI-002\n# @endrule R-CLI-002\n');
+  await writeFile(
+    join(dir, 'dist/tests/clients/test_build.py'),
+    '# @rule R-CLI-002\n# @endrule R-CLI-002\n',
+  );
   return dir;
 }
 
