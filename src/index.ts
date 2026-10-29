@@ -3,7 +3,17 @@ export { CONTEXT_FILE_NAME, loadContext, parseContext } from './format/context.t
 export { FormatError, formatIssue, type FormatIssue } from './format/errors.ts';
 export { splitFrontmatter, type Frontmatter } from './format/frontmatter.ts';
 export { isRuleId, loadRule, parseRule } from './format/rule.ts';
-export { findRuleTags, RULE_TAG_PATTERN, type RuleTag } from './format/tag.ts';
+export {
+  findRuleRegions,
+  findRuleTags,
+  RULE_MARKER_PATTERN,
+  RULE_TAG_PATTERN,
+  type RuleRegion,
+  type RuleRegions,
+  type RuleTag,
+  type RuleTagProblem,
+  type RuleTagProblemCode,
+} from './format/tag.ts';
 export type {
   ContextDoc,
   ContextFrontmatter,
@@ -30,7 +40,16 @@ export {
   type CatalogIssue,
   type CatalogIssueCode,
 } from './catalog/load.ts';
-export { scanTestTags, type TagIndex, type TagLocation } from './catalog/tags.ts';
+export {
+  scanTestRegions,
+  scanTestTags,
+  type RegionIndex,
+  type TagIndex,
+  type TagLocation,
+  type TagProblem,
+  type TagRegion,
+  type TagScan,
+} from './catalog/tags.ts';
 export type {
   ContextsJson,
   ForJson,

@@ -2,7 +2,7 @@
 
 Keep business rules as the single source of truth, readable by humans and AI, and bound to the code and tests that implement them.
 
-Business rules usually end up scattered across code, tickets and people's memory. Neither a developer's memory nor an AI model's reading of the code is deterministic. `rulebookguard` keeps each rule in its own small Markdown file, links it to the code it governs (anchors) and to the tests that prove it (`@rule` tags), and fails CI when they drift apart.
+Business rules usually end up scattered across code, tickets and people's memory. Neither a developer's memory nor an AI model's reading of the code is deterministic. `rulebookguard` keeps each rule in its own small Markdown file, links it to the code it governs (anchors) and to the tests that prove it (`@rule` … `@endrule` regions), and fails CI when they drift apart.
 
 - **Atomic rules.** One file per rule, with YAML frontmatter validated against a versioned JSON Schema.
 - **Progressive disclosure.** Contexts map (L0), `id + summary` per context (L1), the full rule (L2), so neither people nor AI models have to read the whole catalog.
@@ -116,11 +116,9 @@ The Markdown body holds the full rule and its examples (Gherkin scenarios or tab
 
 ## The `@rule` tag
 
-A test links to a rule with `@rule <ID>` anywhere in a file matched by `testGlobs`. One line can carry several tags. A comment is the usual place, but the tag is matched as text, so it also counts inside a test name or a string:
+A test links to a rule with a region: `@rule <ID>` opens it and `@endrule <ID>` closes it, in a file matched by `testGlobs`. Both lines belong to the region. Every `@rule` needs its `@endrule`, otherwise `lint` reports `unclosed-rule-tag`; an `@endrule` with no open `@rule` of the same id is reported as `unmatched-endrule-tag`. Regions may nest (a suite tagged with one rule holding tests tagged with others) as long as they close in order. One line can carry several markers. A comment is the usual place, but the markers are matched as text, so they also count inside a test name or a string.
 
-```ts
-it('rejects a duplicate document @rule R-CLI-001', () => {});
-```
+The region tells `lint --base` which lines belong to the rule: a changed rule needs a change inside one of its regions, not anywhere in the test file.
 
 To mention a rule in a test file without linking to it, write the id without the `@rule` prefix.
 
@@ -131,6 +129,7 @@ TypeScript or JavaScript:
 it('rejects a duplicate document in the same country', () => {
   /* ... */
 });
+// @endrule R-CLI-001
 ```
 
 Go:
@@ -138,6 +137,7 @@ Go:
 ```go
 // @rule R-CLI-001 @rule R-BIL-001
 func TestCreateClient(t *testing.T) {}
+// @endrule R-BIL-001 @endrule R-CLI-001
 ```
 
 Python:
@@ -146,6 +146,7 @@ Python:
 # @rule R-CLI-001
 def test_duplicate_document():
     ...
+# @endrule R-CLI-001
 ```
 
 Java or Kotlin:
@@ -154,6 +155,7 @@ Java or Kotlin:
 /** @rule R-CLI-001 */
 @Test
 void rejectsDuplicateDocument() {}
+/** @endrule R-CLI-001 */
 ```
 
 SQL:
@@ -161,6 +163,7 @@ SQL:
 ```sql
 -- @rule R-BIL-002
 SELECT count(*) FROM invoices WHERE number IS NULL;
+-- @endrule R-BIL-002
 ```
 
 ## Commands
@@ -325,6 +328,8 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 | error    | `untested-rule`          | an active rule has no test tagging it                            |
 | error    | `unknown-rule-tag`       | a test tags a rule id that does not exist                        |
 | error    | `deprecated-rule-tag`    | a test tags a deprecated rule                                    |
+| error    | `unclosed-rule-tag`      | a `@rule` has no matching `@endrule`                             |
+| error    | `unmatched-endrule-tag`  | an `@endrule` has no open `@rule` of the same id                 |
 | error    | `unmatched-anchor`       | an anchor glob matches no file                                   |
 | error    | `schema`                 | a config, context or rule file breaks the JSON Schema            |
 | error    | `duplicate-id`           | two rule files share an id                                       |
@@ -339,7 +344,7 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 ```sh
 $ rulebookguard lint
 error untested-rule docs/rules/billing/R-BIL-002.md active rule R-BIL-002 has no test tagging it
-  hint: add "@rule R-BIL-002" to a test in a file matched by testGlobs, or set the rule's status to proposed
+  hint: wrap a test in a file matched by testGlobs with "@rule R-BIL-002" and "@endrule R-BIL-002", or set the rule's status to proposed
 warning context-over-budget docs/rules/clients/_context.md context "clients" has 31 rules, more than the contextBudget of 30
   hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml
 1 error, 1 warning

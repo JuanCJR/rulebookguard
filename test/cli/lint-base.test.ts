@@ -12,7 +12,7 @@ const PENDING_HINT = '  hint: update or add a test tagging R-CLI-001 that covers
 async function committedRepo(): Promise<string> {
   const dir = await scratchDir();
   await cp(fixtureRoot('repo'), dir, { recursive: true });
-  await writeFile(join(dir, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n');
+  await writeFile(join(dir, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n# @endrule R-BIL-002\n');
   initRepo(dir);
   return dir;
 }
@@ -91,9 +91,9 @@ describe('lint --base', () => {
   it('checks added active rules, counting untracked test files as changed', async () => {
     const repo = await committedRepo();
     await writeFile(join(repo, 'docs/rules/clients/R-CLI-004.md'), newRule('R-CLI-004'));
-    await writeFile(join(repo, 'tests/clients/test_new.py'), '# @rule R-CLI-004\n');
+    await writeFile(join(repo, 'tests/clients/test_new.py'), '# @rule R-CLI-004\n# @endrule R-CLI-004\n');
     await writeFile(join(repo, 'docs/rules/clients/R-CLI-005.md'), newRule('R-CLI-005'));
-    await appendFile(join(repo, 'tests/billing/invoice_test.go'), '\n// @rule R-CLI-005\n');
+    await appendFile(join(repo, 'tests/billing/invoice_test.go'), '\n// @rule R-CLI-005\n// @endrule R-CLI-005\n');
     git(repo, 'add', 'tests/billing/invoice_test.go');
     git(repo, 'commit', '-q', '-m', 'tag before the rule exists');
 
@@ -117,7 +117,7 @@ describe('lint --base', () => {
       status: 1,
       stdout: [
         'error untested-rule docs/rules/clients/R-CLI-004.md active rule R-CLI-004 has no test tagging it',
-        '  hint: add "@rule R-CLI-004" to a test in a file matched by testGlobs, or set the rule\'s status to proposed',
+        '  hint: wrap a test in a file matched by testGlobs with "@rule R-CLI-004" and "@endrule R-CLI-004", or set the rule\'s status to proposed',
         '1 error, 0 warnings',
         '',
       ].join('\n'),
@@ -129,7 +129,7 @@ describe('lint --base', () => {
     const dir = await scratchDir();
     const nested = join(dir, 'packages/app');
     await cp(fixtureRoot('repo'), nested, { recursive: true });
-    await writeFile(join(nested, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n');
+    await writeFile(join(nested, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n# @endrule R-BIL-002\n');
     initRepo(dir);
     await appendFile(join(nested, CLI_001), '\nA second paragraph.\n');
 

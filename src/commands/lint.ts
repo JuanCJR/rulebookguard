@@ -8,7 +8,7 @@ import {
 } from '../catalog/load.ts';
 import { FormatError } from '../format/errors.ts';
 import { messages, type Messages } from '../messages.ts';
-import { scanTestTags, type TagIndex } from '../catalog/tags.ts';
+import { scanTestRegions, type TagIndex, type TagScan } from '../catalog/tags.ts';
 import {
   CliError,
   EXIT_FAILURE,
@@ -69,10 +69,10 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
   const changed =
     options.base === undefined ? undefined : await changedFiles(catalog.root, options.base, text);
   const warn = gitFallbackWarning(io, catalog.config.language);
-  const tags = await scanTestTags(catalog.root, catalog.config.testGlobs, warn);
-  const findings = await lintCatalog(catalog, tags, warn);
+  const scan = await scanTestRegions(catalog.root, catalog.config.testGlobs, warn);
+  const findings = await lintCatalog(catalog, scan, warn);
   if (options.base !== undefined && changed !== undefined) {
-    findings.push(...pendingImplementation(catalog, tags, options.base, changed));
+    findings.push(...pendingImplementation(catalog, scan.tags, options.base, changed));
   }
   return report(io, findings, options.json, text);
 }
@@ -112,15 +112,25 @@ function issueFinding(
 
 export async function lintCatalog(
   catalog: Catalog,
-  tags?: TagIndex,
+  scan?: TagScan,
   onGitFallback?: GitFallbackListener,
 ): Promise<LintFinding[]> {
-  const tagIndex =
-    tags ?? (await scanTestTags(catalog.root, catalog.config.testGlobs, onGitFallback));
+  const { tags: tagIndex, problems } =
+    scan ?? (await scanTestRegions(catalog.root, catalog.config.testGlobs, onGitFallback));
   const text = messages(catalog.config.language);
   const findings: LintFinding[] = catalog.issues.map((issue) =>
     issueFinding(issue.code, issue, text),
   );
+  for (const { code, id, file, line } of problems) {
+    findings.push(
+      code === 'unclosed-rule-tag'
+        ? { ...error(code, file, text.unclosedRuleTag(id), text.unclosedRuleTagHint(id)), line }
+        : {
+            ...error(code, file, text.unmatchedEndruleTag(id), text.unmatchedEndruleTagHint(id)),
+            line,
+          },
+    );
+  }
   const files = await listRepoFiles(catalog.root, onGitFallback);
   const status = new Map(catalog.rules.map((rule) => [rule.id, rule.status]));
   const invalid = new Set(catalog.invalidRuleIds);

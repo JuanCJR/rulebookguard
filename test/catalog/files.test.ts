@@ -13,7 +13,7 @@ async function repoWithIgnoredBuild(): Promise<string> {
   await mkdir(join(dir, 'dist/src/clients'), { recursive: true });
   await writeFile(join(dir, 'dist/src/clients/create.go'), 'package clients\n');
   await mkdir(join(dir, 'dist/tests/clients'), { recursive: true });
-  await writeFile(join(dir, 'dist/tests/clients/test_build.py'), '# @rule R-CLI-002\n');
+  await writeFile(join(dir, 'dist/tests/clients/test_build.py'), '# @rule R-CLI-002\n# @endrule R-CLI-002\n');
   return dir;
 }
 
@@ -110,7 +110,7 @@ describe('listRepoFiles in special git layouts', () => {
 async function outsideTree(): Promise<string> {
   const outside = await scratchDir();
   await mkdir(join(outside, 'tests'), { recursive: true });
-  await writeFile(join(outside, 'tests/test_leak.py'), '# @rule R-CLI-002\n');
+  await writeFile(join(outside, 'tests/test_leak.py'), '# @rule R-CLI-002\n# @endrule R-CLI-002\n');
   return outside;
 }
 
@@ -184,7 +184,7 @@ describe('scanTestTags with tracked symlinks', () => {
     const dir = await scratchDir();
     await cp(fixtureRoot('repo'), dir, { recursive: true });
     await mkdir(join(dir, 'shared'), { recursive: true });
-    await writeFile(join(dir, 'shared/tagged.py'), '# @rule R-CLI-002\n');
+    await writeFile(join(dir, 'shared/tagged.py'), '# @rule R-CLI-002\n# @endrule R-CLI-002\n');
     await symlink('../shared/tagged.py', join(dir, 'tests/test_inside.py'));
     initRepo(dir);
 
