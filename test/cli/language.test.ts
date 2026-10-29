@@ -19,7 +19,7 @@ describe('language: es', () => {
       status: 1,
       stdout: [
         'error untested-rule rules/orders/R-ORD-002.md la regla activa R-ORD-002 no tiene ningún test que la etiquete',
-        '  sugerencia: agrega "@rule R-ORD-002" a un test en un archivo que coincida con testGlobs, o cambia el estado de la regla a proposed',
+        '  sugerencia: envuelve un test de un archivo que coincida con testGlobs con "@rule R-ORD-002" y "@endrule R-ORD-002", o cambia el estado de la regla a proposed',
         'error schema rules/orders/R-ORD-004.md el campo "status" debe ser uno de: proposed, active, deprecated',
         '  sugerencia: corrige el archivo según el mensaje; los JSON Schemas vienen en rulebookguard/schemas/v1/',
         'warning context-over-budget rules/orders/_context.md el contexto "orders" tiene 3 reglas, más que el contextBudget de 2',
@@ -51,7 +51,7 @@ describe('language: es', () => {
       code: 'untested-rule',
       file: 'rules/orders/R-ORD-002.md',
       message: 'la regla activa R-ORD-002 no tiene ningún test que la etiquete',
-      hint: 'agrega "@rule R-ORD-002" a un test en un archivo que coincida con testGlobs, o cambia el estado de la regla a proposed',
+      hint: 'envuelve un test de un archivo que coincida con testGlobs con "@rule R-ORD-002" y "@endrule R-ORD-002", o cambia el estado de la regla a proposed',
     });
   });
 
@@ -75,7 +75,10 @@ describe('language: es', () => {
 
   it('prints no issues found in Spanish', async () => {
     const repo = await spanishCopy('repo');
-    await writeFile(join(repo, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n');
+    await writeFile(
+      join(repo, 'tests/billing/test_numbering.py'),
+      '# @rule R-BIL-002\n# @endrule R-BIL-002\n',
+    );
 
     expect(await runCli(['lint'], repo)).toEqual({
       status: 0,

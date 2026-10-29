@@ -47,6 +47,8 @@ export interface Messages {
   unmatchedAnchor: (anchor: string) => string;
   unknownRuleTag: (id: string) => string;
   deprecatedRuleTag: (id: string) => string;
+  unclosedRuleTag: (id: string) => string;
+  unmatchedEndruleTag: (id: string) => string;
   contextOverBudget: (context: string, count: number, budget: number) => string;
   pendingImplementation: (id: string, base: string) => string;
   noIssues: string;
@@ -56,6 +58,8 @@ export interface Messages {
   unmatchedAnchorHint: string;
   unknownRuleTagHint: string;
   deprecatedRuleTagHint: (id: string, successor: string | undefined) => string;
+  unclosedRuleTagHint: (id: string) => string;
+  unmatchedEndruleTagHint: (id: string) => string;
   contextOverBudgetHint: string;
   pendingImplementationHint: (id: string) => string;
   lintSummary: (errors: number, warnings: number) => string;
@@ -119,6 +123,8 @@ const EN: Messages = {
   unmatchedAnchor: (anchor) => `anchor "${anchor}" matches no file`,
   unknownRuleTag: (id) => `tags ${id}, which does not exist`,
   deprecatedRuleTag: (id) => `tags ${id}, which is deprecated`,
+  unclosedRuleTag: (id) => `@rule ${id} has no matching @endrule ${id}`,
+  unmatchedEndruleTag: (id) => `@endrule ${id} has no open @rule ${id} before it`,
   contextOverBudget: (context, count, budget) =>
     `context "${context}" has ${count} rules, more than the contextBudget of ${budget}`,
   pendingImplementation: (id, base) =>
@@ -139,17 +145,21 @@ const EN: Messages = {
       'give one of the rules another id; "rulebookguard new <context>" picks the next free one',
   },
   untestedRuleHint: (id) =>
-    `add "@rule ${id}" to a test in a file matched by testGlobs, or set the rule's status to proposed`,
+    `wrap a test in a file matched by testGlobs with "@rule ${id}" and "@endrule ${id}", or set the rule's status to proposed`,
   unmatchedAnchorHint: 'fix the glob so it matches the files that implement the rule, or remove it',
   unknownRuleTagHint: 'fix the id in the tag, or create the rule it refers to',
   deprecatedRuleTagHint: (id, successor) =>
     successor === undefined
       ? `tag the rule that replaces ${id}, or remove the tag`
       : `tag ${successor}, which supersedes ${id}, instead`,
+  unclosedRuleTagHint: (id) =>
+    `add "@endrule ${id}" after the last line of the test, or close the inner regions first`,
+  unmatchedEndruleTagHint: (id) =>
+    `add "@rule ${id}" before the test, or remove the stray @endrule`,
   contextOverBudgetHint:
     'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
   pendingImplementationHint: (id) =>
-    `update or add a test tagging ${id} that covers the changed rule`,
+    `update or add a test inside an "@rule ${id}" … "@endrule ${id}" region that covers the changed rule`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
   needsWorkTree: (root) => `lint --base needs a git work tree, but ${root} is not inside one.`,
@@ -214,6 +224,8 @@ const ES: Messages = {
   unmatchedAnchor: (anchor) => `el anchor "${anchor}" no coincide con ningún archivo`,
   unknownRuleTag: (id) => `etiqueta ${id}, que no existe`,
   deprecatedRuleTag: (id) => `etiqueta ${id}, que está deprecada`,
+  unclosedRuleTag: (id) => `@rule ${id} no tiene su @endrule ${id}`,
+  unmatchedEndruleTag: (id) => `@endrule ${id} no tiene un @rule ${id} abierto antes`,
   contextOverBudget: (context, count, budget) =>
     `el contexto "${context}" tiene ${count} reglas, más que el contextBudget de ${budget}`,
   pendingImplementation: (id, base) =>
@@ -234,7 +246,7 @@ const ES: Messages = {
       'dale otro id a una de las reglas; "rulebookguard new <contexto>" elige el siguiente libre',
   },
   untestedRuleHint: (id) =>
-    `agrega "@rule ${id}" a un test en un archivo que coincida con testGlobs, o cambia el estado de la regla a proposed`,
+    `envuelve un test de un archivo que coincida con testGlobs con "@rule ${id}" y "@endrule ${id}", o cambia el estado de la regla a proposed`,
   unmatchedAnchorHint:
     'corrige el glob para que coincida con los archivos que implementan la regla, o quítalo',
   unknownRuleTagHint: 'corrige el id de la etiqueta o crea la regla a la que se refiere',
@@ -242,10 +254,14 @@ const ES: Messages = {
     successor === undefined
       ? `etiqueta la regla que reemplaza a ${id} o quita la etiqueta`
       : `etiqueta ${successor}, que reemplaza a ${id}`,
+  unclosedRuleTagHint: (id) =>
+    `agrega "@endrule ${id}" después de la última línea del test, o cierra antes las regiones internas`,
+  unmatchedEndruleTagHint: (id) =>
+    `agrega "@rule ${id}" antes del test, o quita el @endrule que sobra`,
   contextOverBudgetHint:
     'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
   pendingImplementationHint: (id) =>
-    `actualiza o agrega un test que etiquete ${id} y cubra el cambio de la regla`,
+    `actualiza o agrega un test dentro de una región "@rule ${id}" … "@endrule ${id}" que cubra el cambio de la regla`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errores'}, ${warnings} ${warnings === 1 ? 'aviso' : 'avisos'}`,
   needsWorkTree: (root) => `lint --base necesita un work tree de git, pero ${root} no está en uno.`,

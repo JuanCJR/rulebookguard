@@ -1,7 +1,7 @@
 import { expandGlobs, type GitFallbackListener } from '../catalog/files.ts';
 import { runGit } from '../catalog/git.ts';
 import type { Catalog } from '../catalog/load.ts';
-import { scanTestTags, type TagLocation } from '../catalog/tags.ts';
+import { scanTestRegions, type TagLocation } from '../catalog/tags.ts';
 import { lintCatalog, type LintFinding } from '../commands/lint.ts';
 import type { ContextDoc, RuleDoc } from '../format/types.ts';
 
@@ -37,7 +37,7 @@ export async function siteData(
   catalog: Catalog,
   onGitFallback?: GitFallbackListener,
 ): Promise<SiteData> {
-  const tags = await scanTestTags(catalog.root, catalog.config.testGlobs, onGitFallback);
+  const scan = await scanTestRegions(catalog.root, catalog.config.testGlobs, onGitFallback);
   const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
   const rules = [...catalog.rules].sort((a, b) => compare(a.id, b.id));
   return {
@@ -46,13 +46,13 @@ export async function siteData(
       rules.map(async (rule) => ({
         rule,
         files: await expandGlobs(catalog.root, rule.anchors, onGitFallback),
-        tests: tags.get(rule.id) ?? [],
+        tests: scan.tags.get(rule.id) ?? [],
         history: await history(catalog.root, rule.file),
         supersedes: chain(rule, byId),
         supersededBy: rules.find((other) => other.supersedes === rule.id)?.id,
       })),
     ),
-    findings: await lintCatalog(catalog, tags, onGitFallback),
+    findings: await lintCatalog(catalog, scan, onGitFallback),
   };
 }
 

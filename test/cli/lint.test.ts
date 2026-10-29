@@ -9,7 +9,10 @@ const lintFixture = fixtureRoot('lint');
 async function cleanRepo(): Promise<string> {
   const dir = await scratchDir();
   await cp(fixtureRoot('repo'), dir, { recursive: true });
-  await writeFile(join(dir, 'tests/billing/test_numbering.py'), '# @rule R-BIL-002\n');
+  await writeFile(
+    join(dir, 'tests/billing/test_numbering.py'),
+    '# @rule R-BIL-002\n# @endrule R-BIL-002\n',
+  );
   return dir;
 }
 
@@ -19,7 +22,7 @@ describe('lint', () => {
       status: 1,
       stdout: [
         'error untested-rule rules/orders/R-ORD-002.md active rule R-ORD-002 has no test tagging it',
-        '  hint: add "@rule R-ORD-002" to a test in a file matched by testGlobs, or set the rule\'s status to proposed',
+        '  hint: wrap a test in a file matched by testGlobs with "@rule R-ORD-002" and "@endrule R-ORD-002", or set the rule\'s status to proposed',
         'error schema rules/orders/R-ORD-004.md field "status" must be one of: proposed, active, deprecated',
         '  hint: fix the file as the message says; the JSON Schemas ship under rulebookguard/schemas/v1/',
         'warning context-over-budget rules/orders/_context.md context "orders" has 3 rules, more than the contextBudget of 2',
@@ -55,7 +58,7 @@ describe('lint', () => {
       code: 'untested-rule',
       file: 'rules/orders/R-ORD-002.md',
       message: 'active rule R-ORD-002 has no test tagging it',
-      hint: 'add "@rule R-ORD-002" to a test in a file matched by testGlobs, or set the rule\'s status to proposed',
+      hint: 'wrap a test in a file matched by testGlobs with "@rule R-ORD-002" and "@endrule R-ORD-002", or set the rule\'s status to proposed',
     });
     expect(report.findings[6]).toEqual({
       severity: 'error',
@@ -84,6 +87,35 @@ describe('lint', () => {
         hint: 'tag R-ORD-001, which supersedes R-ORD-003, instead',
       }),
     );
+  });
+
+  it('reports a @rule without its @endrule and an @endrule without its @rule', async () => {
+    const repo = await cleanRepo();
+    await writeFile(
+      join(repo, 'tests/billing/test_regions.py'),
+      '# @rule R-BIL-001\ndef test_a():\n    pass\n\n# @endrule R-BIL-002\n',
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error unclosed-rule-tag tests/billing/test_regions.py:1 @rule R-BIL-001 has no matching @endrule R-BIL-001',
+        '  hint: add "@endrule R-BIL-001" after the last line of the test, or close the inner regions first',
+        'error unmatched-endrule-tag tests/billing/test_regions.py:5 @endrule R-BIL-002 has no open @rule R-BIL-002 before it',
+        '  hint: add "@rule R-BIL-002" before the test, or remove the stray @endrule',
+        '2 errors, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+    expect(JSON.parse((await runCli(['lint', '--json'], repo)).stdout).findings[1]).toEqual({
+      severity: 'error',
+      code: 'unmatched-endrule-tag',
+      file: 'tests/billing/test_regions.py',
+      line: 5,
+      message: '@endrule R-BIL-002 has no open @rule R-BIL-002 before it',
+      hint: 'add "@rule R-BIL-002" before the test, or remove the stray @endrule',
+    });
   });
 
   it('exits 0 with no findings', async () => {
@@ -137,7 +169,7 @@ describe('lint', () => {
     await cp(lintFixture, dir, { recursive: true });
     await appendFile(
       join(dir, 'tests/orders_test.py'),
-      '\n\n# @rule R-ORD-004\ndef test_x():\n    pass\n',
+      '\n\n# @rule R-ORD-004\ndef test_x():\n    pass\n# @endrule R-ORD-004\n',
     );
 
     const result = await runCli(['lint'], dir);

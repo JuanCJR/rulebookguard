@@ -37,10 +37,40 @@ export async function isCommitRef(cwd: string, ref: string): Promise<boolean> {
   }
 }
 
-export async function changedSince(cwd: string, ref: string): Promise<string[]> {
+export interface ChangeSet {
+  files: string[];
+  untracked: Set<string>;
+}
+
+/** Changed spans in the working tree; a pure deletion sits between two lines, as `n + 0.5`. */
+export type LineSpan = [start: number, end: number];
+
+export async function changedSince(cwd: string, ref: string): Promise<ChangeSet> {
   const changed = await gitPaths(cwd, 'diff', ['--name-only', '--relative', ref, '--']);
   const untracked = await gitPaths(cwd, 'ls-files', ['--others', '--exclude-standard']);
-  return [...new Set([...changed, ...untracked])].sort();
+  return { files: [...new Set([...changed, ...untracked])].sort(), untracked: new Set(untracked) };
+}
+
+export async function changedLines(cwd: string, ref: string, file: string): Promise<LineSpan[]> {
+  const diff = await runGit(cwd, [
+    '--literal-pathspecs',
+    'diff',
+    '-U0',
+    '--no-color',
+    '--no-ext-diff',
+    '--no-textconv',
+    '--relative',
+    ref,
+    '--',
+    file,
+  ]);
+  const spans: LineSpan[] = [];
+  for (const match of diff.matchAll(/^@@ -\d+(?:,\d+)? \+(\d+)(?:,(\d+))? @@/gm)) {
+    const start = Number(match[1]);
+    const count = match[2] === undefined ? 1 : Number(match[2]);
+    spans.push(count === 0 ? [start + 0.5, start + 0.5] : [start, start + count - 1]);
+  }
+  return spans;
 }
 
 export function gitFailureReason(error: unknown): string {
