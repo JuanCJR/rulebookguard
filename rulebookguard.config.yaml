@@ -3,5 +3,6 @@ rulesDir: docs/rules
 testGlobs:
   # Listed one by one: other test files hold "@rule" markers inside strings, which would count as tags.
   - 'test/cli/new.test.ts'
+  - 'test/cli/init.test.ts'
   - 'test/cli/hook.test.ts'
   - 'test/mcp/server.test.ts'
