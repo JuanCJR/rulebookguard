@@ -12,10 +12,12 @@ Objective: make `pending-implementation` require a change inside the test that t
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S1, S3 | inline | pending | |
-| T2 | S2, S3 | inline | pending | |
+| T1 | S1, S3 | inline | done | a2470b2 |
+| T2 | S2, S3 | inline | done | 04f68da |
 
 ## Log
 
 - **L1 (2026-10-29, user, verbatim):** "vamos a tomar el punto M-03 de este artefacto https://claude.ai/artifact/Ba736SALZjbwqvEkokCt4d", then "se me ocurre que ademas del tag agregar una region que defina de donde a donde corresponde el test a la regla y asi no lo dejamos tan al azar", then "dale, arrancá".
 - **L2 (2026-10-29, decision):** explicit `@endrule` over a heuristic or tree-sitter (M-11 stays separate). Route inline: one maintainer, one behavior. `scanTestTags` keeps returning the tag index; a new `scanTestRegions` adds regions and marker problems. `lintCatalog` and `pendingImplementation` change signature (public API, part of the breaking release). Risk: item 3 (tag format and lint contract change, requested).
+- **L3 (2026-10-29, T1 evidence):** `a2470b2`. RED: 7 failing in `test/format/tag.test.ts`, 1 in `test/cli/lint.test.ts`. GREEN: 237/237, `vp lint` clean, `tsc` keeps the 4 pre-existing isolatedDeclarations errors. Fixtures got their `@endrule` on lines that were blank, so every existing finding line number stays. `untested-rule` hint now names both markers.
+- **L4 (2026-10-29, T2 evidence):** `04f68da`. RED: 2 failing in `test/cli/lint-base.test.ts` (change only outside regions, deletion right after a region). GREEN: 240/240, `vp fmt --check` clean except the untracked `.atl/`. Differential check against `main` on the repo fixture: `show` (text and JSON), `for`, `contexts`, `list` byte-identical. Pending: version bump to 0.7.0 and publish are the user's release decision.
