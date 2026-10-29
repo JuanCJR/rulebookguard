@@ -35,7 +35,7 @@ export async function newCommand(
   }
 }
 
-async function createContext(
+export async function createContext(
   catalog: Catalog,
   name: string,
   option: string | undefined,
