@@ -34,6 +34,19 @@ async function projectWithLocal(version: string): Promise<string> {
   return project;
 }
 
+async function checkout(name: string, version: string, built: boolean): Promise<string> {
+  const project = await scratchDir();
+  await writeFile(
+    join(project, 'package.json'),
+    JSON.stringify({ name, version, bin: { rulebookguard: 'dist/cli.mjs' } }),
+  );
+  if (built) {
+    await mkdir(join(project, 'dist'));
+    await writeFile(join(project, 'dist/cli.mjs'), ECHO);
+  }
+  return project;
+}
+
 async function fakeNpxPath(): Promise<string> {
   const bin = await scratchDir();
   const npx = join(bin, 'npx');
@@ -94,6 +107,31 @@ describe('plugin launcher', () => {
 
   it('falls back to npx when there is no install', async () => {
     const project = await scratchDir();
+
+    const { call } = launch(['hook'], project, { PATH: await fakeNpxPath() });
+
+    expect(call.args).toEqual(['--yes', `rulebookguard@${pluginVersion}`, 'hook']);
+  });
+
+  it('runs the bin of a rulebookguard checkout itself, whatever its version', async () => {
+    const project = await checkout('rulebookguard', '0.1.1', true);
+
+    const { status, call } = launch(['hook'], project, { PATH: await fakeNpxPath() });
+
+    expect(status).toBe(0);
+    expect(call).toEqual({ args: ['hook'], cwd: project, stdin: 'event' });
+  });
+
+  it('falls back to npx in a rulebookguard checkout that is not built', async () => {
+    const project = await checkout('rulebookguard', pluginVersion, false);
+
+    const { call } = launch(['hook'], project, { PATH: await fakeNpxPath() });
+
+    expect(call.args).toEqual(['--yes', `rulebookguard@${pluginVersion}`, 'hook']);
+  });
+
+  it('falls back to npx in a project whose own package is another one', async () => {
+    const project = await checkout('my-app', pluginVersion, true);
 
     const { call } = launch(['hook'], project, { PATH: await fakeNpxPath() });
 

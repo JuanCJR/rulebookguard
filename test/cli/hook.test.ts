@@ -157,6 +157,7 @@ describe('hook', () => {
     ]);
   });
 
+  // @rule R-AGT-001
   it.each([
     ['a file no active rule is anchored to', (repo: string) => event(join(repo, 'README.md'))],
     ['a file outside any rulebook', (_repo: string) => event('/nonexistent/rulebookguard/x.go')],
@@ -188,6 +189,7 @@ describe('hook', () => {
     expect(result.status).toBe(0);
     expect(result.stdout).toBe('');
   });
+  // @endrule R-AGT-001
 
   it('is listed in the usage', async () => {
     let usage = '';

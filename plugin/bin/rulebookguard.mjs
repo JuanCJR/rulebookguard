@@ -31,6 +31,11 @@ process.exitCode = status === 2 ? 1 : status;
 
 function findLocal(start) {
   for (let directory = resolve(start); ; directory = dirname(directory)) {
+    // In a checkout of rulebookguard itself, npx takes the project as the package and runs nothing.
+    const own = ownBin(directory);
+    if (own) {
+      return own;
+    }
     const pkgFile = join(directory, 'node_modules/rulebookguard/package.json');
     if (existsSync(pkgFile)) {
       const pkg = JSON.parse(readFileSync(pkgFile, 'utf8'));
@@ -41,6 +46,25 @@ function findLocal(start) {
       return undefined;
     }
   }
+}
+
+function ownBin(directory) {
+  const pkgFile = join(directory, 'package.json');
+  if (!existsSync(pkgFile)) {
+    return undefined;
+  }
+  let pkg;
+  try {
+    pkg = JSON.parse(readFileSync(pkgFile, 'utf8'));
+  } catch {
+    return undefined;
+  }
+  if (pkg?.name !== 'rulebookguard') {
+    return undefined;
+  }
+  const bin = typeof pkg.bin === 'string' ? pkg.bin : pkg.bin?.rulebookguard;
+  const path = bin && join(directory, bin);
+  return path && existsSync(path) ? path : undefined;
 }
 
 function atLeast(actual, minimum) {

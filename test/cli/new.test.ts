@@ -14,6 +14,7 @@ async function scratchRepo(): Promise<string> {
 const CLIENTS = 'docs/rules/clients';
 
 describe('new', () => {
+  // @rule R-AUT-002
   it('scaffolds the next free id as a proposed rule and prints its path', async () => {
     const repo = await scratchRepo();
 
@@ -33,6 +34,7 @@ describe('new', () => {
     expect(rule.body).toContain('Scenario: TODO');
     expect((await runCli(['show', 'R-CLI-004'], repo)).status).toBe(0);
   });
+  // @endrule R-AUT-002
 
   it('writes the template in the configured language', async () => {
     const repo = await scratchRepo();
@@ -50,6 +52,7 @@ describe('new', () => {
     expect(rule.body).toContain('# language: es\nEscenario: TODO');
   });
 
+  // @rule R-AUT-001
   it('increments on every call', async () => {
     const repo = await scratchRepo();
 
@@ -65,7 +68,9 @@ describe('new', () => {
       '_context.md',
     ]);
   });
+  // @endrule R-AUT-001
 
+  // @rule R-AUT-001
   it('skips ids taken by files that fail to parse and never overwrites them', async () => {
     const repo = await scratchRepo();
     const broken = join(repo, CLIENTS, 'R-CLI-007.md');
@@ -77,7 +82,9 @@ describe('new', () => {
     expect(result.stdout).toBe(`${CLIENTS}/R-CLI-008.md\n`);
     expect(await readFile(broken, 'utf8')).toBe('not a rule\n');
   });
+  // @endrule R-AUT-001
 
+  // @rule R-AUT-001
   it('fails when the context has no free id left', async () => {
     const repo = await scratchRepo();
     await writeFile(join(repo, CLIENTS, 'R-CLI-999.md'), 'taken\n');
@@ -90,6 +97,7 @@ describe('new', () => {
       'No free rule id left in context "clients" (R-CLI-999 is taken).\n',
     );
   });
+  // @endrule R-AUT-001
 
   it('creates a missing context and its first rule, printing both paths', async () => {
     const repo = await scratchRepo();

@@ -61,6 +61,7 @@ describe('mcp server', () => {
     expect(text(result)).toBe((await runCli(['show', 'R-CLI-001', '--json'], repo)).stdout);
   });
 
+  // @rule R-AGT-002
   it('reports an unknown rule as a tool error with the CLI message', async () => {
     const client = await connect(repo);
 
@@ -71,7 +72,9 @@ describe('mcp server', () => {
       'Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.',
     );
   });
+  // @endrule R-AGT-002
 
+  // @rule R-AGT-002
   it('reports a project without a rulebook as a tool error', async () => {
     const project = await scratchDir();
     const client = await connect(project);
@@ -83,4 +86,5 @@ describe('mcp server', () => {
       `rulebookguard.config.yaml not found in ${project} or any parent directory.`,
     );
   });
+  // @endrule R-AGT-002
 });
