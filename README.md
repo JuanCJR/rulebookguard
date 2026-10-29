@@ -41,7 +41,7 @@ language: es # default: en; language of the text that rulebookguard generates
 
 `schema` and `testGlobs` are required (`testGlobs: []` is valid but finds no tags). Unknown fields are rejected.
 
-`language` (`en` or `es`) sets the language of the text rulebookguard writes for you, such as the template of `new`. Rule content is free text and is never checked for language, so rules can be written in any language whatever this setting says. `language` needs rulebookguard 0.1.1 or later; older versions reject it as an unknown field. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
+`language` (`en` or `es`) sets the language of the text rulebookguard writes for you: the template of `new`, the hook context, the site, and every message printed once the config is loaded (lint findings, errors, warnings and headers, also the `message` of `--json` output). Lint codes, JSON keys and values such as `active` stay in English, and so do `--help`, argument errors and the findings of an invalid config file, which come before the config is read. Rule content is free text and is never checked for language, so rules can be written in any language whatever this setting says. `language` needs rulebookguard 0.1.1 or later; older versions reject it as an unknown field. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
 
 Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs; files inside submodules are listed too. A submodule path that is a symlink, or that resolves outside the rulebook root, is skipped. A test file that is a symlink is scanned for `@rule` tags only when its target lies inside the rulebook root. If one submodule cannot be listed, commands print `warning: could not list files of submodule "<path>" (<reason>); skipping it.` and keep the rest of the git listing. Outside git, or when the rulebook root itself is git-ignored, the whole tree is walked, skipping only `.git` and `node_modules`. If git fails (for example, git is missing from `PATH` or the repository has dubious ownership), commands print one warning on stderr and walk the tree instead.
 
@@ -184,7 +184,7 @@ $ rulebookguard list --context clients --status active
 R-CLI-001 [active] A client document number is unique per country.
 ```
 
-Exits 1 for an unknown context and 2 for an invalid status.
+Prints `No rules found.` when no rule matches, and `contexts` says so when the catalog has no context yet. Exits 1 for an unknown context and 2 for an invalid status.
 
 ### `show <id>` (L2)
 
@@ -194,7 +194,9 @@ R-CLI-001: A client document number is unique per country.
 context: clients
 status: active
 entities: Client
-anchors: src/clients/**/*.ts, src/api/clients.controller.ts
+anchors:
+  src/clients/**/*.ts
+  src/api/clients.controller.ts
 supersedes: R-CLI-000
 file: docs/rules/clients/R-CLI-001.md
 
@@ -231,7 +233,7 @@ Tests tagging R-CLI-001 (1):
 
 Exits 1 for an unknown id.
 
-### `new <context>`
+### `new <context> [--prefix <P>]`
 
 Scaffolds the next free id of a context as a `proposed` rule and prints its path. Ids are never reused, and an existing file is never overwritten. The placeholder text of the new rule follows `language` in the config.
 
@@ -240,7 +242,15 @@ $ rulebookguard new clients
 docs/rules/clients/R-CLI-004.md
 ```
 
-Exits 1 for an unknown context or when the context has no free id left.
+When the context does not exist yet, `new` creates its `_context.md` first and prints both paths. The prefix defaults to the first three letters and digits of the name, upper-cased; `--prefix` sets another one.
+
+```sh
+$ rulebookguard new inventory
+docs/rules/inventory/_context.md
+docs/rules/inventory/R-INV-001.md
+```
+
+Exits 1, writing nothing, when the context has no free id left, when the name is not lowercase letters, digits, `-` or `_`, when the prefix is invalid or already used by another context, or when `--prefix` differs from the prefix of an existing context.
 
 ### `hook`
 
@@ -308,7 +318,7 @@ Generated text and the interface follow `language` in the config. The site is a 
 
 ### `lint [--base <ref>] [--json]`
 
-Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, followed by a count.
+Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, with a `hint:` line under it that says how to fix it, followed by a count.
 
 | Severity | Code                     | Meaning                                                          |
 | -------- | ------------------------ | ---------------------------------------------------------------- |
@@ -329,7 +339,9 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 ```sh
 $ rulebookguard lint
 error untested-rule docs/rules/billing/R-BIL-002.md active rule R-BIL-002 has no test tagging it
+  hint: add "@rule R-BIL-002" to a test in a file matched by testGlobs, or set the rule's status to proposed
 warning context-over-budget docs/rules/clients/_context.md context "clients" has 31 rules, more than the contextBudget of 30
+  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml
 1 error, 1 warning
 ```
 
@@ -340,10 +352,11 @@ With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff
 ```sh
 $ rulebookguard lint --base origin/main
 error pending-implementation docs/rules/clients/R-CLI-001.md rule R-CLI-001 changed since origin/main but none of the tests tagging it changed
+  hint: update or add a test tagging R-CLI-001 that covers the changed rule
 1 error, 0 warnings
 ```
 
-`--json` prints `{ "findings": [{ "severity", "code", "file", "line"?, "message" }], "errors", "warnings" }`.
+`--json` prints `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
 ## CI recipe
 

@@ -1,12 +1,14 @@
 import { parse, YAMLParseError } from 'yaml';
+import { messages } from '../messages.ts';
 import { FormatError } from './errors.ts';
+import type { ParseOptions } from './types.ts';
 
-export function parseYaml(source: string, file: string): unknown {
+export function parseYaml(source: string, file: string, { language }: ParseOptions = {}): unknown {
   try {
     return parse(source);
   } catch (error) {
     if (error instanceof YAMLParseError) {
-      throw new FormatError([{ file, message: `invalid YAML: ${singleLine(error)}` }]);
+      throw new FormatError([{ file, message: messages(language).invalidYaml(singleLine(error)) }]);
     }
     throw error;
   }

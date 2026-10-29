@@ -2,6 +2,11 @@ export type RuleStatus = 'proposed' | 'active' | 'deprecated';
 
 export type RuleLanguage = 'en' | 'es';
 
+export interface ParseOptions {
+  /** Language of the issue messages; `en` when unset. */
+  language?: RuleLanguage | undefined;
+}
+
 export interface RulebookConfig {
   schema: 1;
   rulesDir: string;

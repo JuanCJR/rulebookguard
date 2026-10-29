@@ -17,11 +17,14 @@ Commands:
   show <id> [--json]                                 L2: the full rule
   for <path> [--json]                                active rules anchored to a path
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
-  new <context>                                      scaffold the next free rule id as a proposed rule
+  new <context> [--prefix <P>]                       scaffold the next free rule id as a proposed rule;
+                                                     creates the context first when it does not exist,
+                                                     --prefix: its id prefix (default: first 3 letters)
   lint [--base <ref>] [--json]                       check the catalog, anchors and test tags;
                                                      --base: rules changed since <ref> need a changed test
-  hook                                               Claude Code PreToolUse hook: reads the event on stdin
-                                                     and prints the rules anchored to the edited file
+  hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
+                                                     the event on stdin and prints the rules anchored to
+                                                     the file of the tool (Read, Edit, Write...)
   mcp [--project <dir>]                              MCP server over stdio with rules_for and rules_show;
                                                      --project: directory to find the rulebook from (default: cwd)
   site:generate [--out <dir>] [--base <path>]        build the read-only static site of the rulebook (alias: site);
@@ -53,7 +56,11 @@ const COMMANDS: Record<string, CommandSpec> = {
   show: { usage: 'rulebookguard show <id> [--json]', argument: 'id', options: JSON_OPTION },
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
-  new: { usage: 'rulebookguard new <context>', argument: 'context', options: {} },
+  new: {
+    usage: 'rulebookguard new <context> [--prefix <P>]',
+    argument: 'context',
+    options: { prefix: { type: 'string' } },
+  },
   hook: { usage: 'rulebookguard hook', options: {} },
   mcp: { usage: 'rulebookguard mcp [--project <dir>]', options: { project: { type: 'string' } } },
   site: {
@@ -83,7 +90,7 @@ export async function runCli(argv: string[], io: CliIo): Promise<number> {
       return error.exitCode;
     }
     if (error instanceof FormatError) {
-      io.stderr(`${error.issues.map(formatIssue).join('\n')}\n`);
+      io.stderr(`${error.issues.map((issue) => formatIssue(issue)).join('\n')}\n`);
       return EXIT_FAILURE;
     }
     throw error;
@@ -145,7 +152,7 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       await impactCommand(catalog, io, argument, json);
       break;
     case 'new':
-      await newCommand(catalog, io, argument);
+      await newCommand(catalog, io, argument, values.prefix as string | undefined);
       break;
   }
   return EXIT_OK;

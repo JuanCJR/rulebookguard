@@ -4,6 +4,7 @@ import { expandGlobs, toRepoPath } from '../catalog/files.ts';
 import type { Catalog } from '../catalog/load.ts';
 import { scanTestTags, type TagLocation } from '../catalog/tags.ts';
 import type { RuleDoc, RuleStatus } from '../format/types.ts';
+import { messages } from '../messages.ts';
 import {
   CliError,
   EXIT_USAGE,
@@ -66,11 +67,15 @@ export function contextsCommand(catalog: Catalog, io: CliIo, json: boolean): voi
     writeJson(io, { contexts } satisfies ContextsJson);
     return;
   }
+  if (contexts.length === 0) {
+    writeLines(io, [messages(catalog.config.language).noContexts]);
+    return;
+  }
   writeLines(
     io,
     contexts.map(
       (item) =>
-        `${item.context} (${item.prefix}, ${item.rules} ${item.rules === 1 ? 'rule' : 'rules'}): ${item.summary}`,
+        `${item.context} (${item.prefix}, ${messages(catalog.config.language).ruleCount(item.rules)}): ${item.summary}`,
     ),
   );
 }
@@ -81,14 +86,12 @@ export function listCommand(
   options: { context?: string | undefined; status?: string | undefined; json: boolean },
 ): void {
   const { context, status } = options;
+  const text = messages(catalog.config.language);
   if (status !== undefined && !RULE_STATUSES.includes(status as RuleStatus)) {
-    throw new CliError(
-      `Invalid status "${status}": expected one of ${RULE_STATUSES.join(', ')}.`,
-      EXIT_USAGE,
-    );
+    throw new CliError(text.invalidStatus(status, RULE_STATUSES.join(', ')), EXIT_USAGE);
   }
   if (context !== undefined && !catalog.contexts.some((item) => item.context === context)) {
-    throw new CliError(`Unknown context "${context}". Run "rulebookguard contexts" to list them.`);
+    throw new CliError(text.unknownContext(context));
   }
   const rules = sortById(catalog.rules)
     .filter((rule) => context === undefined || rule.context === context)
@@ -96,6 +99,10 @@ export function listCommand(
     .map(toSummary);
   if (options.json) {
     writeJson(io, { rules } satisfies ListJson);
+    return;
+  }
+  if (rules.length === 0) {
+    writeLines(io, [text.noRules]);
     return;
   }
   writeLines(
@@ -119,12 +126,14 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
     } satisfies ShowJson);
     return;
   }
+  const none = messages(catalog.config.language).none;
   const header = [
     `${rule.id}: ${rule.summary}`,
     `context: ${rule.context}`,
     `status: ${rule.status}`,
-    `entities: ${rule.entities.join(', ')}`,
-    `anchors: ${rule.anchors.join(', ')}`,
+    `entities: ${rule.entities.length === 0 ? none : rule.entities.join(', ')}`,
+    'anchors:',
+    ...indent(rule.anchors, none),
     ...(rule.supersedes === undefined ? [] : [`supersedes: ${rule.supersedes}`]),
     `file: ${rule.file}`,
   ];
@@ -132,7 +141,8 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
 }
 
 export function forCommand(catalog: Catalog, io: CliIo, input: string, json: boolean): void {
-  const path = toRootPath(catalog.root, resolve(io.cwd, input), input);
+  const text = messages(catalog.config.language);
+  const path = toRootPath(catalog, resolve(io.cwd, input), input);
   const rules = rulesForPath(catalog.rules, path)
     .filter((rule) => rule.status === 'active')
     .map((rule) => ({ ...toSummary(rule), file: rule.file }));
@@ -141,7 +151,7 @@ export function forCommand(catalog: Catalog, io: CliIo, input: string, json: boo
     return;
   }
   if (rules.length === 0) {
-    writeLines(io, [`No active rules anchored to ${path}.`]);
+    writeLines(io, [text.noActiveRulesFor(path)]);
     return;
   }
   writeLines(
@@ -157,7 +167,8 @@ export async function impactCommand(
   json: boolean,
 ): Promise<void> {
   const rule = findRule(catalog, id);
-  const warn = gitFallbackWarning(io);
+  const text = messages(catalog.config.language);
+  const warn = gitFallbackWarning(io, catalog.config.language);
   const files = await expandGlobs(catalog.root, rule.anchors, warn);
   const tests = (await scanTestTags(catalog.root, catalog.config.testGlobs, warn)).get(id) ?? [];
   if (json) {
@@ -166,17 +177,20 @@ export async function impactCommand(
   }
   writeLines(io, [
     `${rule.id}: ${rule.summary}`,
-    `Files matched by anchors (${files.length}):`,
-    ...indent(files),
-    `Tests tagging ${rule.id} (${tests.length}):`,
-    ...indent(tests.map((test) => `${test.file}:${test.line}`)),
+    text.filesMatched(files.length),
+    ...indent(files, text.none),
+    text.testsTagging(rule.id, tests.length),
+    ...indent(
+      tests.map((test) => `${test.file}:${test.line}`),
+      text.none,
+    ),
   ]);
 }
 
-function toRootPath(root: string, absolute: string, input: string): string {
-  const path = toRepoPath(relative(root, absolute));
+function toRootPath(catalog: Catalog, absolute: string, input: string): string {
+  const path = toRepoPath(relative(catalog.root, absolute));
   if (path === '' || path === '..' || path.startsWith('../') || isAbsolute(path)) {
-    throw new CliError(`Path "${input}" is outside the rulebook root ${root}.`);
+    throw new CliError(messages(catalog.config.language).outsideRoot(input, catalog.root));
   }
   return path;
 }
@@ -185,8 +199,8 @@ function toSummary(rule: RuleDoc): RuleSummaryJson {
   return { id: rule.id, context: rule.context, status: rule.status, summary: rule.summary };
 }
 
-function indent(lines: string[]): string[] {
-  return lines.length === 0 ? ['  (none)'] : lines.map((line) => `  ${line}`);
+function indent(lines: string[], none: string): string[] {
+  return lines.length === 0 ? [`  ${none}`] : lines.map((line) => `  ${line}`);
 }
 
 function sortById(rules: RuleDoc[]): RuleDoc[] {

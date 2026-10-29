@@ -193,6 +193,7 @@ describe('hook', () => {
     let usage = '';
     await run(['--help'], { cwd: '/', stdout: (t) => (usage += t), stderr: () => {} });
     expect(usage).toContain('  hook  ');
+    expect(usage).toMatch(/hook .*PreToolUse and PostToolUse/);
   });
 });
 
