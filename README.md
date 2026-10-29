@@ -465,4 +465,4 @@ claude plugin install rulebookguard@rulebookguard
 
 Or, inside Claude Code 2.1.275 or later: `/plugin install rulebookguard --marketplace JuanCJR/rulebookguard`.
 
-The plugin runs the project's own rulebookguard (`node_modules/rulebookguard`, in the project directory or a parent) when its version is at least the plugin's; otherwise it runs `npx rulebookguard@<plugin version>`, which needs Node.js and network access the first time. The hooks never block a tool: any failure, including a timeout, lets it go ahead without rules.
+The plugin runs the project's own rulebookguard (`node_modules/rulebookguard`, in the project directory or a parent) when its version is at least the plugin's; otherwise it runs `npx rulebookguard@<plugin version>`, which needs Node.js and network access the first time. In a checkout of rulebookguard itself it runs the checkout's own built CLI (`dist/cli.mjs`, from `vp pack`), whatever its version. The hooks never block a tool: any failure, including a timeout, lets it go ahead without rules.
