@@ -1,7 +1,9 @@
 import { parseArgs, type ParseArgsConfig } from 'node:util';
 import { formatIssue, FormatError } from '../format/errors.ts';
+import type { RuleLanguage } from '../format/types.ts';
 import { CliError, EXIT_FAILURE, EXIT_OK, EXIT_USAGE, openCatalog, type CliIo } from './io.ts';
 import { hookCommand } from './hook.ts';
+import { initCommand } from './init.ts';
 import { lintCommand } from './lint.ts';
 import { mcpCommand } from './mcp.ts';
 import { newCommand } from './new.ts';
@@ -12,6 +14,11 @@ type ParseArgsOptionsConfig = NonNullable<ParseArgsConfig['options']>;
 export const USAGE = `Usage: rulebookguard <command> [options]
 
 Commands:
+  init <context> [--prefix <P>] [--language <en|es>] [--ci]
+                                                     create rulebookguard.config.yaml and a first context in
+                                                     the current directory; --language: language of generated
+                                                     text (default: en), --ci: also a GitHub Actions workflow
+                                                     that runs lint --base on pull requests
   contexts [--json]                                  L0: list the contexts
   list [--context <c>] [--status <s>] [--json]       L1: id and summary of each rule
   show <id> [--json]                                 L2: the full rule
@@ -48,6 +55,11 @@ const JSON_OPTION: ParseArgsOptionsConfig = { json: { type: 'boolean' } };
 const SITE_OPTIONS: ParseArgsOptionsConfig = { out: { type: 'string' }, base: { type: 'string' } };
 
 const COMMANDS: Record<string, CommandSpec> = {
+  init: {
+    usage: 'rulebookguard init <context> [--prefix <P>] [--language <en|es>] [--ci]',
+    argument: 'context',
+    options: { prefix: { type: 'string' }, language: { type: 'string' }, ci: { type: 'boolean' } },
+  },
   contexts: { usage: 'rulebookguard contexts [--json]', options: JSON_OPTION },
   list: {
     usage: 'rulebookguard list [--context <c>] [--status <s>] [--json]',
@@ -127,6 +139,14 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
     });
     return EXIT_OK;
   }
+  if (name === 'init') {
+    await initCommand(io, argument, {
+      prefix: values.prefix as string | undefined,
+      language: initLanguage(values.language as string | undefined, spec.usage),
+      ci: values.ci === true,
+    });
+    return EXIT_OK;
+  }
   if (name === 'lint') {
     return lintCommand(io, { base: values.base as string | undefined, json });
   }
@@ -156,6 +176,13 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       break;
   }
   return EXIT_OK;
+}
+
+function initLanguage(value: string | undefined, usage: string): RuleLanguage | undefined {
+  if (value === undefined || value === 'en' || value === 'es') {
+    return value;
+  }
+  throw new CliError(`--language must be en or es.\nUsage: ${usage}`, EXIT_USAGE);
 }
 
 function sitePort(value: string | undefined, usage: string): number | undefined {

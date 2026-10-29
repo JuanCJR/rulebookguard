@@ -52,8 +52,8 @@ npm install --save-dev rulebookguard
 
 A first rule in four steps:
 
-1. Create `rulebookguard.config.yaml` at the repository root (see [Configuration](#configuration)).
-2. Scaffold a rule: `npx rulebookguard new clients` creates the context and `docs/rules/clients/R-CLI-001.md` as `proposed`.
+1. Set up the rulebook: `npx rulebookguard init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
+2. Scaffold a rule: `npx rulebookguard new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
 3. Write the rule, add its `anchors`, set `status: active`, and wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
 4. Run `npx rulebookguard lint`, and add it to CI with the [CI recipe](#ci-recipe).
 
@@ -213,21 +213,37 @@ SELECT count(*) FROM invoices WHERE number IS NULL;
 
 `rulebookguard --help` prints the command list. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
 
-| Command                                                | What it does                                                 |
-| ------------------------------------------------------ | ------------------------------------------------------------ |
-| [`contexts`](#contexts-l0)                             | the contexts map (L0)                                        |
-| [`list`](#list---context-c---status-s-l1)              | rule ids and summaries (L1)                                  |
-| [`show <id>`](#show-id-l2)                             | the full rule (L2)                                           |
-| [`for <path>`](#for-path)                              | the active rules anchored to a file                          |
-| [`impact <id>`](#impact-id)                            | the files and tests a rule touches                           |
-| [`new <context>`](#new-context---prefix-p)             | scaffolds the next rule of a context                         |
-| [`lint`](#lint---base-ref---json)                      | checks the whole catalog, and optionally changes since a ref |
-| [`hook`](#hook)                                        | Claude Code hook that injects the rules of a file            |
-| [`mcp`](#mcp---project-dir)                            | MCP server for AI agents                                     |
-| [`site:generate`](#sitegenerate---out-dir---base-path) | builds a static site of the rulebook                         |
-| [`site:run`](#siterun---out-dir---base-path---port-n)  | builds the site and serves it locally                        |
+| Command                                                           | What it does                                                 |
+| ----------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`init <context>`](#init-context---prefix-p---language-enes---ci) | sets up the config, a first context and optionally CI        |
+| [`contexts`](#contexts-l0)                                        | the contexts map (L0)                                        |
+| [`list`](#list---context-c---status-s-l1)                         | rule ids and summaries (L1)                                  |
+| [`show <id>`](#show-id-l2)                                        | the full rule (L2)                                           |
+| [`for <path>`](#for-path)                                         | the active rules anchored to a file                          |
+| [`impact <id>`](#impact-id)                                       | the files and tests a rule touches                           |
+| [`new <context>`](#new-context---prefix-p)                        | scaffolds the next rule of a context                         |
+| [`lint`](#lint---base-ref---json)                                 | checks the whole catalog, and optionally changes since a ref |
+| [`hook`](#hook)                                                   | Claude Code hook that injects the rules of a file            |
+| [`mcp`](#mcp---project-dir)                                       | MCP server for AI agents                                     |
+| [`site:generate`](#sitegenerate---out-dir---base-path)            | builds a static site of the rulebook                         |
+| [`site:run`](#siterun---out-dir---base-path---port-n)             | builds the site and serves it locally                        |
 
 The read commands (`contexts`, `list`, `show`, `for`, `impact`) accept `--json` for machine consumers. When the catalog has problems they still run, and print one warning on stderr pointing at `lint`.
+
+### `init <context> [--prefix <P>] [--language <en|es>] [--ci]`
+
+Sets up a rulebook in the current directory and prints the paths it wrote: `rulebookguard.config.yaml`, then the context, the same one `new` would create (`--prefix` works the same way).
+
+```sh
+$ rulebookguard init clients --ci
+rulebookguard.config.yaml
+docs/rules/clients/_context.md
+.github/workflows/rulebookguard.yml
+```
+
+The config uses `rulesDir: docs/rules` and these `testGlobs`, which you can narrow afterwards: `**/*.test.*`, `**/*.spec.*`, `**/test_*.py` and `**/*_test.go`. `--language` writes `language` into the config, so the context template and later messages follow it. `--ci` also writes the GitHub Actions workflow of the [CI recipe](#ci-recipe), pinned to the running version.
+
+Exits 1, writing nothing, when `rulebookguard.config.yaml` (or, with `--ci`, the workflow) already exists in the current directory, or when the context name or prefix is invalid. Exits 2 for a `--language` other than `en` or `es`.
 
 ### `contexts` (L0)
 
@@ -429,7 +445,7 @@ Generated text and the interface follow `language` in the config. The site is a 
 
 ## CI recipe
 
-Run the linter on every pull request, comparing against the main branch. The full history is needed so that `origin/main` exists.
+Run the linter on every pull request, comparing against the branch it targets. The full history is needed so that the base branch exists. `rulebookguard init --ci` writes this file as `.github/workflows/rulebookguard.yml`.
 
 ```yaml
 name: rules
@@ -442,7 +458,10 @@ jobs:
       - uses: actions/checkout@v7.0.1
         with:
           fetch-depth: 0
-      - run: npx --yes rulebookguard@0.1.0 lint --base origin/main
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+      - run: npx --yes rulebookguard@0.7.0 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
