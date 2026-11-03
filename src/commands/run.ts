@@ -2,6 +2,7 @@ import { parseArgs, type ParseArgsConfig } from 'node:util';
 import { formatIssue, FormatError } from '../format/errors.ts';
 import type { RuleLanguage } from '../format/types.ts';
 import { CliError, EXIT_FAILURE, EXIT_OK, EXIT_USAGE, openCatalog, type CliIo } from './io.ts';
+import { EXPORT_USAGE, exportCommand } from './export.ts';
 import { hookCommand } from './hook.ts';
 import { initCommand } from './init.ts';
 import { lintCommand } from './lint.ts';
@@ -29,6 +30,9 @@ Commands:
                                                      --prefix: its id prefix (default: first 3 letters)
   lint [--base <ref>] [--json]                       check the catalog, anchors and test tags;
                                                      --base: rules changed since <ref> need a changed test
+  export gherkin [--out <dir>]                       write the Gherkin blocks of each non-deprecated rule as
+                                                     <out>/<context>/<id>.feature tagged @<id>;
+                                                     --out: output directory (default: features/rules)
   hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
                                                      the event on stdin and prints the rules anchored to
                                                      the file of the tool (Read, Edit, Write...)
@@ -73,6 +77,7 @@ const COMMANDS: Record<string, CommandSpec> = {
     argument: 'context',
     options: { prefix: { type: 'string' } },
   },
+  export: { usage: EXPORT_USAGE, argument: 'format', options: { out: { type: 'string' } } },
   hook: { usage: 'rulebookguard hook', options: {} },
   mcp: { usage: 'rulebookguard mcp [--project <dir>]', options: { project: { type: 'string' } } },
   site: {
@@ -173,6 +178,9 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       break;
     case 'new':
       await newCommand(catalog, io, argument, values.prefix as string | undefined);
+      break;
+    case 'export':
+      await exportCommand(catalog, io, argument, values.out as string | undefined);
       break;
   }
   return EXIT_OK;

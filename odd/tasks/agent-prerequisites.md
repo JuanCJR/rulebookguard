@@ -1,6 +1,6 @@
 # rulebookguard — prerequisites for the specialized agents
 
-Objective: land the tool support the `rule-miner` and `rule-author` agents need (review artifact "Revisión de rulebookguard": M-13, M-14, R-1, R-2, R-3) before writing the agents. Branch: `feat/agent-prerequisites`. Delivery: `ask-on-risk`. Test runner: `pnpm exec vp test`.
+Objective: land the tool support the `rule-miner` and `rule-author` agents need (review artifact "Revisión de rulebookguard": M-13, M-14, R-1, R-2, R-3) before writing the agents. Branch: `feat/agent-prerequisites`. Delivery: `ask-on-risk` → `stacked-to-main` (L4). Test runner: `pnpm exec vp test`.
 
 ## Specs
 
@@ -14,8 +14,8 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S1 | inline | done | see L3 |
-| T2 | S2 | inline | pending | |
+| T1 | S1 | inline | done | 1c0f842 |
+| T2 | S2 | inline | done | see L5 |
 | T3 | S3 | inline | pending | |
 | T4 | S4 | inline | pending | |
 | T5 | S5 | inline | pending | |
@@ -25,3 +25,5 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 - **L1 (2026-11-03, user, verbatim):** "vamos a tomar todos los R pero antes tomemos los M" — then chose "M ligados a agentes" (M-13 and M-14; M-15 is covered by the agents themselves).
 - **L2 (2026-11-03, decision):** route inline for every task: one maintainer, small modules, no parallel units with a writer reason. Forecast ≈ 1,100 authored changed lines, over the 400-line budget: ask once for the chain strategy before the second commit. Baseline: 253/253 tests on `main` (9cf16ed). Risk: none expected (optional schema fields, new commands and tools are additive); the shared MCP `cli()` helper changes for `lint`, so R-AGT-002 behavior is pinned.
 - **L3 (2026-11-03, T1 evidence):** RED: 6 failing (4 in `test/cli/lint.test.ts` "lint relations between rules", 2 in `test/cli/read.test.ts` show). GREEN: 258/258, `vp check` pass, dogfood `lint` clean. The existing show JSON test now expects `dependsOn: []` and `conflictsWith: []` (additive output change, per S1). Findings referencing a schema-invalid rule id are not reported as unknown, like tags. Not done: `lint` still does not check that `supersedes` names an existing rule (pre-existing; out of scope).
+- **L4 (2026-11-03, user choice, verbatim):** "stacked-to-main". Slices: PR 1 = T1+T2 (`feat/agent-prerequisites`), PR 2 = T3 (`feat/mcp-agent-tools`, stacked on PR 1 until it merges), PR 3 = T4+T5.
+- **L5 (2026-11-03, T2 evidence):** RED: `test/cli/export.test.ts` 5 failing. GREEN: 263/263, `vp check` pass. Dogfood `export gherkin` writes 5 features from `docs/rules`. Output paths are relative to the current directory, like `site --out`. `--help` and README document the command.
