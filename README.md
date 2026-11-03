@@ -519,6 +519,7 @@ The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
 - **MCP server:** the tools of `rulebookguard mcp` (`rules_for`, `rules_show`, `contexts`, `rules_list`, `rules_search`, `lint`), for rules of files Claude has not opened yet and for working on the rulebook itself.
 - **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code) only when the user asks for the behavior change.
 - **Skill** `rulebookguard:rule-writing`: the shared writing guide, so a rule reads the same whoever writes it: one verifiable behavior, a one-line summary in business language, Gherkin examples, and `origin` and `evidence` for rules lifted from code.
+- **Agent** `rulebookguard:rule-miner`: lifts the business rules existing code already enforces, one context at a time. It writes them as `proposed` rules with `origin: extracted`, `path:line` evidence and questions for the business, through `rulebookguard new`. It checks existing rules first to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates a rule or edits existing rules or code: a person reviews the diff and activates what holds. Ask for it by name, for example "use rule-miner on the clients context".
 
 Install it from this repository's marketplace:
 
