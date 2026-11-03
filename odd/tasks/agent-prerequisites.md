@@ -17,7 +17,7 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 | T1 | S1 | inline | done | 1c0f842 |
 | T2 | S2 | inline | done | 7e982f8 |
 | T3 | S3 | inline | done | 234adc3 |
-| T4 | S4 | inline | done | see L8 |
+| T4 | S4 | inline | done | 66d283a |
 | T5 | S5 | inline | done | f604f49 |
 
 ## Log
