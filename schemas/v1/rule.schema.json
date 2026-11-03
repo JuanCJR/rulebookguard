@@ -14,6 +14,8 @@
     "supersedes": { "$ref": "#/$defs/ruleId" },
     "dependsOn": { "type": "array", "items": { "$ref": "#/$defs/ruleId" } },
     "conflictsWith": { "type": "array", "items": { "$ref": "#/$defs/ruleId" } },
+    "origin": { "enum": ["authored", "extracted"] },
+    "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "anchors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "summary": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]*$" }
   },

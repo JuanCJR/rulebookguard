@@ -348,3 +348,21 @@ describe('lint relations between rules', () => {
     );
   });
 });
+
+describe('lint origin metadata', () => {
+  it('accepts authored and extracted and rejects any other origin', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-BIL-001', 'origin: authored');
+    await addFrontmatter(
+      repo,
+      'R-BIL-002',
+      "origin: extracted\nevidence: ['src/billing/invoice.go:7']",
+    );
+    expect((await runCli(['lint'], repo)).stdout).toBe('No issues found.\n');
+
+    await addFrontmatter(repo, 'R-CLI-001', 'origin: guessed');
+    expect((await runCli(['lint'], repo)).stdout).toContain(
+      'error schema docs/rules/clients/R-CLI-001.md field "origin" must be one of: authored, extracted',
+    );
+  });
+});

@@ -144,17 +144,19 @@ Scenario: Duplicate document in the same country
 ```
 ````
 
-| Field           | Required | Meaning                                                          |
-| --------------- | -------- | ---------------------------------------------------------------- |
-| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name |
-| `context`       | yes      | the context directory the rule lives in                          |
-| `entities`      | yes      | domain entities the rule talks about                             |
-| `status`        | yes      | `proposed`, `active` or `deprecated`                             |
-| `supersedes`    | no       | id of the rule this one replaces                                 |
-| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles              |
-| `conflictsWith` | no       | ids of the rules that cannot be active together with this one    |
-| `anchors`       | yes      | repo-relative globs of the code that implements the rule         |
-| `summary`       | yes      | one line; this is what `list` shows                              |
+| Field           | Required | Meaning                                                            |
+| --------------- | -------- | ------------------------------------------------------------------ |
+| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name   |
+| `context`       | yes      | the context directory the rule lives in                            |
+| `entities`      | yes      | domain entities the rule talks about                               |
+| `status`        | yes      | `proposed`, `active` or `deprecated`                               |
+| `supersedes`    | no       | id of the rule this one replaces                                   |
+| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles                |
+| `conflictsWith` | no       | ids of the rules that cannot be active together with this one      |
+| `origin`        | no       | `authored` (written from intent) or `extracted` (lifted from code) |
+| `evidence`      | no       | where the rule shows in code or tests, for example `src/x.ts:42`   |
+| `anchors`       | yes      | repo-relative globs of the code that implements the rule           |
+| `summary`       | yes      | one line; this is what `list` shows                                |
 
 The Markdown body holds the full rule and its examples (Gherkin scenarios or tables). Rules do not list their tests: the link lives only in the tests, through `@rule` tags.
 
@@ -284,7 +286,7 @@ file: docs/rules/clients/R-CLI-001.md
 ...
 ```
 
-`supersedes`, `dependsOn` and `conflictsWith` lines appear only when the rule sets them; `--json` always has `supersedes` (or `null`), `dependsOn` and `conflictsWith` (or `[]`). Exits 1 for an unknown id.
+`supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when the rule sets them; `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`). Exits 1 for an unknown id.
 
 ### `search <text> [--context <c>] [--json]`
 
@@ -476,7 +478,7 @@ The site has:
 - **Home:** the contexts map, with how many rules of each status every context holds.
 - **A page per context** with its description and rules.
 - **All rules:** one table filterable by text, context and status.
-- **A page per rule:** summary, status, entities, rule file, the supersedes chain both ways, the rule text, its anchors and the files they match, the tests tagging it, and the git history of the rule file.
+- **A page per rule:** summary, status, entities, rule file, the supersedes chain both ways, the origin (an `extracted` rule still `proposed` is flagged as not validated by the business yet) and evidence, the rule text, its anchors and the files they match, the tests tagging it, and the git history of the rule file.
 - **Health:** the `lint` findings when the site was built.
 - Full-text search (Pagefind).
 

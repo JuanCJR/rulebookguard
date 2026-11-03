@@ -52,6 +52,39 @@ describe('sitePages', () => {
     expect(page).toContain('## Tests (0)');
   });
 
+  it('shows the origin, flags extracted rules still proposed, and lists the evidence', async () => {
+    const repo = await scratchDir();
+    await cp(fixtureRoot('repo'), repo, { recursive: true });
+    await writeFile(
+      join(repo, 'docs/rules/billing/R-BIL-003.md'),
+      "---\nid: R-BIL-003\ncontext: billing\nentities: []\nstatus: proposed\norigin: extracted\nevidence: ['src/billing/tax.go:4', 'src/billing/invoice.go:9']\nanchors: []\nsummary: Tax is rounded per line.\n---\n",
+    );
+    await writeFile(
+      join(repo, 'docs/rules/billing/R-BIL-004.md'),
+      '---\nid: R-BIL-004\ncontext: billing\nentities: []\nstatus: active\norigin: extracted\nanchors: []\nsummary: Tax per country.\n---\n',
+    );
+
+    const files = await pages({ repo });
+    const extracted = files.get('src/content/docs/billing/r-bil-003.md') ?? '';
+    expect(extracted).toContain('| Origin | extracted, not validated by the business yet |');
+    expect(extracted).toContain(
+      '## Evidence\n\n- `src/billing/tax.go:4`\n- `src/billing/invoice.go:9`\n',
+    );
+    expect(files.get('src/content/docs/billing/r-bil-004.md')).toContain('| Origin | extracted |');
+    const plain = files.get('src/content/docs/billing/r-bil-002.md') ?? '';
+    expect(plain).not.toContain('| Origin |');
+    expect(plain).not.toContain('## Evidence');
+
+    const spanish = sitePages(await siteData(await loadCatalog(repo)), {
+      language: 'es',
+      base: '/',
+    });
+    expect(spanish.get('src/content/docs/billing/r-bil-003.md')).toContain(
+      '| Origen | extracted, sin validar todavía por el negocio |',
+    );
+    expect(spanish.get('src/content/docs/billing/r-bil-003.md')).toContain('## Evidencia');
+  });
+
   it('demotes the headings of the rule text below the page sections', async () => {
     const page = (await pages()).get('src/content/docs/clients/r-cli-001.md') ?? '';
 

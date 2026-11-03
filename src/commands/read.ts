@@ -3,7 +3,7 @@ import { rulesForPath } from '../catalog/anchors.ts';
 import { expandGlobs, toRepoPath } from '../catalog/files.ts';
 import type { Catalog } from '../catalog/load.ts';
 import { scanTestTags, type TagLocation } from '../catalog/tags.ts';
-import type { RuleDoc, RuleStatus } from '../format/types.ts';
+import type { RuleDoc, RuleOrigin, RuleStatus } from '../format/types.ts';
 import { messages } from '../messages.ts';
 import {
   CliError,
@@ -39,6 +39,8 @@ export interface ShowJson {
     supersedes: string | null;
     dependsOn: string[];
     conflictsWith: string[];
+    origin: RuleOrigin | null;
+    evidence: string[];
     file: string;
     body: string;
   };
@@ -157,6 +159,8 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
         supersedes: rule.supersedes ?? null,
         dependsOn: rule.dependsOn ?? [],
         conflictsWith: rule.conflictsWith ?? [],
+        origin: rule.origin ?? null,
+        evidence: rule.evidence ?? [],
         file: rule.file,
         body: rule.body,
       },
@@ -174,6 +178,8 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
     ...(rule.supersedes === undefined ? [] : [`supersedes: ${rule.supersedes}`]),
     ...(rule.dependsOn?.length ? [`dependsOn: ${rule.dependsOn.join(', ')}`] : []),
     ...(rule.conflictsWith?.length ? [`conflictsWith: ${rule.conflictsWith.join(', ')}`] : []),
+    ...(rule.origin === undefined ? [] : [`origin: ${rule.origin}`]),
+    ...(rule.evidence?.length ? ['evidence:', ...indent(rule.evidence, none)] : []),
     `file: ${rule.file}`,
   ];
   io.stdout(`${header.join('\n')}\n\n${rule.body}`);
