@@ -10,6 +10,7 @@ In this repository the business rules in the rulebook (`rulesDir` in `rulebookgu
 
 1. Before editing a file, a hook adds the active rules anchored to it. When it lists rule texts as omitted, read each rule with the `rules_show` tool (or `rulebookguard show <id>`).
 2. For a file you have not edited yet, or a broader change, ask the `rules_for` tool (or `rulebookguard for <path>`).
+   For a change that is not tied to one file, read the rulebook by levels: the `contexts` tool, then `rules_list` for the contexts involved, then `rules_show` for the relevant rules. `rules_search` finds rules by words.
 3. Keep the change consistent with every rule listed. If the change would alter what a rule says, stop and tell the user which rule conflicts and how; do not change the behavior silently.
 
 ## Changing a rule
@@ -19,7 +20,7 @@ Only when the user asks for the behavior change:
 1. Edit the rule file first: its summary, body and examples. A new rule starts with `rulebookguard new <context>` as `proposed`; it becomes `active` only when the user confirms it.
 2. Update or add the tests that verify it. A test links to a rule by sitting between a `@rule <ID>` comment right above it and an `@endrule <ID>` comment right after it; the link lives only in the test.
 3. Change the code until those tests pass.
-4. Run `rulebookguard lint` (and `rulebookguard lint --base <base branch>` before opening a pull request). A changed rule whose tagging tests did not change fails as `pending-implementation`.
+4. Run `rulebookguard lint` or the `lint` tool, and `rulebookguard lint --base <base branch>` before opening a pull request. A changed rule whose tagging tests did not change fails as `pending-implementation`.
 
 Retire a rule by setting `status: deprecated` and removing its `@rule` and `@endrule` tags; a replacement rule names it in `supersedes`.
 

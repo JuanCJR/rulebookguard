@@ -397,3 +397,60 @@ describe('errors and usage', () => {
     }
   });
 });
+
+describe('search', () => {
+  it('lists the rules holding every term, ignoring case', async () => {
+    expect(await ok(['search', 'client NUMBER'])).toBe(
+      'R-CLI-001 [active] A client document number is unique per country.\n',
+    );
+  });
+
+  it('matches the id, entities and body too, in every status', async () => {
+    expect(await json(['search', 'invoice'])).toEqual({
+      rules: [
+        {
+          id: 'R-BIL-001',
+          context: 'billing',
+          status: 'active',
+          summary: 'Every new client gets a zero-balance account.',
+        },
+        {
+          id: 'R-BIL-002',
+          context: 'billing',
+          status: 'active',
+          summary: 'Invoices are numbered without gaps.',
+        },
+      ],
+    });
+    expect(await ok(['search', 'fiscal'])).toBe(
+      'R-BIL-002 [active] Invoices are numbered without gaps.\n',
+    );
+    expect(await ok(['search', 'r-cli-003'])).toBe(
+      'R-CLI-003 [deprecated] Legacy clients are imported from the old CRM.\n',
+    );
+  });
+
+  it('narrows to one context', async () => {
+    expect(await ok(['search', 'client', '--context', 'billing'])).toBe(
+      'R-BIL-001 [active] Every new client gets a zero-balance account.\n',
+    );
+  });
+
+  it('says so when no rule matches', async () => {
+    expect(await ok(['search', 'nothing here'])).toBe('No rules found.\n');
+    expect(await json(['search', 'nothing here'])).toEqual({ rules: [] });
+  });
+
+  it('rejects an empty text and an unknown context', async () => {
+    expect(await runCli(['search', '  '], repo)).toEqual({
+      status: 2,
+      stdout: '',
+      stderr: 'Search text is empty. Usage: rulebookguard search <text> [--context <c>] [--json]\n',
+    });
+    expect(await runCli(['search', 'client', '--context', 'nope'], repo)).toEqual({
+      status: 1,
+      stdout: '',
+      stderr: 'Unknown context "nope". Run "rulebookguard contexts" to list them.\n',
+    });
+  });
+});

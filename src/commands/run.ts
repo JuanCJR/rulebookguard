@@ -8,7 +8,14 @@ import { initCommand } from './init.ts';
 import { lintCommand } from './lint.ts';
 import { mcpCommand } from './mcp.ts';
 import { newCommand } from './new.ts';
-import { contextsCommand, forCommand, impactCommand, listCommand, showCommand } from './read.ts';
+import {
+  contextsCommand,
+  forCommand,
+  impactCommand,
+  listCommand,
+  searchCommand,
+  showCommand,
+} from './read.ts';
 
 type ParseArgsOptionsConfig = NonNullable<ParseArgsConfig['options']>;
 
@@ -23,6 +30,8 @@ Commands:
   contexts [--json]                                  L0: list the contexts
   list [--context <c>] [--status <s>] [--json]       L1: id and summary of each rule
   show <id> [--json]                                 L2: the full rule
+  search <text> [--context <c>] [--json]             rules whose id, summary, entities or text hold every
+                                                     word of <text>, ignoring case
   for <path> [--json]                                active rules anchored to a path
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
   new <context> [--prefix <P>]                       scaffold the next free rule id as a proposed rule;
@@ -36,7 +45,8 @@ Commands:
   hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
                                                      the event on stdin and prints the rules anchored to
                                                      the file of the tool (Read, Edit, Write...)
-  mcp [--project <dir>]                              MCP server over stdio with rules_for and rules_show;
+  mcp [--project <dir>]                              MCP server over stdio with rules_for, rules_show, contexts,
+                                                     rules_list, rules_search and lint;
                                                      --project: directory to find the rulebook from (default: cwd)
   site:generate [--out <dir>] [--base <path>]        build the read-only static site of the rulebook (alias: site);
                                                      --out: output directory (default: site), --base: URL path
@@ -70,6 +80,11 @@ const COMMANDS: Record<string, CommandSpec> = {
     options: { ...JSON_OPTION, context: { type: 'string' }, status: { type: 'string' } },
   },
   show: { usage: 'rulebookguard show <id> [--json]', argument: 'id', options: JSON_OPTION },
+  search: {
+    usage: 'rulebookguard search <text> [--context <c>] [--json]',
+    argument: 'text',
+    options: { ...JSON_OPTION, context: { type: 'string' } },
+  },
   for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
   new: {
@@ -155,6 +170,9 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   if (name === 'lint') {
     return lintCommand(io, { base: values.base as string | undefined, json });
   }
+  if (name === 'search' && argument.trim() === '') {
+    throw new CliError(`Search text is empty. Usage: ${spec.usage}`, EXIT_USAGE);
+  }
   const catalog = await openCatalog(io);
   switch (name) {
     case 'contexts':
@@ -169,6 +187,12 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       break;
     case 'show':
       showCommand(catalog, io, argument, json);
+      break;
+    case 'search':
+      searchCommand(catalog, io, argument, {
+        context: values.context as string | undefined,
+        json,
+      });
       break;
     case 'for':
       forCommand(catalog, io, argument, json);
