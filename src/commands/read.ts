@@ -37,6 +37,8 @@ export interface ShowJson {
     entities: string[];
     anchors: string[];
     supersedes: string | null;
+    dependsOn: string[];
+    conflictsWith: string[];
     file: string;
     body: string;
   };
@@ -120,6 +122,8 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
         entities: rule.entities,
         anchors: rule.anchors,
         supersedes: rule.supersedes ?? null,
+        dependsOn: rule.dependsOn ?? [],
+        conflictsWith: rule.conflictsWith ?? [],
         file: rule.file,
         body: rule.body,
       },
@@ -135,6 +139,8 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
     'anchors:',
     ...indent(rule.anchors, none),
     ...(rule.supersedes === undefined ? [] : [`supersedes: ${rule.supersedes}`]),
+    ...(rule.dependsOn?.length ? [`dependsOn: ${rule.dependsOn.join(', ')}`] : []),
+    ...(rule.conflictsWith?.length ? [`conflictsWith: ${rule.conflictsWith.join(', ')}`] : []),
     `file: ${rule.file}`,
   ];
   io.stdout(`${header.join('\n')}\n\n${rule.body}`);

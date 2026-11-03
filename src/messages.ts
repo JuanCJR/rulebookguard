@@ -51,6 +51,13 @@ export interface Messages {
   unmatchedEndruleTag: (id: string) => string;
   contextOverBudget: (context: string, count: number, budget: number) => string;
   pendingImplementation: (id: string, base: string) => string;
+  unknownRuleReference: (field: string, id: string) => string;
+  selfRuleReference: (field: string) => string;
+  ruleReferenceHint: (field: string) => string;
+  dependencyCycle: (cycle: string[]) => string;
+  dependencyCycleHint: string;
+  activeRuleConflict: (a: string, b: string) => string;
+  activeRuleConflictHint: string;
   noIssues: string;
   hintLabel: string;
   catalogHints: Record<CatalogIssueCode, string>;
@@ -129,6 +136,14 @@ const EN: Messages = {
     `context "${context}" has ${count} rules, more than the contextBudget of ${budget}`,
   pendingImplementation: (id, base) =>
     `rule ${id} changed since ${base} but none of the tests tagging it changed`,
+  unknownRuleReference: (field, id) => `${field} names ${id}, which does not exist`,
+  selfRuleReference: (field) => `${field} names the rule itself`,
+  ruleReferenceHint: (field) => `fix the id, or remove it from ${field}`,
+  dependencyCycle: (cycle) => `dependsOn forms a cycle: ${cycle.join(' → ')}`,
+  dependencyCycleHint: 'remove one dependsOn link of the cycle',
+  activeRuleConflict: (a, b) => `active rules ${a} and ${b} conflict`,
+  activeRuleConflictHint:
+    'deprecate one of them or set it to proposed, or remove the conflictsWith entry',
   noIssues: 'No issues found.',
   hintLabel: 'hint',
   catalogHints: {
@@ -230,6 +245,14 @@ const ES: Messages = {
     `el contexto "${context}" tiene ${count} reglas, más que el contextBudget de ${budget}`,
   pendingImplementation: (id, base) =>
     `la regla ${id} cambió desde ${base} pero no cambió ninguno de los tests que la etiquetan`,
+  unknownRuleReference: (field, id) => `${field} nombra a ${id}, que no existe`,
+  selfRuleReference: (field) => `${field} nombra a la propia regla`,
+  ruleReferenceHint: (field) => `corrige el id o quítalo de ${field}`,
+  dependencyCycle: (cycle) => `dependsOn forma un ciclo: ${cycle.join(' → ')}`,
+  dependencyCycleHint: 'quita un vínculo dependsOn del ciclo',
+  activeRuleConflict: (a, b) => `las reglas activas ${a} y ${b} están en conflicto`,
+  activeRuleConflictHint:
+    'depreca una de ellas o déjala en proposed, o quita la entrada de conflictsWith',
   noIssues: 'No se encontraron problemas.',
   hintLabel: 'sugerencia',
   catalogHints: {

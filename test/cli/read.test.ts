@@ -1,4 +1,4 @@
-import { cp, mkdir, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { initRepo } from '../git.ts';
@@ -158,9 +158,32 @@ describe('show', () => {
         entities: ['Client'],
         anchors: ['src/clients/**/*.go'],
         supersedes: null,
+        dependsOn: [],
+        conflictsWith: [],
         file: 'docs/rules/clients/R-CLI-001.md',
         body: '# Unique document number\n\nTwo clients in the same country cannot share a document number.\n',
       },
+    });
+  });
+
+  it('prints dependsOn and conflictsWith when present', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    const file = join(dir, 'docs/rules/billing/R-BIL-002.md');
+    await writeFile(
+      file,
+      (await readFile(file, 'utf8')).replace(
+        /^id: .*$/m,
+        '$&\ndependsOn: [R-BIL-001, R-CLI-001]\nconflictsWith: [R-CLI-002]',
+      ),
+    );
+
+    const out = await ok(['show', 'R-BIL-002'], dir);
+    expect(out).toContain(
+      'supersedes: R-BIL-000\ndependsOn: R-BIL-001, R-CLI-001\nconflictsWith: R-CLI-002\nfile: ',
+    );
+    expect(await json(['show', 'R-BIL-002'], dir)).toMatchObject({
+      rule: { dependsOn: ['R-BIL-001', 'R-CLI-001'], conflictsWith: ['R-CLI-002'] },
     });
   });
 

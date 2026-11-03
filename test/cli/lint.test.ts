@@ -254,3 +254,97 @@ describe('lint', () => {
     );
   });
 });
+
+async function addFrontmatter(repo: string, rule: string, lines: string): Promise<void> {
+  const context = rule.startsWith('R-BIL') ? 'billing' : 'clients';
+  const file = join(repo, 'docs/rules', context, `${rule}.md`);
+  await writeFile(file, (await readFile(file, 'utf8')).replace(/^id: .*$/m, `$&\n${lines}`));
+}
+
+describe('lint relations between rules', () => {
+  it('reports a reference to an unknown rule or to the rule itself', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-BIL-001', 'dependsOn: [R-BIL-009, R-BIL-001]');
+    await addFrontmatter(repo, 'R-BIL-002', 'conflictsWith: [R-ORD-001]');
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error invalid-rule-reference docs/rules/billing/R-BIL-001.md dependsOn names R-BIL-009, which does not exist',
+        '  hint: fix the id, or remove it from dependsOn',
+        'error invalid-rule-reference docs/rules/billing/R-BIL-001.md dependsOn names the rule itself',
+        '  hint: fix the id, or remove it from dependsOn',
+        'error invalid-rule-reference docs/rules/billing/R-BIL-002.md conflictsWith names R-ORD-001, which does not exist',
+        '  hint: fix the id, or remove it from conflictsWith',
+        '3 errors, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('reports a dependsOn cycle once, starting at its lowest id', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-CLI-001', 'dependsOn: [R-BIL-001]');
+    await addFrontmatter(repo, 'R-BIL-001', 'dependsOn: [R-BIL-002]');
+    await addFrontmatter(repo, 'R-BIL-002', 'dependsOn: [R-CLI-001]');
+    await addFrontmatter(repo, 'R-CLI-002', 'dependsOn: [R-CLI-001]');
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error dependency-cycle docs/rules/billing/R-BIL-001.md dependsOn forms a cycle: R-BIL-001 → R-BIL-002 → R-CLI-001 → R-BIL-001',
+        '  hint: remove one dependsOn link of the cycle',
+        '1 error, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('reports two active rules in conflict once, and ignores a conflict with a proposed rule', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-BIL-002', 'conflictsWith: [R-BIL-001]');
+    await addFrontmatter(repo, 'R-BIL-001', 'conflictsWith: [R-BIL-002, R-CLI-003]');
+    const file = join(repo, 'docs/rules/clients/R-CLI-003.md');
+    await writeFile(
+      file,
+      (await readFile(file, 'utf8')).replace(/^status: .*$/m, 'status: proposed'),
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error active-rule-conflict docs/rules/billing/R-BIL-001.md active rules R-BIL-001 and R-BIL-002 conflict',
+        '  hint: deprecate one of them or set it to proposed, or remove the conflictsWith entry',
+        '1 error, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('prints relation findings in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await addFrontmatter(
+      repo,
+      'R-BIL-001',
+      'dependsOn: [R-BIL-002, R-BIL-009]\nconflictsWith: [R-BIL-002]',
+    );
+    await addFrontmatter(repo, 'R-BIL-002', 'dependsOn: [R-BIL-001]');
+
+    expect((await runCli(['lint'], repo)).stdout).toBe(
+      [
+        'error active-rule-conflict docs/rules/billing/R-BIL-001.md las reglas activas R-BIL-001 y R-BIL-002 están en conflicto',
+        '  sugerencia: depreca una de ellas o déjala en proposed, o quita la entrada de conflictsWith',
+        'error dependency-cycle docs/rules/billing/R-BIL-001.md dependsOn forma un ciclo: R-BIL-001 → R-BIL-002 → R-BIL-001',
+        '  sugerencia: quita un vínculo dependsOn del ciclo',
+        'error invalid-rule-reference docs/rules/billing/R-BIL-001.md dependsOn nombra a R-BIL-009, que no existe',
+        '  sugerencia: corrige el id o quítalo de dependsOn',
+        '3 errores, 0 avisos',
+        '',
+      ].join('\n'),
+    );
+  });
+});

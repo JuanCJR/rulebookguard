@@ -1,0 +1,27 @@
+# rulebookguard — prerequisites for the specialized agents
+
+Objective: land the tool support the `rule-miner` and `rule-author` agents need (review artifact "Revisión de rulebookguard": M-13, M-14, R-1, R-2, R-3) before writing the agents. Branch: `feat/agent-prerequisites`. Delivery: `ask-on-risk`. Test runner: `pnpm exec vp test`.
+
+## Specs
+
+- **S1 — Relations between rules (M-13).** Artifact (verbatim): "`dependsOn` y `conflictsWith`, con lint que detecte ciclos o reglas activas en conflicto." Assumptions: both are optional arrays of rule ids in the rule frontmatter (schema v1, additive). `show` prints them (human and `--json`, `[]` when absent). `lint` reports, as errors: a reference to an unknown rule id or to the rule itself (`invalid-rule-reference`), a `dependsOn` cycle (`dependency-cycle`, once per cycle), and two `active` rules where one lists the other in `conflictsWith` (`active-rule-conflict`, once per pair). Messages and hints follow `language`.
+- **S2 — Executable Gherkin (M-14).** Artifact (verbatim): "Si el cuerpo trae escenarios, exportarlos como `.feature` con el tag `@R-CLI-001`, que Cucumber entiende de forma nativa." Assumptions: `rulebookguard export gherkin [--out <dir>]` (default `features/rules`) writes `<out>/<context>/<id>.feature` for every non-deprecated rule whose body holds ` ```gherkin ` blocks; the file is the rule tag line, a `Feature:` line with id and summary, then the blocks' scenarios indented. With `language: es` the file starts with `# language: es` and uses `Característica:`. Generated files are overwritten; nothing else in `<out>` is touched. It prints one path per written file, or a line saying no rule has scenarios.
+- **S3 — More MCP tools (R-1).** Artifact (verbatim): "Hoy existen `rules_for` y `rules_show`. Faltan `contexts`, `rules_list`, `rules_search` (búsqueda de texto simple, sin embeddings) y `lint`." Assumptions: each tool answers what the matching `--json` command prints. A new CLI command `search <text> [--context <c>] [--json]` backs `rules_search`: case-insensitive, every whitespace-separated term must appear in the id, summary, entities or body; output rows like `list`. `lint` findings are data, not a tool error: the tool answers the lint JSON even when lint exits 1.
+- **S4 — Shared writing guide (R-2).** Artifact (verbatim): "Una skill común: una regla es un solo comportamiento, es verificable, tiene un `summary` de una línea y está escrita en lenguaje de negocio. Las reglas salen iguales venga de quien venga." Assumption: a plugin skill `plugin/skills/rule-writing/SKILL.md`.
+- **S5 — Optional origin metadata (R-3).** Artifact (verbatim): "Por ejemplo `origin: extracted` y la evidencia, para ver en el sitio qué reglas aún no ha validado nadie del negocio." Assumptions: optional `origin` (`authored` | `extracted`) and `evidence` (array of strings, e.g. `src/x.ts:42`) in the rule frontmatter; `show` prints them; the site rule page shows them and flags a rule that is `extracted` and still `proposed` as not yet validated.
+
+## Tasks
+
+| ID | Specs | Route | Status | Commit |
+|----|-------|-------|--------|--------|
+| T1 | S1 | inline | done | see L3 |
+| T2 | S2 | inline | pending | |
+| T3 | S3 | inline | pending | |
+| T4 | S4 | inline | pending | |
+| T5 | S5 | inline | pending | |
+
+## Log
+
+- **L1 (2026-11-03, user, verbatim):** "vamos a tomar todos los R pero antes tomemos los M" — then chose "M ligados a agentes" (M-13 and M-14; M-15 is covered by the agents themselves).
+- **L2 (2026-11-03, decision):** route inline for every task: one maintainer, small modules, no parallel units with a writer reason. Forecast ≈ 1,100 authored changed lines, over the 400-line budget: ask once for the chain strategy before the second commit. Baseline: 253/253 tests on `main` (9cf16ed). Risk: none expected (optional schema fields, new commands and tools are additive); the shared MCP `cli()` helper changes for `lint`, so R-AGT-002 behavior is pinned.
+- **L3 (2026-11-03, T1 evidence):** RED: 6 failing (4 in `test/cli/lint.test.ts` "lint relations between rules", 2 in `test/cli/read.test.ts` show). GREEN: 258/258, `vp check` pass, dogfood `lint` clean. The existing show JSON test now expects `dependsOn: []` and `conflictsWith: []` (additive output change, per S1). Findings referencing a schema-invalid rule id are not reported as unknown, like tags. Not done: `lint` still does not check that `supersedes` names an existing rule (pre-existing; out of scope).

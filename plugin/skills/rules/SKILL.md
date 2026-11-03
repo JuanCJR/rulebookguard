@@ -22,3 +22,5 @@ Only when the user asks for the behavior change:
 4. Run `rulebookguard lint` (and `rulebookguard lint --base <base branch>` before opening a pull request). A changed rule whose tagging tests did not change fails as `pending-implementation`.
 
 Retire a rule by setting `status: deprecated` and removing its `@rule` and `@endrule` tags; a replacement rule names it in `supersedes`.
+
+A rule that needs another one in force lists it in `dependsOn`; two rules that cannot both be active list each other in `conflictsWith`. `lint` rejects unknown ids, `dependsOn` cycles and two active rules in conflict.

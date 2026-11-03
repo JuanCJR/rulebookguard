@@ -144,15 +144,17 @@ Scenario: Duplicate document in the same country
 ```
 ````
 
-| Field        | Required | Meaning                                                          |
-| ------------ | -------- | ---------------------------------------------------------------- |
-| `id`         | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name |
-| `context`    | yes      | the context directory the rule lives in                          |
-| `entities`   | yes      | domain entities the rule talks about                             |
-| `status`     | yes      | `proposed`, `active` or `deprecated`                             |
-| `supersedes` | no       | id of the rule this one replaces                                 |
-| `anchors`    | yes      | repo-relative globs of the code that implements the rule         |
-| `summary`    | yes      | one line; this is what `list` shows                              |
+| Field           | Required | Meaning                                                          |
+| --------------- | -------- | ---------------------------------------------------------------- |
+| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name |
+| `context`       | yes      | the context directory the rule lives in                          |
+| `entities`      | yes      | domain entities the rule talks about                             |
+| `status`        | yes      | `proposed`, `active` or `deprecated`                             |
+| `supersedes`    | no       | id of the rule this one replaces                                 |
+| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles              |
+| `conflictsWith` | no       | ids of the rules that cannot be active together with this one    |
+| `anchors`       | yes      | repo-relative globs of the code that implements the rule         |
+| `summary`       | yes      | one line; this is what `list` shows                              |
 
 The Markdown body holds the full rule and its examples (Gherkin scenarios or tables). Rules do not list their tests: the link lives only in the tests, through `@rule` tags.
 
@@ -280,7 +282,7 @@ file: docs/rules/clients/R-CLI-001.md
 ...
 ```
 
-Exits 1 for an unknown id.
+`supersedes`, `dependsOn` and `conflictsWith` lines appear only when the rule sets them; `--json` always has `supersedes` (or `null`), `dependsOn` and `conflictsWith` (or `[]`). Exits 1 for an unknown id.
 
 ### `for <path>`
 
@@ -348,6 +350,9 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 | error    | `missing-context-file`   | a context directory has no `_context.md`                           |
 | error    | `missing-rules-dir`      | `rulesDir` does not exist                                          |
 | error    | `pending-implementation` | with `--base`: an active rule changed, but none of its regions did |
+| error    | `invalid-rule-reference` | `dependsOn` or `conflictsWith` names an unknown rule or itself     |
+| error    | `dependency-cycle`       | `dependsOn` links form a cycle (reported once, at its lowest id)   |
+| error    | `active-rule-conflict`   | two active rules where one lists the other in `conflictsWith`      |
 | warning  | `context-over-budget`    | a context holds more rules than `contextBudget`                    |
 
 ```sh
