@@ -221,6 +221,7 @@ SELECT count(*) FROM invoices WHERE number IS NULL;
 | [`contexts`](#contexts-l0)                                        | the contexts map (L0)                                        |
 | [`list`](#list---context-c---status-s-l1)                         | rule ids and summaries (L1)                                  |
 | [`show <id>`](#show-id-l2)                                        | the full rule (L2)                                           |
+| [`search <text>`](#search-text---context-c---json)                | rules holding every word of a text                           |
 | [`for <path>`](#for-path)                                         | the active rules anchored to a file                          |
 | [`impact <id>`](#impact-id)                                       | the files and tests a rule touches                           |
 | [`new <context>`](#new-context---prefix-p)                        | scaffolds the next rule of a context                         |
@@ -231,7 +232,7 @@ SELECT count(*) FROM invoices WHERE number IS NULL;
 | [`site:generate`](#sitegenerate---out-dir---base-path)            | builds a static site of the rulebook                         |
 | [`site:run`](#siterun---out-dir---base-path---port-n)             | builds the site and serves it locally                        |
 
-The read commands (`contexts`, `list`, `show`, `for`, `impact`) accept `--json` for machine consumers. When the catalog has problems they still run, and print one warning on stderr pointing at `lint`.
+The read commands (`contexts`, `list`, `show`, `search`, `for`, `impact`) accept `--json` for machine consumers. When the catalog has problems they still run, and print one warning on stderr pointing at `lint`.
 
 ### `init <context> [--prefix <P>] [--language <en|es>] [--ci]`
 
@@ -284,6 +285,17 @@ file: docs/rules/clients/R-CLI-001.md
 ```
 
 `supersedes`, `dependsOn` and `conflictsWith` lines appear only when the rule sets them; `--json` always has `supersedes` (or `null`), `dependsOn` and `conflictsWith` (or `[]`). Exits 1 for an unknown id.
+
+### `search <text> [--context <c>] [--json]`
+
+Rules in any status whose id, summary, entities or text hold every word of `<text>`, ignoring case. Plain substring search, no index or embeddings: enough to find an existing rule before writing a new one. `--context` narrows it to one context. Rows and `--json` (`{ "rules": [...] }`) look like `list`; no match prints `No rules found.`
+
+```sh
+$ rulebookguard search "document number"
+R-CLI-001 [active] A client document number is unique per country.
+```
+
+Exits 2 for an empty text and 1 for an unknown context.
 
 ### `for <path>`
 
@@ -416,14 +428,18 @@ Each rule comes with its id, context, summary, rule file and full text; when the
 
 ### `mcp [--project <dir>]`
 
-An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with two read-only tools:
+An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with read-only tools:
 
-| Tool         | Input                                                  | Answers                                       |
-| ------------ | ------------------------------------------------------ | --------------------------------------------- |
-| `rules_for`  | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints |
-| `rules_show` | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints  |
+| Tool           | Input                                                  | Answers                                                       |
+| -------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
+| `rules_for`    | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints                 |
+| `rules_show`   | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints                  |
+| `contexts`     | none                                                   | what `rulebookguard contexts --json` prints                   |
+| `rules_list`   | `context`?, `status`?                                  | what `rulebookguard list --json` prints with those options    |
+| `rules_search` | `text`, `context`?                                     | what `rulebookguard search <text> --json` prints              |
+| `lint`         | `base`?: a git ref                                     | what `rulebookguard lint --json` prints, with `--base` if set |
 
-The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.`
+The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.` Lint findings are data, not a failure: `lint` answers its JSON report even when it has errors, and fails only when lint cannot run.
 
 ### `site:generate [--out <dir>] [--base <path>]`
 
@@ -498,7 +514,7 @@ jobs:
 The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
 
 - **Hooks:** after every `Read` and before every `Write`, it runs `rulebookguard hook`, so Claude gets the active rules anchored to a file together with its contents, before it writes a change. A `Write` of a new file, which needs no `Read`, gets them right after the file is created.
-- **MCP server:** the `rules_for` and `rules_show` tools from `rulebookguard mcp`, for rules of files Claude has not opened yet.
+- **MCP server:** the tools of `rulebookguard mcp` (`rules_for`, `rules_show`, `contexts`, `rules_list`, `rules_search`, `lint`), for rules of files Claude has not opened yet and for working on the rulebook itself.
 - **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code) only when the user asks for the behavior change.
 
 Install it from this repository's marketplace:

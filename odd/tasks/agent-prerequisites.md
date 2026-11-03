@@ -15,8 +15,8 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
 | T1 | S1 | inline | done | 1c0f842 |
-| T2 | S2 | inline | done | see L5 |
-| T3 | S3 | inline | pending | |
+| T2 | S2 | inline | done | 7e982f8 |
+| T3 | S3 | inline | done | see L6 |
 | T4 | S4 | inline | pending | |
 | T5 | S5 | inline | pending | |
 
@@ -27,3 +27,4 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 - **L3 (2026-11-03, T1 evidence):** RED: 6 failing (4 in `test/cli/lint.test.ts` "lint relations between rules", 2 in `test/cli/read.test.ts` show). GREEN: 258/258, `vp check` pass, dogfood `lint` clean. The existing show JSON test now expects `dependsOn: []` and `conflictsWith: []` (additive output change, per S1). Findings referencing a schema-invalid rule id are not reported as unknown, like tags. Not done: `lint` still does not check that `supersedes` names an existing rule (pre-existing; out of scope).
 - **L4 (2026-11-03, user choice, verbatim):** "stacked-to-main". Slices: PR 1 = T1+T2 (`feat/agent-prerequisites`), PR 2 = T3 (`feat/mcp-agent-tools`, stacked on PR 1 until it merges), PR 3 = T4+T5.
 - **L5 (2026-11-03, T2 evidence):** RED: `test/cli/export.test.ts` 5 failing. GREEN: 263/263, `vp check` pass. Dogfood `export gherkin` writes 5 features from `docs/rules`. Output paths are relative to the current directory, like `site --out`. `--help` and README document the command.
+- **L6 (2026-11-03, T3 evidence):** branch `feat/mcp-agent-tools` from 7e982f8. RED: 9 failing (5 `search` in `test/cli/read.test.ts`, 4 in `test/mcp/server.test.ts`). GREEN: 271/271, `vp check` pass, dogfood `lint` clean. Slice 1 assessment (main..7e982f8): medium, `under_budget`, no native review due. MCP tool names follow the artifact verbatim (`contexts`, `rules_list`, `rules_search`, `lint`). The shared `cli()` helper only changes for `lint` (`findingsAreData`); the R-AGT-002 tests for `rules_for`/`rules_show` pass unchanged, and a new tagged test covers `lint` failing to run. An empty search text is a usage error (exit 2), checked before the config is read, so it stays English like the other argument errors.

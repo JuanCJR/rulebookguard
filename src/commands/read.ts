@@ -113,6 +113,39 @@ export function listCommand(
   );
 }
 
+export function searchCommand(
+  catalog: Catalog,
+  io: CliIo,
+  query: string,
+  options: { context?: string | undefined; json: boolean },
+): void {
+  const { context } = options;
+  const text = messages(catalog.config.language);
+  if (context !== undefined && !catalog.contexts.some((item) => item.context === context)) {
+    throw new CliError(text.unknownContext(context));
+  }
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  const rules = sortById(catalog.rules)
+    .filter((rule) => context === undefined || rule.context === context)
+    .filter((rule) => {
+      const haystack = [rule.id, rule.summary, ...rule.entities, rule.body]
+        .join('\n')
+        .toLowerCase();
+      return terms.every((term) => haystack.includes(term));
+    })
+    .map(toSummary);
+  if (options.json) {
+    writeJson(io, { rules } satisfies ListJson);
+    return;
+  }
+  writeLines(
+    io,
+    rules.length === 0
+      ? [text.noRules]
+      : rules.map((rule) => `${rule.id} [${rule.status}] ${rule.summary}`),
+  );
+}
+
 export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boolean): void {
   const rule = findRule(catalog, id);
   if (json) {
