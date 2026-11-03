@@ -33,6 +33,9 @@ const TEXT = {
     entities: 'Entities',
     supersedes: 'Supersedes',
     supersededBy: 'Superseded by',
+    origin: 'Origin',
+    notValidated: 'not validated by the business yet',
+    evidence: 'Evidence',
     ruleFile: 'Rule file',
     ruleText: 'Rule',
     anchors: 'Anchors',
@@ -74,6 +77,9 @@ const TEXT = {
     entities: 'Entidades',
     supersedes: 'Reemplaza a',
     supersededBy: 'Reemplazada por',
+    origin: 'Origen',
+    notValidated: 'sin validar todavía por el negocio',
+    evidence: 'Evidencia',
     ruleFile: 'Archivo de la regla',
     ruleText: 'Regla',
     anchors: 'Anclas',
@@ -232,6 +238,15 @@ function rulePage(
   if (supersededBy !== undefined) {
     rows.push([text.supersededBy, ruleLink(supersededBy)]);
   }
+  if (rule.origin !== undefined) {
+    rows.push([
+      text.origin,
+      rule.origin === 'extracted' && rule.status === 'proposed'
+        ? `${rule.origin}, ${text.notValidated}`
+        : rule.origin,
+    ]);
+  }
+  const evidence = rule.evidence ?? [];
   return page(rule.id, rule.summary, [
     `**${cell(rule.summary)}**`,
     '',
@@ -243,6 +258,17 @@ function rulePage(
     '',
     demote(rule.body.trim()),
     '',
+    ...(evidence.length === 0
+      ? []
+      : [
+          `## ${text.evidence}`,
+          '',
+          ...list(
+            evidence.map((item) => `\`${item}\``),
+            text.none,
+          ),
+          '',
+        ]),
     `## ${text.anchors}`,
     '',
     ...list(

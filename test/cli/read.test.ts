@@ -160,6 +160,8 @@ describe('show', () => {
         supersedes: null,
         dependsOn: [],
         conflictsWith: [],
+        origin: null,
+        evidence: [],
         file: 'docs/rules/clients/R-CLI-001.md',
         body: '# Unique document number\n\nTwo clients in the same country cannot share a document number.\n',
       },
@@ -184,6 +186,29 @@ describe('show', () => {
     );
     expect(await json(['show', 'R-BIL-002'], dir)).toMatchObject({
       rule: { dependsOn: ['R-BIL-001', 'R-CLI-001'], conflictsWith: ['R-CLI-002'] },
+    });
+  });
+
+  it('prints origin and evidence when present', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    const file = join(dir, 'docs/rules/clients/R-CLI-002.md');
+    await writeFile(
+      file,
+      (await readFile(file, 'utf8')).replace(
+        /^id: .*$/m,
+        "$&\norigin: extracted\nevidence:\n  - 'src/clients/create.go:12'\n  - 'tests/clients/test_create.py:3'",
+      ),
+    );
+
+    expect(await ok(['show', 'R-CLI-002'], dir)).toContain(
+      'origin: extracted\nevidence:\n  src/clients/create.go:12\n  tests/clients/test_create.py:3\nfile: ',
+    );
+    expect(await json(['show', 'R-CLI-002'], dir)).toMatchObject({
+      rule: {
+        origin: 'extracted',
+        evidence: ['src/clients/create.go:12', 'tests/clients/test_create.py:3'],
+      },
     });
   });
 
