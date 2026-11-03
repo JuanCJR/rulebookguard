@@ -518,6 +518,7 @@ The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
 - **Hooks:** after every `Read` and before every `Write`, it runs `rulebookguard hook`, so Claude gets the active rules anchored to a file together with its contents, before it writes a change. A `Write` of a new file, which needs no `Read`, gets them right after the file is created.
 - **MCP server:** the tools of `rulebookguard mcp` (`rules_for`, `rules_show`, `contexts`, `rules_list`, `rules_search`, `lint`), for rules of files Claude has not opened yet and for working on the rulebook itself.
 - **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code) only when the user asks for the behavior change.
+- **Skill** `rulebookguard:rule-writing`: the shared writing guide, so a rule reads the same whoever writes it: one verifiable behavior, a one-line summary in business language, Gherkin examples, and `origin` and `evidence` for rules lifted from code.
 
 Install it from this repository's marketplace:
 

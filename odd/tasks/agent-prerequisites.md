@@ -17,8 +17,8 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 | T1 | S1 | inline | done | 1c0f842 |
 | T2 | S2 | inline | done | 7e982f8 |
 | T3 | S3 | inline | done | 234adc3 |
-| T4 | S4 | inline | pending | |
-| T5 | S5 | inline | done | see L7 |
+| T4 | S4 | inline | done | see L8 |
+| T5 | S5 | inline | done | f604f49 |
 
 ## Log
 
@@ -29,3 +29,4 @@ Objective: land the tool support the `rule-miner` and `rule-author` agents need 
 - **L5 (2026-11-03, T2 evidence):** RED: `test/cli/export.test.ts` 5 failing. GREEN: 263/263, `vp check` pass. Dogfood `export gherkin` writes 5 features from `docs/rules`. Output paths are relative to the current directory, like `site --out`. `--help` and README document the command.
 - **L6 (2026-11-03, T3 evidence):** branch `feat/mcp-agent-tools` from 7e982f8. RED: 9 failing (5 `search` in `test/cli/read.test.ts`, 4 in `test/mcp/server.test.ts`). GREEN: 271/271, `vp check` pass, dogfood `lint` clean. Slice 1 assessment (main..7e982f8): medium, `under_budget`, no native review due. MCP tool names follow the artifact verbatim (`contexts`, `rules_list`, `rules_search`, `lint`). The shared `cli()` helper only changes for `lint` (`findingsAreData`); the R-AGT-002 tests for `rules_for`/`rules_show` pass unchanged, and a new tagged test covers `lint` failing to run. An empty search text is a usage error (exit 2), checked before the config is read, so it stays English like the other argument errors.
 - **L7 (2026-11-03, T5 evidence):** branch `feat/rule-writing-origin` from 234adc3 (slice 2: medium, `under_budget`). Done before T4 so the writing guide documents the fields. RED: 4 failing (show JSON, show origin/evidence, lint schema, site page). GREEN: 274/274, `vp check` pass. The site flags only `extracted` + `proposed` as not validated; the all-rules list has no origin filter (not requested).
+- **L8 (2026-11-03, T4 evidence):** passive documentation, no runnable RED: structural readback only. `plugin/skills/rule-writing/SKILL.md` follows the frontmatter of the existing plugin skill (`description` only; the directory gives the name `rulebookguard:rule-writing`). README lists it next to `rulebookguard:rules`. Next: the agents themselves (`rule-miner` first, piloted on one Kuadra module) on a later branch.
