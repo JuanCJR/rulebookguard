@@ -33,6 +33,10 @@ export interface RuleFrontmatter {
   entities: string[];
   status: RuleStatus;
   supersedes?: string;
+  /** Rules this rule needs in force; `lint` rejects unknown ids and cycles. */
+  dependsOn?: string[];
+  /** Rules that cannot be active at the same time as this one. */
+  conflictsWith?: string[];
   anchors: string[];
   summary: string;
 }

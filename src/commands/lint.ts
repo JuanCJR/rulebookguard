@@ -197,6 +197,7 @@ export async function lintCatalog(
       );
     }
   }
+  findings.push(...ruleRelations(catalog, invalid, text));
   const budget = catalog.config.contextBudget;
   for (const context of catalog.contexts) {
     const count = catalog.rules.filter((rule) => rule.context === context.context).length;
@@ -211,6 +212,107 @@ export async function lintCatalog(
     }
   }
   return findings;
+}
+
+const RELATION_FIELDS = ['dependsOn', 'conflictsWith'] as const;
+
+function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): LintFinding[] {
+  const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
+  const findings: LintFinding[] = [];
+  for (const rule of catalog.rules) {
+    for (const field of RELATION_FIELDS) {
+      for (const id of rule[field] ?? []) {
+        if (id === rule.id) {
+          findings.push(
+            error(
+              'invalid-rule-reference',
+              rule.file,
+              text.selfRuleReference(field),
+              text.ruleReferenceHint(field),
+            ),
+          );
+        } else if (!byId.has(id) && !invalid.has(id)) {
+          findings.push(
+            error(
+              'invalid-rule-reference',
+              rule.file,
+              text.unknownRuleReference(field, id),
+              text.ruleReferenceHint(field),
+            ),
+          );
+        }
+      }
+    }
+  }
+  for (const cycle of dependencyCycles(byId)) {
+    findings.push(
+      error(
+        'dependency-cycle',
+        (byId.get(cycle[0] as string) as RuleDoc).file,
+        text.dependencyCycle([...cycle, cycle[0] as string]),
+        text.dependencyCycleHint,
+      ),
+    );
+  }
+  const pairs = new Set<string>();
+  for (const rule of catalog.rules) {
+    if (rule.status !== 'active') {
+      continue;
+    }
+    for (const id of rule.conflictsWith ?? []) {
+      if (id === rule.id || byId.get(id)?.status !== 'active') {
+        continue;
+      }
+      const [first, second] = [rule.id, id].sort(compare) as [string, string];
+      const key = `${first} ${second}`;
+      if (pairs.has(key)) {
+        continue;
+      }
+      pairs.add(key);
+      findings.push(
+        error(
+          'active-rule-conflict',
+          (byId.get(first) as RuleDoc).file,
+          text.activeRuleConflict(first, second),
+          text.activeRuleConflictHint,
+        ),
+      );
+    }
+  }
+  return findings;
+}
+
+// Each back edge of a depth-first walk closes one cycle; cycles are rotated to start at their lowest id so each is reported once.
+function dependencyCycles(byId: Map<string, RuleDoc>): string[][] {
+  const state = new Map<string, 'visiting' | 'done'>();
+  const stack: string[] = [];
+  const cycles = new Map<string, string[]>();
+  const visit = (id: string): void => {
+    state.set(id, 'visiting');
+    stack.push(id);
+    for (const next of byId.get(id)?.dependsOn ?? []) {
+      if (next === id || !byId.has(next)) {
+        continue;
+      }
+      const seen = state.get(next);
+      if (seen === 'visiting') {
+        const cycle = stack.slice(stack.indexOf(next));
+        const start = cycle.indexOf([...cycle].sort(compare)[0] as string);
+        const rotated = [...cycle.slice(start), ...cycle.slice(0, start)];
+        cycles.set(rotated.join(' '), rotated);
+      } else if (seen === undefined) {
+        visit(next);
+      }
+    }
+    stack.pop();
+    state.set(id, 'done');
+  };
+  for (const id of [...byId.keys()].sort(compare)) {
+    if (!state.has(id)) {
+      visit(id);
+    }
+  }
+  return [...cycles.values()];
 }
 
 export function pendingImplementation(

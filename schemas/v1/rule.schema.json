@@ -12,6 +12,8 @@
     "entities": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "status": { "enum": ["proposed", "active", "deprecated"] },
     "supersedes": { "$ref": "#/$defs/ruleId" },
+    "dependsOn": { "type": "array", "items": { "$ref": "#/$defs/ruleId" } },
+    "conflictsWith": { "type": "array", "items": { "$ref": "#/$defs/ruleId" } },
     "anchors": { "type": "array", "items": { "type": "string", "minLength": 1 } },
     "summary": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]*$" }
   },
