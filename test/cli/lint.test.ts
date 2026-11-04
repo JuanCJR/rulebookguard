@@ -255,6 +255,92 @@ describe('lint', () => {
   });
 });
 
+describe('lint @implements regions', () => {
+  it('accepts a closed region of a rule whose anchors match the file', async () => {
+    const repo = await cleanRepo();
+    await writeFile(
+      join(repo, 'src/clients/create.go'),
+      'package clients\n\n// @implements R-CLI-001\nfunc Create() {}\n// @endimplements R-CLI-001\n',
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: 'No issues found.\n',
+      stderr: '',
+    });
+  });
+
+  it('reports broken, unknown, deprecated and misplaced regions', async () => {
+    const repo = await cleanRepo();
+    await writeFile(
+      join(repo, 'src/clients/create.go'),
+      [
+        'package clients',
+        '// @implements R-CLI-001',
+        'var s = "@implements R-XYZ-002"',
+        '// @endimplements R-CLI-002',
+        '',
+      ].join('\n'),
+    );
+    await writeFile(
+      join(repo, 'src/clients/update.go'),
+      '// @implements R-XYZ-001\nfunc Update() {}\n// @endimplements R-XYZ-001\n',
+    );
+    await writeFile(
+      join(repo, 'src/clients/legacy/import.go'),
+      '// @implements R-CLI-003\nfunc Import() {}\n// @endimplements R-CLI-003\n',
+    );
+    await writeFile(
+      join(repo, 'src/billing/tax.go'),
+      '// @implements R-CLI-001\nfunc Tax() {}\n// @endimplements R-CLI-001\n',
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error implements-outside-anchors src/billing/tax.go:1 marks code as implementing R-CLI-001, but no anchor of R-CLI-001 matches this file',
+        '  hint: add an anchor to R-CLI-001 that matches this file, or move the region to a file it anchors',
+        'error unclosed-implements-tag src/clients/create.go:2 @implements R-CLI-001 has no matching @endimplements R-CLI-001',
+        '  hint: add "@endimplements R-CLI-001" after the last line of the code that enforces the rule, or close the inner regions first',
+        'error unmatched-endimplements-tag src/clients/create.go:4 @endimplements R-CLI-002 has no open @implements R-CLI-002 before it',
+        '  hint: add "@implements R-CLI-002" before the code that enforces the rule, or remove the stray @endimplements',
+        'error deprecated-implements-tag src/clients/legacy/import.go:1 marks code as implementing R-CLI-003, which is deprecated',
+        '  hint: mark the code with the rule that replaces R-CLI-003, or remove the region',
+        'error unknown-implements-tag src/clients/update.go:1 marks code as implementing R-XYZ-001, which does not exist',
+        '  hint: fix the id in the marker, or create the rule it refers to',
+        '5 errors, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('does not scan files that no rule anchors', async () => {
+    const repo = await cleanRepo();
+    await writeFile(join(repo, 'README.md'), '<!-- @implements R-XYZ-001 -->\n');
+
+    expect((await runCli(['lint'], repo)).status).toBe(0);
+  });
+
+  it('writes the messages in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await writeFile(
+      join(repo, 'src/clients/update.go'),
+      '// @implements R-XYZ-001\n// @endimplements R-XYZ-001\n',
+    );
+
+    expect((await runCli(['lint'], repo)).stdout).toBe(
+      [
+        'error unknown-implements-tag src/clients/update.go:1 marca código como implementación de R-XYZ-001, que no existe',
+        '  sugerencia: corrige el id del marcador o crea la regla a la que se refiere',
+        '1 error, 0 avisos',
+        '',
+      ].join('\n'),
+    );
+  });
+});
+
 async function addFrontmatter(repo: string, rule: string, lines: string): Promise<void> {
   const context = rule.startsWith('R-BIL') ? 'billing' : 'clients';
   const file = join(repo, 'docs/rules', context, `${rule}.md`);

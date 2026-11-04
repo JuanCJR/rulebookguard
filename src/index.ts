@@ -6,8 +6,10 @@ export { isRuleId, loadRule, parseRule } from './format/rule.ts';
 export {
   findRuleRegions,
   findRuleTags,
+  IMPLEMENTS_MARKER_PATTERN,
   RULE_MARKER_PATTERN,
   RULE_TAG_PATTERN,
+  type RegionKind,
   type RuleRegion,
   type RuleRegions,
   type RuleTag,
@@ -42,7 +44,9 @@ export {
 } from './catalog/load.ts';
 export {
   scanTestRegions,
+  scanImplementations,
   scanTestTags,
+  type ImplementationScan,
   type RegionIndex,
   type TagIndex,
   type TagLocation,

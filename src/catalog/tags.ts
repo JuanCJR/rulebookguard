@@ -1,7 +1,12 @@
 import { readFile, realpath } from 'node:fs/promises';
 import { join } from 'node:path';
 import { findRuleRegions, findRuleTags, type RuleTagProblemCode } from '../format/tag.ts';
-import { expandGlobs, resolvesInside, type GitFallbackListener } from './files.ts';
+import {
+  createGlobMatcher,
+  expandGlobs,
+  resolvesInside,
+  type GitFallbackListener,
+} from './files.ts';
 
 export interface TagLocation {
   file: string;
@@ -60,6 +65,34 @@ export async function scanTestRegions(
     problems.push(...found.problems.map((problem) => ({ ...problem, file })));
   }
   return { tags: sortById(tags), regions: sortById(regions), problems };
+}
+
+export interface ImplementationScan {
+  regions: RegionIndex;
+  problems: TagProblem[];
+}
+
+// Only files some rule anchors are read: code no rule anchors cannot implement one.
+export async function scanImplementations(
+  root: string,
+  files: string[],
+  anchors: string[],
+): Promise<ImplementationScan> {
+  const regions: RegionIndex = new Map();
+  const problems: TagProblem[] = [];
+  const realRoot = await realpath(root);
+  for (const file of files.filter(createGlobMatcher(anchors))) {
+    const path = join(root, file);
+    if (!(await resolvesInside(path, realRoot))) {
+      continue;
+    }
+    const found = findRuleRegions(await readFile(path, 'utf8'), 'implements');
+    for (const { id, line, endLine } of found.regions) {
+      push(regions, id, { file, line, endLine });
+    }
+    problems.push(...found.problems.map((problem) => ({ ...problem, file })));
+  }
+  return { regions: sortById(regions), problems };
 }
 
 function push<T>(index: Map<string, T[]>, id: string, value: T): void {
