@@ -49,6 +49,7 @@ export function findRuleTags(source: string): RuleTag[] {
   return tags;
 }
 
+// @implements R-LIN-005
 export function findRuleRegions(source: string, kind: RegionKind = 'rule'): RuleRegions {
   const pattern = kind === 'rule' ? RULE_MARKER_PATTERN : IMPLEMENTS_MARKER_PATTERN;
   const regions: RuleRegion[] = [];
@@ -83,3 +84,4 @@ export function findRuleRegions(source: string, kind: RegionKind = 'rule'): Rule
   problems.sort((a, b) => a.line - b.line);
   return { regions, problems };
 }
+// @endimplements R-LIN-005

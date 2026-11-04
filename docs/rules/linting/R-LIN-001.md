@@ -8,9 +8,9 @@ anchors:
 summary: An active rule must be tagged by at least one test, or lint reports an error.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:153'
-  - 'test/cli/lint.test.ts:20'
-  - 'test/cli/lint-base.test.ts:164'
+  - 'src/commands/lint.ts lintCatalog'
+  - 'test/cli/lint.test.ts "lists every finding and exits 1 when there are errors"'
+  - 'test/cli/lint-base.test.ts "reports only untested-rule for a changed active rule that no test tags"'
 ---
 
 # Active rules need a test

@@ -8,10 +8,9 @@ anchors:
 summary: A test that tags a rule id which does not exist makes lint report an error.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:176'
-  - 'src/commands/lint.ts:183'
-  - 'test/cli/lint.test.ts:38'
-  - 'test/cli/lint.test.ts:167'
+  - 'src/commands/lint.ts lintCatalog'
+  - 'test/cli/lint.test.ts "lists every finding and exits 1 when there are errors"'
+  - 'test/cli/lint.test.ts "does not report tags of a rule that fails the schema as unknown"'
 ---
 
 # Tags must name an existing rule

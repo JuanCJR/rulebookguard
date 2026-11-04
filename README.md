@@ -144,19 +144,19 @@ Scenario: Duplicate document in the same country
 ```
 ````
 
-| Field           | Required | Meaning                                                            |
-| --------------- | -------- | ------------------------------------------------------------------ |
-| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name   |
-| `context`       | yes      | the context directory the rule lives in                            |
-| `entities`      | yes      | domain entities the rule talks about                               |
-| `status`        | yes      | `proposed`, `active` or `deprecated`                               |
-| `supersedes`    | no       | id of the rule this one replaces                                   |
-| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles                |
-| `conflictsWith` | no       | ids of the rules that cannot be active together with this one      |
-| `origin`        | no       | `authored` (written from intent) or `extracted` (lifted from code) |
-| `evidence`      | no       | where the rule shows in code or tests, for example `src/x.ts:42`   |
-| `anchors`       | yes      | repo-relative globs of the code that implements the rule           |
-| `summary`       | yes      | one line; this is what `list` shows                                |
+| Field           | Required | Meaning                                                                        |
+| --------------- | -------- | ------------------------------------------------------------------------------ |
+| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name               |
+| `context`       | yes      | the context directory the rule lives in                                        |
+| `entities`      | yes      | domain entities the rule talks about                                           |
+| `status`        | yes      | `proposed`, `active` or `deprecated`                                           |
+| `supersedes`    | no       | id of the rule this one replaces                                               |
+| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles                            |
+| `conflictsWith` | no       | ids of the rules that cannot be active together with this one                  |
+| `origin`        | no       | `authored` (written from intent) or `extracted` (lifted from code)             |
+| `evidence`      | no       | where the rule shows in code or tests, for example `src/x.ts validateDocument` |
+| `anchors`       | yes      | repo-relative globs of the code that implements the rule                       |
+| `summary`       | yes      | one line; this is what `list` shows                                            |
 
 The Markdown body holds the full rule and its examples (Gherkin scenarios or tables). Rules do not list their tests: the link lives only in the tests, through `@rule` tags.
 
@@ -536,9 +536,9 @@ The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
 
 - **Hooks:** after every `Read` and before every `Write`, it runs `rulebookguard hook`, so Claude gets the active rules anchored to a file together with its contents, before it writes a change. A `Write` of a new file, which needs no `Read`, gets them right after the file is created.
 - **MCP server:** the tools of `rulebookguard mcp` (`rules_for`, `rules_show`, `contexts`, `rules_list`, `rules_search`, `lint`), for rules of files Claude has not opened yet and for working on the rulebook itself.
-- **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code) only when the user asks for the behavior change.
+- **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code, marked with `@implements`) only when the user asks for the behavior change.
 - **Skill** `rulebookguard:rule-writing`: the shared writing guide, so a rule reads the same whoever writes it: one verifiable behavior, a one-line summary in business language, Gherkin examples, and `origin` and `evidence` for rules lifted from code.
-- **Agent** `rulebookguard:rule-miner`: lifts the business rules existing code already enforces, one context at a time. It writes them as `proposed` rules with `origin: extracted`, `path:line` evidence and questions for the business, through `rulebookguard new`. It checks existing rules first to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates a rule or edits existing rules or code: a person reviews the diff and activates what holds. Ask for it by name, for example "use rule-miner on the clients context".
+- **Agent** `rulebookguard:rule-miner`: lifts the business rules existing code already enforces, one context at a time. It writes them as `proposed` rules with `origin: extracted`, evidence as `path symbol` and questions for the business, through `rulebookguard new`, and marks the code that enforces each rule with `@implements` … `@endimplements`. It checks existing rules first to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates a rule or edits existing rules, and adds only marker comments to code: a person reviews the diff and activates what holds. Ask for it by name, for example "use rule-miner on the clients context".
 - **Agent** `rulebookguard:rule-author`: designs the rules a feature needs before its code. By default it writes nothing: it reads the rulebook by levels and returns a rule change plan with new rules and their Gherkin, changed rules as diffs, deprecations, conflicts with active rules, test skeletons and open questions, then stops for a person to approve. Called again with the approved plan, it writes the new rules as `proposed` through `rulebookguard new`, applies the approved diffs and finishes when `lint` has no errors of its own. Tests and code come after, as the `rules` skill says. Ask for it by name, for example "use rule-author for this feature: …".
 
 Install it from this repository's marketplace:

@@ -8,10 +8,10 @@ anchors:
 summary: Lint fails only when it finds at least one error; warnings alone let it pass.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:107'
-  - 'test/cli/lint.test.ts:121'
-  - 'test/cli/lint.test.ts:136'
-  - 'test/cli/lint.test.ts:20'
+  - 'src/commands/lint.ts report'
+  - 'test/cli/lint.test.ts "exits 0 with no findings"'
+  - 'test/cli/lint.test.ts "exits 0 when there are only warnings"'
+  - 'test/cli/lint.test.ts "lists every finding and exits 1 when there are errors"'
 ---
 
 # Errors fail, warnings pass

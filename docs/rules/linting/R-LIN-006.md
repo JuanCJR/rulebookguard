@@ -8,10 +8,8 @@ anchors:
 summary: A rule's dependsOn and conflictsWith may only name other rules that exist, or lint reports an error.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:219'
-  - 'src/commands/lint.ts:225'
-  - 'src/commands/lint.ts:234'
-  - 'test/cli/lint.test.ts:265'
+  - 'src/commands/lint.ts ruleRelations'
+  - 'test/cli/lint.test.ts "reports a reference to an unknown rule or to the rule itself"'
 ---
 
 # Relations name other existing rules

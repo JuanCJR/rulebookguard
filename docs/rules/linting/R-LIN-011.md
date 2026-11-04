@@ -8,16 +8,16 @@ anchors:
 summary: With --base, an active rule changed since that ref is an error unless a line inside one of its test regions changed too.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:83'
-  - 'src/commands/lint.ts:318'
-  - 'src/commands/lint.ts:345'
-  - 'src/commands/lint.ts:371'
-  - 'test/cli/lint-base.test.ts:46'
-  - 'test/cli/lint-base.test.ts:57'
-  - 'test/cli/lint-base.test.ts:75'
-  - 'test/cli/lint-base.test.ts:125'
-  - 'test/cli/lint-base.test.ts:137'
-  - 'test/cli/lint-base.test.ts:164'
+  - 'src/commands/lint.ts lintCommand'
+  - 'src/commands/lint.ts pendingImplementation'
+  - 'src/commands/lint.ts changedActiveRules'
+  - 'src/commands/lint.ts testLineChanges'
+  - 'test/cli/lint-base.test.ts "reports an uncommitted rule change without a tagging test change"'
+  - 'test/cli/lint-base.test.ts "passes when a line inside a region tagging the rule changed too"'
+  - 'test/cli/lint-base.test.ts "reports the rule when the test file changed only outside its regions"'
+  - 'test/cli/lint-base.test.ts "ignores changed rules that are proposed or deprecated"'
+  - 'test/cli/lint-base.test.ts "checks added active rules, counting untracked test files as changed"'
+  - 'test/cli/lint-base.test.ts "reports only untested-rule for a changed active rule that no test tags"'
 ---
 
 # A changed rule needs a changed test

@@ -104,7 +104,9 @@ function report(io: CliIo, findings: LintFinding[], json: boolean, text: Message
       text.lintSummary(errors, warnings),
     ]);
   }
+  // @implements R-LIN-010
   return errors > 0 ? EXIT_FAILURE : EXIT_OK;
+  // @endimplements R-LIN-010
 }
 
 function issueFinding(
@@ -150,6 +152,7 @@ export async function lintCatalog(
       .map((rule) => [rule.supersedes as string, rule.id]),
   );
   for (const rule of catalog.rules) {
+    // @implements R-LIN-001
     if (rule.status === 'active' && !tagIndex.has(rule.id)) {
       findings.push(
         error(
@@ -160,6 +163,8 @@ export async function lintCatalog(
         ),
       );
     }
+    // @endimplements R-LIN-001
+    // @implements R-LIN-002
     for (const anchor of rule.anchors) {
       if (!files.some(createGlobMatcher([anchor]))) {
         findings.push(
@@ -172,7 +177,10 @@ export async function lintCatalog(
         );
       }
     }
+    // @endimplements R-LIN-002
   }
+  // @implements R-LIN-003
+  // @implements R-LIN-004
   for (const [id, locations] of tagIndex) {
     const ruleStatus = status.get(id);
     if ((ruleStatus !== undefined && ruleStatus !== 'deprecated') || invalid.has(id)) {
@@ -197,8 +205,11 @@ export async function lintCatalog(
       );
     }
   }
+  // @endimplements R-LIN-004
+  // @endimplements R-LIN-003
   findings.push(...(await implementations(catalog, files, invalid, successors, text)));
   findings.push(...ruleRelations(catalog, invalid, text));
+  // @implements R-LIN-009
   const budget = catalog.config.contextBudget;
   for (const context of catalog.contexts) {
     const count = catalog.rules.filter((rule) => rule.context === context.context).length;
@@ -212,6 +223,7 @@ export async function lintCatalog(
       });
     }
   }
+  // @endimplements R-LIN-009
   return findings;
 }
 
@@ -284,6 +296,7 @@ const RELATION_FIELDS = ['dependsOn', 'conflictsWith'] as const;
 function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): LintFinding[] {
   const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
   const findings: LintFinding[] = [];
+  // @implements R-LIN-006
   for (const rule of catalog.rules) {
     for (const field of RELATION_FIELDS) {
       for (const id of rule[field] ?? []) {
@@ -309,6 +322,8 @@ function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): 
       }
     }
   }
+  // @endimplements R-LIN-006
+  // @implements R-LIN-007
   for (const cycle of dependencyCycles(byId)) {
     findings.push(
       error(
@@ -319,6 +334,8 @@ function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): 
       ),
     );
   }
+  // @endimplements R-LIN-007
+  // @implements R-LIN-008
   const pairs = new Set<string>();
   for (const rule of catalog.rules) {
     if (rule.status !== 'active') {
@@ -344,9 +361,11 @@ function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): 
       );
     }
   }
+  // @endimplements R-LIN-008
   return findings;
 }
 
+// @implements R-LIN-007
 // Each back edge of a depth-first walk closes one cycle; cycles are rotated to start at their lowest id so each is reported once.
 function dependencyCycles(byId: Map<string, RuleDoc>): string[][] {
   const state = new Map<string, 'visiting' | 'done'>();
@@ -379,7 +398,9 @@ function dependencyCycles(byId: Map<string, RuleDoc>): string[][] {
   }
   return [...cycles.values()];
 }
+// @endimplements R-LIN-007
 
+// @implements R-LIN-011
 export function pendingImplementation(
   catalog: Catalog,
   scan: TagScan,
@@ -406,6 +427,7 @@ export function pendingImplementation(
       ),
     );
 }
+// @endimplements R-LIN-011
 
 function changedActiveRules(catalog: Catalog, scan: TagScan, changed: string[]): RuleDoc[] {
   const changedSet = new Set(changed);

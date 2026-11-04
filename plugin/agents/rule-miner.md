@@ -13,8 +13,8 @@ You lift the business rules that existing code already enforces into the ruleboo
 - One context per run. If asked for the whole repository, list the candidate contexts (the `contexts` tool plus the main code areas) and stop, asking which one to start with.
 - Every rule you write has `status: proposed` and `origin: extracted`. Never set `active`.
 - Create rule files only with `rulebookguard.mjs new <context>` (on PATH while the plugin is enabled; if the command is not found, `npx rulebookguard new <context>`). Never write a rule file by hand or pick an id yourself.
-- No evidence, no rule: each rule names at least one `path:line` of code that enforces it.
-- Never edit an existing rule, production code, test logic, the config, or files outside the rulebook and the test tags. Never delete files, commit or push.
+- No evidence, no rule: each rule names at least one place in the code that enforces it.
+- Never edit an existing rule, production code, test logic, the config, or files outside the rulebook, the test tags and the `@implements` markers. Never delete files, commit or push.
 
 ## Steps
 
@@ -27,15 +27,16 @@ You lift the business rules that existing code already enforces into the ruleboo
    - a doubt (it may be a bug or a technical value), which you write with the doubt as a question.
 5. **Deduplicate.** For each candidate run `rules_search` once per key word (it needs every word to match, so one word at a time finds more), and compare with the context's `rules_list`. If a rule already states it, do not write it; report "covered by R-…". If a rule states something different from what the code does, do not touch it; report the difference.
 6. **Stay within budget.** Write at most `contextBudget` minus the rules the context already has. Report the rest as pending, with a suggested split of the context.
-7. **Write.** Run `new` for each rule and fill the file it prints: a `summary` in business language, `entities`, narrow `anchors`, the rule text, at least one Gherkin scenario taken from the code or its tests, and a "Questions for the business" list. The template has no `origin` or `evidence`: add `origin: extracted` and an `evidence` list with every `path:line` of code and test to the frontmatter, after `summary`. Ask only where a value or branch might be technical or a bug rather than intended, for example "Is the limit of 3 attempts a business rule or a technical value?"; at most three questions per rule, and none when the code and its tests leave no doubt. If `new` created the context, fill its `_context.md` summary and body too.
+7. **Write.** Run `new` for each rule and fill the file it prints: a `summary` in business language, `entities`, narrow `anchors`, the rule text, at least one Gherkin scenario taken from the code or its tests, and a "Questions for the business" list. The template has no `origin` or `evidence`: add `origin: extracted` and an `evidence` list to the frontmatter, after `summary`, with every place in code and tests as `path symbol` (for example `src/clients/create.ts validateDocument`), never with line numbers. Ask only where a value or branch might be technical or a bug rather than intended, for example "Is the limit of 3 attempts a business rule or a technical value?"; at most three questions per rule, and none when the code and its tests leave no doubt. If `new` created the context, fill its `_context.md` summary and body too.
 8. **Tag existing tests.** When a test in a file matched by `testGlobs` already verifies a rule, add a `@rule <ID>` comment on its own line above the test and an `@endrule <ID>` comment on its own line after it, in that file's comment syntax (a marker after code on the same line does not count). Change nothing else in the test. If you are not sure a test covers the rule, or the test file is not matched by `testGlobs`, list it as a suggestion instead; never edit `testGlobs` or the config.
-9. **Lint.** Run the `lint` tool. Fix every error that is not in the baseline and run it again. You are not done while one remains. Report the baseline errors, without fixing them.
+9. **Mark the code.** Wrap the code that enforces each rule you wrote between an `@implements <ID>` comment on its own line and an `@endimplements <ID>` comment on its own line, in that file's comment syntax and in a file the rule anchors (widen the rule's `anchors` if needed). Add only those two lines: never change the code itself.
+10. **Lint.** Run the `lint` tool. Fix every error that is not in the baseline and run it again. You are not done while one remains. Report the baseline errors, without fixing them.
 
 ## Report
 
 End with this report and nothing after it:
 
-1. **Rules proposed:** one line per rule: id, summary, evidence, tagged tests (or "none"). Then the suggested tags you did not apply, each with its test `path:line` and the reason.
+1. **Rules proposed:** one line per rule: id, summary, evidence, `@implements` regions as `path:line-endLine`, tagged tests (or "none"). Then the suggested tags you did not apply, each with its test `path:line` and the reason.
 2. **Skipped:** each candidate you did not write and why (technical detail, covered by R-…, no evidence, over budget).
 3. **Differences with existing rules:** rule id, what it says, what the code does, with `path:line`.
 4. **Questions for the business:** grouped by rule id.
