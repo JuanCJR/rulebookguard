@@ -158,3 +158,42 @@ describe('findRuleRegions', () => {
     expect(findRuleTags('// @endrule R-CLI-001')).toEqual([]);
   });
 });
+
+describe('findRuleRegions for @implements', () => {
+  it('pairs each @implements with its @endimplements, on comment lines only', () => {
+    const source = [
+      '// @implements R-CLI-001',
+      'func Create() {',
+      '  msg := "@implements R-CLI-009"',
+      '}',
+      '// @endimplements R-CLI-001',
+    ].join('\n');
+
+    expect(findRuleRegions(source, 'implements')).toEqual({
+      regions: [{ id: 'R-CLI-001', line: 1, endLine: 5 }],
+      problems: [],
+    });
+  });
+
+  it('reports an unclosed @implements and a stray @endimplements', () => {
+    expect(
+      findRuleRegions('# @implements R-CLI-001\n# @endimplements R-CLI-002', 'implements').problems,
+    ).toEqual([
+      { code: 'unclosed-implements-tag', id: 'R-CLI-001', line: 1 },
+      { code: 'unmatched-endimplements-tag', id: 'R-CLI-002', line: 2 },
+    ]);
+  });
+
+  it('keeps @rule and @implements markers apart', () => {
+    const source = '// @rule R-CLI-001\n// @implements R-CLI-002\n// @endrule R-CLI-001';
+
+    expect(findRuleRegions(source)).toEqual({
+      regions: [{ id: 'R-CLI-001', line: 1, endLine: 3 }],
+      problems: [],
+    });
+    expect(findRuleRegions(source, 'implements').problems).toEqual([
+      { code: 'unclosed-implements-tag', id: 'R-CLI-002', line: 2 },
+    ]);
+    expect(findRuleTags('// @implements R-CLI-001')).toEqual([]);
+  });
+});

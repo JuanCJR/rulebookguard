@@ -17,7 +17,7 @@ import {
 import { FormatError } from '../format/errors.ts';
 import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
-import { scanTestRegions, type TagScan } from '../catalog/tags.ts';
+import { scanImplementations, scanTestRegions, type TagScan } from '../catalog/tags.ts';
 import {
   CliError,
   EXIT_FAILURE,
@@ -197,6 +197,7 @@ export async function lintCatalog(
       );
     }
   }
+  findings.push(...(await implementations(catalog, files, invalid, successors, text)));
   findings.push(...ruleRelations(catalog, invalid, text));
   const budget = catalog.config.contextBudget;
   for (const context of catalog.contexts) {
@@ -209,6 +210,72 @@ export async function lintCatalog(
         message: text.contextOverBudget(context.context, count, budget),
         hint: text.contextOverBudgetHint,
       });
+    }
+  }
+  return findings;
+}
+
+async function implementations(
+  catalog: Catalog,
+  files: string[],
+  invalid: Set<string>,
+  successors: Map<string, string>,
+  text: Messages,
+): Promise<LintFinding[]> {
+  const scan = await scanImplementations(
+    catalog.root,
+    files,
+    catalog.rules.flatMap((rule) => rule.anchors),
+  );
+  const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
+  const findings: LintFinding[] = scan.problems.map(({ code, id, file, line }) => ({
+    ...(code === 'unclosed-implements-tag'
+      ? error(code, file, text.unclosedImplementsTag(id), text.unclosedImplementsTagHint(id))
+      : error(
+          code,
+          file,
+          text.unmatchedEndimplementsTag(id),
+          text.unmatchedEndimplementsTagHint(id),
+        )),
+    line,
+  }));
+  for (const [id, regions] of scan.regions) {
+    const rule = byId.get(id);
+    if (rule === undefined && invalid.has(id)) {
+      continue;
+    }
+    for (const { file, line } of regions) {
+      if (rule === undefined) {
+        findings.push({
+          ...error(
+            'unknown-implements-tag',
+            file,
+            text.unknownImplementsTag(id),
+            text.unknownImplementsTagHint,
+          ),
+          line,
+        });
+      } else if (rule.status === 'deprecated') {
+        findings.push({
+          ...error(
+            'deprecated-implements-tag',
+            file,
+            text.deprecatedImplementsTag(id),
+            text.deprecatedImplementsTagHint(id, successors.get(id)),
+          ),
+          line,
+        });
+      } else if (!createGlobMatcher(rule.anchors)(file)) {
+        findings.push({
+          ...error(
+            'implements-outside-anchors',
+            file,
+            text.implementsOutsideAnchors(id),
+            text.implementsOutsideAnchorsHint(id),
+          ),
+          line,
+        });
+      }
     }
   }
   return findings;

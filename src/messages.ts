@@ -49,6 +49,11 @@ export interface Messages {
   deprecatedRuleTag: (id: string) => string;
   unclosedRuleTag: (id: string) => string;
   unmatchedEndruleTag: (id: string) => string;
+  unknownImplementsTag: (id: string) => string;
+  deprecatedImplementsTag: (id: string) => string;
+  unclosedImplementsTag: (id: string) => string;
+  unmatchedEndimplementsTag: (id: string) => string;
+  implementsOutsideAnchors: (id: string) => string;
   contextOverBudget: (context: string, count: number, budget: number) => string;
   pendingImplementation: (id: string, base: string) => string;
   unknownRuleReference: (field: string, id: string) => string;
@@ -70,6 +75,11 @@ export interface Messages {
   deprecatedRuleTagHint: (id: string, successor: string | undefined) => string;
   unclosedRuleTagHint: (id: string) => string;
   unmatchedEndruleTagHint: (id: string) => string;
+  unknownImplementsTagHint: string;
+  deprecatedImplementsTagHint: (id: string, successor: string | undefined) => string;
+  unclosedImplementsTagHint: (id: string) => string;
+  unmatchedEndimplementsTagHint: (id: string) => string;
+  implementsOutsideAnchorsHint: (id: string) => string;
   contextOverBudgetHint: string;
   pendingImplementationHint: (id: string) => string;
   lintSummary: (errors: number, warnings: number) => string;
@@ -135,6 +145,12 @@ const EN: Messages = {
   deprecatedRuleTag: (id) => `tags ${id}, which is deprecated`,
   unclosedRuleTag: (id) => `@rule ${id} has no matching @endrule ${id}`,
   unmatchedEndruleTag: (id) => `@endrule ${id} has no open @rule ${id} before it`,
+  unknownImplementsTag: (id) => `marks code as implementing ${id}, which does not exist`,
+  deprecatedImplementsTag: (id) => `marks code as implementing ${id}, which is deprecated`,
+  unclosedImplementsTag: (id) => `@implements ${id} has no matching @endimplements ${id}`,
+  unmatchedEndimplementsTag: (id) => `@endimplements ${id} has no open @implements ${id} before it`,
+  implementsOutsideAnchors: (id) =>
+    `marks code as implementing ${id}, but no anchor of ${id} matches this file`,
   contextOverBudget: (context, count, budget) =>
     `context "${context}" has ${count} rules, more than the contextBudget of ${budget}`,
   pendingImplementation: (id, base) =>
@@ -178,6 +194,17 @@ const EN: Messages = {
     `add "@endrule ${id}" after the last line of the test, or close the inner regions first`,
   unmatchedEndruleTagHint: (id) =>
     `add "@rule ${id}" before the test, or remove the stray @endrule`,
+  unknownImplementsTagHint: 'fix the id in the marker, or create the rule it refers to',
+  deprecatedImplementsTagHint: (id, successor) =>
+    successor === undefined
+      ? `mark the code with the rule that replaces ${id}, or remove the region`
+      : `mark the code with ${successor}, which supersedes ${id}, instead`,
+  unclosedImplementsTagHint: (id) =>
+    `add "@endimplements ${id}" after the last line of the code that enforces the rule, or close the inner regions first`,
+  unmatchedEndimplementsTagHint: (id) =>
+    `add "@implements ${id}" before the code that enforces the rule, or remove the stray @endimplements`,
+  implementsOutsideAnchorsHint: (id) =>
+    `add an anchor to ${id} that matches this file, or move the region to a file it anchors`,
   contextOverBudgetHint:
     'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
   pendingImplementationHint: (id) =>
@@ -248,6 +275,13 @@ const ES: Messages = {
   deprecatedRuleTag: (id) => `etiqueta ${id}, que está deprecada`,
   unclosedRuleTag: (id) => `@rule ${id} no tiene su @endrule ${id}`,
   unmatchedEndruleTag: (id) => `@endrule ${id} no tiene un @rule ${id} abierto antes`,
+  unknownImplementsTag: (id) => `marca código como implementación de ${id}, que no existe`,
+  deprecatedImplementsTag: (id) => `marca código como implementación de ${id}, que está deprecada`,
+  unclosedImplementsTag: (id) => `@implements ${id} no tiene su @endimplements ${id}`,
+  unmatchedEndimplementsTag: (id) =>
+    `@endimplements ${id} no tiene un @implements ${id} abierto antes`,
+  implementsOutsideAnchors: (id) =>
+    `marca código como implementación de ${id}, pero ningún anchor de ${id} coincide con este archivo`,
   contextOverBudget: (context, count, budget) =>
     `el contexto "${context}" tiene ${count} reglas, más que el contextBudget de ${budget}`,
   pendingImplementation: (id, base) =>
@@ -292,6 +326,17 @@ const ES: Messages = {
     `agrega "@endrule ${id}" después de la última línea del test, o cierra antes las regiones internas`,
   unmatchedEndruleTagHint: (id) =>
     `agrega "@rule ${id}" antes del test, o quita el @endrule que sobra`,
+  unknownImplementsTagHint: 'corrige el id del marcador o crea la regla a la que se refiere',
+  deprecatedImplementsTagHint: (id, successor) =>
+    successor === undefined
+      ? `marca el código con la regla que reemplaza a ${id} o quita la región`
+      : `marca el código con ${successor}, que reemplaza a ${id}`,
+  unclosedImplementsTagHint: (id) =>
+    `agrega "@endimplements ${id}" después de la última línea del código que cumple la regla, o cierra antes las regiones internas`,
+  unmatchedEndimplementsTagHint: (id) =>
+    `agrega "@implements ${id}" antes del código que cumple la regla, o quita el @endimplements que sobra`,
+  implementsOutsideAnchorsHint: (id) =>
+    `agrega a ${id} un anchor que coincida con este archivo, o mueve la región a un archivo que ancle`,
   contextOverBudgetHint:
     'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
   pendingImplementationHint: (id) =>

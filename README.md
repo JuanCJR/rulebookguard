@@ -213,6 +213,20 @@ SELECT count(*) FROM invoices WHERE number IS NULL;
 -- @endrule R-BIL-002
 ```
 
+### Marking the code that enforces a rule with `@implements` … `@endimplements`
+
+Anchors say which files a rule governs; an `@implements <ID>` … `@endimplements <ID>` region says which lines enforce it, so the link moves with the code instead of pointing at a line number. Regions are optional and follow the same comment rule, nesting and pairing as `@rule` regions. Only files matched by some rule's `anchors` are scanned, and a region must sit in a file its own rule anchors.
+
+```go
+// @implements R-CLI-001
+func validateDocument(country, number string) error {
+	// ...
+}
+// @endimplements R-CLI-001
+```
+
+`lint` reports `unclosed-implements-tag`, `unmatched-endimplements-tag`, `unknown-implements-tag`, `deprecated-implements-tag` and `implements-outside-anchors` (see the table under `lint`).
+
 ## Commands
 
 `rulebookguard --help` prints the command list. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
@@ -349,26 +363,31 @@ Exits 1, writing nothing, when the context has no free id left, when the name is
 
 Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, with a `hint:` line under it that says how to fix it, followed by a count.
 
-| Severity | Code                     | Meaning                                                            |
-| -------- | ------------------------ | ------------------------------------------------------------------ |
-| error    | `untested-rule`          | an active rule has no test tagging it                              |
-| error    | `unknown-rule-tag`       | a test tags a rule id that does not exist                          |
-| error    | `deprecated-rule-tag`    | a test tags a deprecated rule                                      |
-| error    | `unclosed-rule-tag`      | a `@rule` has no matching `@endrule`                               |
-| error    | `unmatched-endrule-tag`  | an `@endrule` has no open `@rule` of the same id                   |
-| error    | `unmatched-anchor`       | an anchor glob matches no file                                     |
-| error    | `schema`                 | a config, context or rule file breaks the JSON Schema              |
-| error    | `duplicate-id`           | two rule files share an id                                         |
-| error    | `file-name-mismatch`     | a rule file is not named `<id>.md`                                 |
-| error    | `id-prefix-mismatch`     | a rule id does not use its context prefix                          |
-| error    | `context-mismatch`       | a `context` field does not match its directory                     |
-| error    | `missing-context-file`   | a context directory has no `_context.md`                           |
-| error    | `missing-rules-dir`      | `rulesDir` does not exist                                          |
-| error    | `pending-implementation` | with `--base`: an active rule changed, but none of its regions did |
-| error    | `invalid-rule-reference` | `dependsOn` or `conflictsWith` names an unknown rule or itself     |
-| error    | `dependency-cycle`       | `dependsOn` links form a cycle (reported once, at its lowest id)   |
-| error    | `active-rule-conflict`   | two active rules where one lists the other in `conflictsWith`      |
-| warning  | `context-over-budget`    | a context holds more rules than `contextBudget`                    |
+| Severity | Code                          | Meaning                                                            |
+| -------- | ----------------------------- | ------------------------------------------------------------------ |
+| error    | `untested-rule`               | an active rule has no test tagging it                              |
+| error    | `unknown-rule-tag`            | a test tags a rule id that does not exist                          |
+| error    | `deprecated-rule-tag`         | a test tags a deprecated rule                                      |
+| error    | `unclosed-rule-tag`           | a `@rule` has no matching `@endrule`                               |
+| error    | `unmatched-endrule-tag`       | an `@endrule` has no open `@rule` of the same id                   |
+| error    | `unclosed-implements-tag`     | an `@implements` has no matching `@endimplements`                  |
+| error    | `unmatched-endimplements-tag` | an `@endimplements` has no open `@implements` of the same id       |
+| error    | `unknown-implements-tag`      | code is marked as implementing a rule id that does not exist       |
+| error    | `deprecated-implements-tag`   | code is marked as implementing a deprecated rule                   |
+| error    | `implements-outside-anchors`  | an `@implements` region sits in a file its rule does not anchor    |
+| error    | `unmatched-anchor`            | an anchor glob matches no file                                     |
+| error    | `schema`                      | a config, context or rule file breaks the JSON Schema              |
+| error    | `duplicate-id`                | two rule files share an id                                         |
+| error    | `file-name-mismatch`          | a rule file is not named `<id>.md`                                 |
+| error    | `id-prefix-mismatch`          | a rule id does not use its context prefix                          |
+| error    | `context-mismatch`            | a `context` field does not match its directory                     |
+| error    | `missing-context-file`        | a context directory has no `_context.md`                           |
+| error    | `missing-rules-dir`           | `rulesDir` does not exist                                          |
+| error    | `pending-implementation`      | with `--base`: an active rule changed, but none of its regions did |
+| error    | `invalid-rule-reference`      | `dependsOn` or `conflictsWith` names an unknown rule or itself     |
+| error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)   |
+| error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`      |
+| warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                    |
 
 ```sh
 $ rulebookguard lint
