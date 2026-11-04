@@ -35,8 +35,8 @@ function list(value: unknown): string[] {
 }
 
 describe('plugin agents', () => {
-  it('ships rule-miner', async () => {
-    expect((await agents()).map((agent) => agent.data.name)).toContain('rule-miner');
+  it('ships rule-miner and rule-author', async () => {
+    expect((await agents()).map((agent) => agent.data.name)).toEqual(['rule-author', 'rule-miner']);
   });
 
   it('gives every agent a name, a description and a body', async () => {
