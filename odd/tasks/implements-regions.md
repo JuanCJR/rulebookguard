@@ -15,7 +15,7 @@ Objective: anchor a rule to the exact code that enforces it, not only to whole f
 |----|-------|-------|--------|--------|
 | T1 | S1, S2 | inline | done | 1f5a134 |
 | T2 | S3 | inline | done | 3ca60c2 |
-| T3 | S4 | inline | done | (this commit) |
+| T3 | S4 | inline | done | dc698c5 |
 
 ## Log
 
@@ -24,3 +24,4 @@ Objective: anchor a rule to the exact code that enforces it, not only to whole f
 - **L3 (2026-11-04, T1 evidence):** RED: 5 failing (3 in `test/format/tag.test.ts` "findRuleRegions for @implements", 2 in `test/cli/lint.test.ts` "lint @implements regions"). GREEN: 288/288, `vp check` pass, dogfood `lint` clean. `findRuleRegions(source, kind = 'rule')`: the `@rule` pattern source is byte-identical to before and every existing tag and lint test passes unchanged. `scanImplementations` takes the file list lint already has, so the repo is listed once. Regions of schema-invalid rule ids are skipped, like tags. README documents the markers and the five codes.
 - **L4 (2026-11-04, T2 evidence):** T1 assessed medium, `under_budget`. RED: 5 failing (show JSON + regions, for JSON + regions, hook lines). GREEN: 292/292, `vp check` pass, dogfood `lint` clean. Differential check found a regression the tests missed: `for src/clients` (a directory) crashed with EISDIR once `for` read the path; `scanImplementations` now skips non-files and a test pins the old answer. The hook keeps its rules without line numbers when the file cannot be read. `show` reads regions only from files the rule's anchors match, consistent with `implements-outside-anchors`.
 - **L5 (2026-11-04, T3 evidence):** passive prompt and docs changes plus dogfood, no runnable RED for the prompts; `test/plugin/agents.test.ts` and `claude plugin validate plugin` pass. Dogfood: `src/commands/lint.ts` and `src/format/tag.ts` hold `@implements` regions for R-LIN-001 to R-LIN-011 (R-LIN-007 has two), `show R-LIN-007` lists both, `lint` clean. Each R-LIN evidence `path:line` was mapped against `main` to its enclosing function or test name (`path symbol`, test names quoted), duplicates dropped. 292/292 (one run hit the 30 s timeout of the Astro site test under load; it passed alone and on the rerun). Not done: no R-LIN rules for the five new lint codes (not requested).
+- **L6 (2026-11-04, contract check):** T1 had widened the exported `RuleTagProblemCode` with the implements codes, which would break an exhaustive `switch` in a TypeScript consumer. Restored it byte-identical to `main`; `findRuleRegions` gets overloads, and `RuleTagProblem`, `RuleRegions` and `TagProblem` take a code parameter that defaults to the old type. New export `ImplementsTagProblemCode`. 292/292, `vp check` pass.

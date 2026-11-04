@@ -9,6 +9,7 @@ export {
   IMPLEMENTS_MARKER_PATTERN,
   RULE_MARKER_PATTERN,
   RULE_TAG_PATTERN,
+  type ImplementsTagProblemCode,
   type RegionKind,
   type RuleRegion,
   type RuleRegions,
