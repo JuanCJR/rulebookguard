@@ -23,9 +23,15 @@ export const RULE_TAG_PATTERN: RegExp = /(?<![\w@.-])@rule\s+(R-[A-Z][A-Z0-9]*-[
 export const RULE_MARKER_PATTERN: RegExp =
   /(?<![\w@.-])@(rule|endrule)\s+(R-[A-Z][A-Z0-9]*-[0-9]{3})(?![\w-])/g;
 
+// Markers count only on lines that start with a comment, so ids quoted in test names or strings are not links.
+const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*|#|--|;|<!--|%)/;
+
 export function findRuleTags(source: string): RuleTag[] {
   const tags: RuleTag[] = [];
   source.split(/\r?\n/).forEach((text, index) => {
+    if (!COMMENT_LINE.test(text)) {
+      return;
+    }
     for (const match of text.matchAll(RULE_TAG_PATTERN)) {
       tags.push({ id: match[1] as string, line: index + 1 });
     }
@@ -38,6 +44,9 @@ export function findRuleRegions(source: string): RuleRegions {
   const problems: RuleTagProblem[] = [];
   const open: RuleTag[] = [];
   source.split(/\r?\n/).forEach((text, index) => {
+    if (!COMMENT_LINE.test(text)) {
+      return;
+    }
     const line = index + 1;
     for (const match of text.matchAll(RULE_MARKER_PATTERN)) {
       const id = match[2] as string;

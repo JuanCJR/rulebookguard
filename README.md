@@ -167,7 +167,7 @@ A test links to a rule with a region: `@rule <ID>` opens it and `@endrule <ID>` 
 > [!IMPORTANT]
 > Every `@rule` needs its `@endrule`, otherwise `lint` reports `unclosed-rule-tag`; an `@endrule` with no open `@rule` of the same id is reported as `unmatched-endrule-tag`. The region tells `lint --base` which lines belong to the rule: a changed rule needs a change inside one of its regions, not anywhere in the test file.
 
-A comment is the usual place, but the markers are matched as text, so they also count inside a test name or a string. To mention a rule in a test file without linking to it, write the id without the `@rule` prefix.
+Markers count only on a line that starts with a comment: `//`, `/*`, `*`, `#`, `--`, `;`, `<!--` or `%`, after any indentation. A marker in a test name, a string or a comment after code on the same line is not a link, so test files may quote `@rule` freely.
 
 TypeScript or JavaScript:
 

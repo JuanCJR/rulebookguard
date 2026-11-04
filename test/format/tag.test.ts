@@ -20,16 +20,33 @@ describe('findRuleTags', () => {
     ]);
   });
 
-  it('finds tags outside comments, such as in a test name or a string', () => {
+  it('finds tags in the other comment openers', () => {
+    const source = [
+      '<!-- @rule R-CLI-001 -->',
+      '; @rule R-CLI-002',
+      '% @rule R-CLI-003',
+      '/** @rule R-CLI-004 */',
+      '\t\t## @rule R-CLI-005',
+    ].join('\n');
+
+    expect(findRuleTags(source).map((tag) => tag.id)).toEqual([
+      'R-CLI-001',
+      'R-CLI-002',
+      'R-CLI-003',
+      'R-CLI-004',
+      'R-CLI-005',
+    ]);
+  });
+
+  it('ignores tags in a test name, a string or a comment after code', () => {
     const source = [
       "it('rejects a duplicate @rule R-CLI-001', () => {});",
       'const note = "@rule R-CLI-002";',
+      "await writeFile(file, '# @rule R-CLI-003\\n');",
+      'check(); // @rule R-CLI-004',
     ].join('\n');
 
-    expect(findRuleTags(source)).toEqual([
-      { id: 'R-CLI-001', line: 1 },
-      { id: 'R-CLI-002', line: 2 },
-    ]);
+    expect(findRuleTags(source)).toEqual([]);
   });
 
   it('finds several tags on one line', () => {
@@ -78,6 +95,19 @@ describe('findRuleRegions', () => {
       { id: 'R-CLI-002', line: 2, endLine: 3 },
       { id: 'R-CLI-001', line: 1, endLine: 4 },
     ]);
+  });
+
+  it('ignores markers outside comments', () => {
+    const source = [
+      '// @rule R-CLI-001',
+      "const text = '@endrule R-CLI-001 @rule R-CLI-002';",
+      '// @endrule R-CLI-001',
+    ].join('\n');
+
+    expect(findRuleRegions(source)).toEqual({
+      regions: [{ id: 'R-CLI-001', line: 1, endLine: 3 }],
+      problems: [],
+    });
   });
 
   it('allows a region on a single line', () => {
