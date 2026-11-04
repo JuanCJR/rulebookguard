@@ -9,9 +9,9 @@ anchors:
 summary: Every @rule tag in a test must be closed by a matching @endrule after it, and every @endrule must close an open @rule.
 origin: extracted
 evidence:
-  - 'src/format/tag.ts:36'
-  - 'src/format/tag.ts:48'
-  - 'src/format/tag.ts:60'
+  - 'src/format/tag.ts:42'
+  - 'src/format/tag.ts:57'
+  - 'src/format/tag.ts:69'
   - 'src/catalog/tags.ts:56'
   - 'src/commands/lint.ts:134'
   - 'test/cli/lint.test.ts:92'
