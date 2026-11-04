@@ -1,12 +1,12 @@
-import { readFile, realpath } from 'node:fs/promises';
+import { readFile, realpath, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { findRuleRegions, findRuleTags, type RuleTagProblemCode } from '../format/tag.ts';
 import {
-  createGlobMatcher,
-  expandGlobs,
-  resolvesInside,
-  type GitFallbackListener,
-} from './files.ts';
+  findRuleRegions,
+  findRuleTags,
+  type ImplementsTagProblemCode,
+  type RuleTagProblemCode,
+} from '../format/tag.ts';
+import { expandGlobs, resolvesInside, type GitFallbackListener } from './files.ts';
 
 export interface TagLocation {
   file: string;
@@ -17,8 +17,8 @@ export interface TagRegion extends TagLocation {
   endLine: number;
 }
 
-export interface TagProblem extends TagLocation {
-  code: RuleTagProblemCode;
+export interface TagProblem<Code extends string = RuleTagProblemCode> extends TagLocation {
+  code: Code;
   id: string;
 }
 
@@ -69,21 +69,23 @@ export async function scanTestRegions(
 
 export interface ImplementationScan {
   regions: RegionIndex;
-  problems: TagProblem[];
+  problems: TagProblem<ImplementsTagProblemCode>[];
 }
 
-// Only files some rule anchors are read: code no rule anchors cannot implement one.
+// A path that does not exist or is not a file has no regions, so a Write to a new file reads as empty.
 export async function scanImplementations(
   root: string,
   files: string[],
-  anchors: string[],
 ): Promise<ImplementationScan> {
   const regions: RegionIndex = new Map();
-  const problems: TagProblem[] = [];
+  const problems: TagProblem<ImplementsTagProblemCode>[] = [];
   const realRoot = await realpath(root);
-  for (const file of files.filter(createGlobMatcher(anchors))) {
+  for (const file of files) {
     const path = join(root, file);
     if (!(await resolvesInside(path, realRoot))) {
+      continue;
+    }
+    if (!(await stat(path)).isFile()) {
       continue;
     }
     const found = findRuleRegions(await readFile(path, 'utf8'), 'implements');

@@ -8,10 +8,10 @@ anchors:
 summary: A context with more rules than the configured context budget gets a warning, not an error.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:201'
-  - 'schemas/v1/config.schema.json:10'
-  - 'test/cli/lint.test.ts:28'
-  - 'test/cli/lint.test.ts:136'
+  - 'src/commands/lint.ts lintCatalog'
+  - 'schemas/v1/config.schema.json contextBudget'
+  - 'test/cli/lint.test.ts "lists every finding and exits 1 when there are errors"'
+  - 'test/cli/lint.test.ts "exits 0 when there are only warnings"'
 ---
 
 # Context budget

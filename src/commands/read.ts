@@ -2,7 +2,12 @@ import { isAbsolute, relative, resolve } from 'node:path';
 import { rulesForPath } from '../catalog/anchors.ts';
 import { expandGlobs, toRepoPath } from '../catalog/files.ts';
 import type { Catalog } from '../catalog/load.ts';
-import { scanTestTags, type TagLocation } from '../catalog/tags.ts';
+import {
+  scanImplementations,
+  scanTestTags,
+  type TagLocation,
+  type TagRegion,
+} from '../catalog/tags.ts';
 import type { RuleDoc, RuleOrigin, RuleStatus } from '../format/types.ts';
 import { messages } from '../messages.ts';
 import {
@@ -41,6 +46,7 @@ export interface ShowJson {
     conflictsWith: string[];
     origin: RuleOrigin | null;
     evidence: string[];
+    implementations: TagRegion[];
     file: string;
     body: string;
   };
@@ -48,7 +54,12 @@ export interface ShowJson {
 
 export interface ForJson {
   path: string;
-  rules: (RuleSummaryJson & { file: string })[];
+  rules: (RuleSummaryJson & { file: string; regions: LineSpanJson[] })[];
+}
+
+export interface LineSpanJson {
+  line: number;
+  endLine: number;
 }
 
 export interface ImpactJson {
@@ -148,8 +159,20 @@ export function searchCommand(
   );
 }
 
-export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boolean): void {
+export async function showCommand(
+  catalog: Catalog,
+  io: CliIo,
+  id: string,
+  json: boolean,
+): Promise<void> {
   const rule = findRule(catalog, id);
+  const files = await expandGlobs(
+    catalog.root,
+    rule.anchors,
+    gitFallbackWarning(io, catalog.config.language),
+  );
+  const implementations =
+    (await scanImplementations(catalog.root, files)).regions.get(rule.id) ?? [];
   if (json) {
     writeJson(io, {
       rule: {
@@ -161,6 +184,7 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
         conflictsWith: rule.conflictsWith ?? [],
         origin: rule.origin ?? null,
         evidence: rule.evidence ?? [],
+        implementations,
         file: rule.file,
         body: rule.body,
       },
@@ -180,17 +204,32 @@ export function showCommand(catalog: Catalog, io: CliIo, id: string, json: boole
     ...(rule.conflictsWith?.length ? [`conflictsWith: ${rule.conflictsWith.join(', ')}`] : []),
     ...(rule.origin === undefined ? [] : [`origin: ${rule.origin}`]),
     ...(rule.evidence?.length ? ['evidence:', ...indent(rule.evidence, none)] : []),
+    ...(implementations.length
+      ? [
+          'implementations:',
+          ...indent(
+            implementations.map((region) => `${region.file}:${region.line}-${region.endLine}`),
+            none,
+          ),
+        ]
+      : []),
     `file: ${rule.file}`,
   ];
   io.stdout(`${header.join('\n')}\n\n${rule.body}`);
 }
 
-export function forCommand(catalog: Catalog, io: CliIo, input: string, json: boolean): void {
+export async function forCommand(
+  catalog: Catalog,
+  io: CliIo,
+  input: string,
+  json: boolean,
+): Promise<void> {
   const text = messages(catalog.config.language);
   const path = toRootPath(catalog, resolve(io.cwd, input), input);
+  const regions = await regionsIn(catalog.root, path);
   const rules = rulesForPath(catalog.rules, path)
     .filter((rule) => rule.status === 'active')
-    .map((rule) => ({ ...toSummary(rule), file: rule.file }));
+    .map((rule) => ({ ...toSummary(rule), file: rule.file, regions: regions(rule.id) }));
   if (json) {
     writeJson(io, { path, rules } satisfies ForJson);
     return;
@@ -201,8 +240,23 @@ export function forCommand(catalog: Catalog, io: CliIo, input: string, json: boo
   }
   writeLines(
     io,
-    rules.map((rule) => `${rule.id} (${rule.context}): ${rule.summary}`),
+    rules.map(
+      (rule) =>
+        `${rule.id} (${rule.context}): ${rule.summary}${rule.regions.length === 0 ? '' : ` (${text.lines(formatSpans(rule.regions))})`}`,
+    ),
   );
+}
+
+export async function regionsIn(
+  root: string,
+  path: string,
+): Promise<(id: string) => LineSpanJson[]> {
+  const found = (await scanImplementations(root, [path])).regions;
+  return (id) => (found.get(id) ?? []).map(({ line, endLine }) => ({ line, endLine }));
+}
+
+export function formatSpans(spans: LineSpanJson[]): string {
+  return spans.map(({ line, endLine }) => `${line}-${endLine}`).join(', ');
 }
 
 export async function impactCommand(

@@ -3,23 +3,26 @@ import { rulesForPath } from '../catalog/anchors.ts';
 import { findRulebookRoot, loadCatalog } from '../catalog/load.ts';
 import type { RuleDoc, RuleLanguage } from '../format/types.ts';
 import type { CliIo } from './io.ts';
+import { formatSpans, regionsIn, type LineSpanJson } from './read.ts';
 
 export const HOOK_BODY_LIMIT = 10_000;
 
 const TEXT: Record<
   RuleLanguage,
-  { header: (path: string) => string; ruleFile: string; omitted: string }
+  { header: (path: string) => string; ruleFile: string; lines: string; omitted: string }
 > = {
   en: {
     header: (path) =>
       `Business rules anchored to ${path} (rulebookguard). They are the source of truth: keep any change to this file consistent with them, and change the rule first if a change alters its behavior.`,
     ruleFile: 'Rule file',
+    lines: 'Lines',
     omitted: `Rule texts omitted (over ${HOOK_BODY_LIMIT} characters); run \`rulebookguard show <id>\` for the full text.`,
   },
   es: {
     header: (path) =>
       `Reglas de negocio ancladas a ${path} (rulebookguard). Son la fuente de verdad: mantén cualquier cambio a este archivo coherente con ellas y, si un cambio altera su comportamiento, cambia primero la regla.`,
     ruleFile: 'Archivo de la regla',
+    lines: 'Líneas',
     omitted: `Se omitió el texto de las reglas (más de ${HOOK_BODY_LIMIT} caracteres); ejecuta \`rulebookguard show <id>\` para verlo completo.`,
   },
 };
@@ -63,7 +66,13 @@ async function hookContext(event: ToolEvent, cwd: string): Promise<string | unde
   if (rules.length === 0) {
     return undefined;
   }
-  return render(repoPath, rules, TEXT[catalog.config.language ?? 'en']);
+  return render(
+    repoPath,
+    rules,
+    // An unreadable file still gets its rules, only without line numbers.
+    await regionsIn(root, repoPath).catch(() => () => []),
+    TEXT[catalog.config.language ?? 'en'],
+  );
 }
 
 function parseEvent(input: string): ToolEvent | undefined {
@@ -91,13 +100,20 @@ function parseEvent(input: string): ToolEvent | undefined {
     : { name: toolEvent, filePath };
 }
 
-function render(path: string, rules: RuleDoc[], text: (typeof TEXT)[RuleLanguage]): string {
+function render(
+  path: string,
+  rules: RuleDoc[],
+  regions: (id: string) => LineSpanJson[],
+  text: (typeof TEXT)[RuleLanguage],
+): string {
   const bodies = rules.reduce((total, rule) => total + rule.body.trim().length, 0);
   const withBodies = bodies <= HOOK_BODY_LIMIT;
   const sections = rules.map((rule) => {
+    const spans = regions(rule.id);
     const lines = [
       `## ${rule.id} (${rule.context}): ${rule.summary}`,
       `${text.ruleFile}: ${rule.file}`,
+      ...(spans.length === 0 ? [] : [`${text.lines}: ${formatSpans(spans)}`]),
     ];
     return withBodies ? [...lines, '', rule.body.trim()].join('\n') : lines.join('\n');
   });

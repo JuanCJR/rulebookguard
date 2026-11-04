@@ -8,10 +8,9 @@ anchors:
 summary: A test that tags a deprecated rule makes lint report an error that names the replacing rule when there is one.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:147'
-  - 'src/commands/lint.ts:188'
-  - 'test/cli/lint.test.ts:36'
-  - 'test/cli/lint.test.ts:73'
+  - 'src/commands/lint.ts lintCatalog'
+  - 'test/cli/lint.test.ts "lists every finding and exits 1 when there are errors"'
+  - 'test/cli/lint.test.ts "names the superseding rule in the hint of a deprecated tag"'
 ---
 
 # Tags must not name a deprecated rule

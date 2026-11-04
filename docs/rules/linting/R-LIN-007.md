@@ -8,10 +8,10 @@ anchors:
 summary: Rules must not depend on each other in a cycle; lint reports each cycle once, starting at its lowest id.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:247'
-  - 'src/commands/lint.ts:286'
-  - 'test/cli/lint.test.ts:286'
-  - 'test/cli/lint.test.ts:341'
+  - 'src/commands/lint.ts ruleRelations'
+  - 'src/commands/lint.ts dependencyCycles'
+  - 'test/cli/lint.test.ts "reports a dependsOn cycle once, starting at its lowest id"'
+  - 'test/cli/lint.test.ts "prints relation findings in Spanish"'
 ---
 
 # No dependency cycles

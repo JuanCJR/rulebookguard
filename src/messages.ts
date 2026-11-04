@@ -32,6 +32,7 @@ export interface Messages {
   noContexts: string;
   noRules: string;
   noActiveRulesFor: (path: string) => string;
+  lines: (spans: string) => string;
   filesMatched: (count: number) => string;
   testsTagging: (id: string, count: number) => string;
   none: string;
@@ -123,6 +124,7 @@ const EN: Messages = {
   noContexts: 'No contexts found. Create one with "rulebookguard new <context>".',
   noRules: 'No rules found.',
   noActiveRulesFor: (path) => `No active rules anchored to ${path}.`,
+  lines: (spans) => `lines ${spans}`,
   filesMatched: (count) => `Files matched by anchors (${count}):`,
   testsTagging: (id, count) => `Tests tagging ${id} (${count}):`,
   none: '(none)',
@@ -253,6 +255,7 @@ const ES: Messages = {
   noContexts: 'No se encontraron contextos. Crea uno con "rulebookguard new <contexto>".',
   noRules: 'No se encontraron reglas.',
   noActiveRulesFor: (path) => `No hay reglas activas ancladas a ${path}.`,
+  lines: (spans) => `líneas ${spans}`,
   filesMatched: (count) => `Archivos que cubren los anchors (${count}):`,
   testsTagging: (id, count) => `Tests que etiquetan ${id} (${count}):`,
   none: '(ninguno)',

@@ -9,15 +9,17 @@ export interface RuleRegion extends RuleTag {
 
 export type RegionKind = 'rule' | 'implements';
 
-export type RuleTagProblemCode = `unclosed-${RegionKind}-tag` | `unmatched-end${RegionKind}-tag`;
+export type RuleTagProblemCode = 'unclosed-rule-tag' | 'unmatched-endrule-tag';
 
-export interface RuleTagProblem extends RuleTag {
-  code: RuleTagProblemCode;
+export type ImplementsTagProblemCode = 'unclosed-implements-tag' | 'unmatched-endimplements-tag';
+
+export interface RuleTagProblem<Code extends string = RuleTagProblemCode> extends RuleTag {
+  code: Code;
 }
 
-export interface RuleRegions {
+export interface RuleRegions<Code extends string = RuleTagProblemCode> {
   regions: RuleRegion[];
-  problems: RuleTagProblem[];
+  problems: RuleTagProblem<Code>[];
 }
 
 export const RULE_TAG_PATTERN: RegExp = /(?<![\w@.-])@rule\s+(R-[A-Z][A-Z0-9]*-[0-9]{3})(?![\w-])/g;
@@ -49,10 +51,19 @@ export function findRuleTags(source: string): RuleTag[] {
   return tags;
 }
 
-export function findRuleRegions(source: string, kind: RegionKind = 'rule'): RuleRegions {
+// @implements R-LIN-005
+export function findRuleRegions(source: string, kind?: 'rule'): RuleRegions;
+export function findRuleRegions(
+  source: string,
+  kind: 'implements',
+): RuleRegions<ImplementsTagProblemCode>;
+export function findRuleRegions(
+  source: string,
+  kind: RegionKind = 'rule',
+): RuleRegions<RuleTagProblemCode | ImplementsTagProblemCode> {
   const pattern = kind === 'rule' ? RULE_MARKER_PATTERN : IMPLEMENTS_MARKER_PATTERN;
   const regions: RuleRegion[] = [];
-  const problems: RuleTagProblem[] = [];
+  const problems: RuleTagProblem<RuleTagProblemCode | ImplementsTagProblemCode>[] = [];
   const open: RuleTag[] = [];
   source.split(/\r?\n/).forEach((text, index) => {
     if (!COMMENT_LINE.test(text)) {
@@ -83,3 +94,4 @@ export function findRuleRegions(source: string, kind: RegionKind = 'rule'): Rule
   problems.sort((a, b) => a.line - b.line);
   return { regions, problems };
 }
+// @endimplements R-LIN-005

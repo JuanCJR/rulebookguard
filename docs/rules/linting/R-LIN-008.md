@@ -8,9 +8,8 @@ anchors:
 summary: Two rules that conflict with each other cannot both be active; lint reports the pair once.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:257'
-  - 'src/commands/lint.ts:263'
-  - 'test/cli/lint.test.ts:305'
+  - 'src/commands/lint.ts ruleRelations'
+  - 'test/cli/lint.test.ts "reports two active rules in conflict once, and ignores a conflict with a proposed rule"'
 ---
 
 # Conflicting rules cannot both be active

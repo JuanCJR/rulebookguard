@@ -19,9 +19,9 @@ Only when the user asks for the behavior change:
 
 1. Edit the rule file first: its summary, body and examples. A new rule starts with `rulebookguard new <context>` as `proposed`; it becomes `active` only when the user confirms it.
 2. Update or add the tests that verify it. A test links to a rule by sitting between a `@rule <ID>` comment right above it and an `@endrule <ID>` comment right after it; the link lives only in the test.
-3. Change the code until those tests pass.
+3. Change the code until those tests pass. Wrap the code that enforces the rule between an `@implements <ID>` comment line and an `@endimplements <ID>` comment line, in a file the rule anchors, so the rule points at those exact lines.
 4. Run `rulebookguard lint` or the `lint` tool, and `rulebookguard lint --base <base branch>` before opening a pull request. A changed rule whose tagging tests did not change fails as `pending-implementation`.
 
-Retire a rule by setting `status: deprecated` and removing its `@rule` and `@endrule` tags; a replacement rule names it in `supersedes`.
+Retire a rule by setting `status: deprecated` and removing its `@rule`/`@endrule` tags and its `@implements`/`@endimplements` regions; a replacement rule names it in `supersedes`.
 
 A rule that needs another one in force lists it in `dependsOn`; two rules that cannot both be active list each other in `conflictsWith`. `lint` rejects unknown ids, `dependsOn` cycles and two active rules in conflict.

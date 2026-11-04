@@ -186,7 +186,7 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       });
       break;
     case 'show':
-      showCommand(catalog, io, argument, json);
+      await showCommand(catalog, io, argument, json);
       break;
     case 'search':
       searchCommand(catalog, io, argument, {
@@ -195,7 +195,7 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       });
       break;
     case 'for':
-      forCommand(catalog, io, argument, json);
+      await forCommand(catalog, io, argument, json);
       break;
     case 'impact':
       await impactCommand(catalog, io, argument, json);

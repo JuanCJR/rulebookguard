@@ -8,8 +8,8 @@ anchors:
 summary: Each anchor of a rule must match at least one file of the repository, or lint reports an error.
 origin: extracted
 evidence:
-  - 'src/commands/lint.ts:163'
-  - 'test/cli/lint.test.ts:30'
+  - 'src/commands/lint.ts lintCatalog'
+  - 'test/cli/lint.test.ts "lists every finding and exits 1 when there are errors"'
 ---
 
 # Anchors must match a file
