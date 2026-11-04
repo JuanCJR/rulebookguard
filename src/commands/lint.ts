@@ -222,11 +222,9 @@ async function implementations(
   successors: Map<string, string>,
   text: Messages,
 ): Promise<LintFinding[]> {
-  const scan = await scanImplementations(
-    catalog.root,
-    files,
-    catalog.rules.flatMap((rule) => rule.anchors),
-  );
+  // Only files some rule anchors are read: code no rule anchors cannot implement one.
+  const anchored = createGlobMatcher(catalog.rules.flatMap((rule) => rule.anchors));
+  const scan = await scanImplementations(catalog.root, files.filter(anchored));
   const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
   const findings: LintFinding[] = scan.problems.map(({ code, id, file, line }) => ({
     ...(code === 'unclosed-implements-tag'

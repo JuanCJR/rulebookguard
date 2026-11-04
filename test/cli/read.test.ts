@@ -162,6 +162,7 @@ describe('show', () => {
         conflictsWith: [],
         origin: null,
         evidence: [],
+        implementations: [],
         file: 'docs/rules/clients/R-CLI-001.md',
         body: '# Unique document number\n\nTwo clients in the same country cannot share a document number.\n',
       },
@@ -212,6 +213,35 @@ describe('show', () => {
     });
   });
 
+  it('prints the code regions that implement the rule, only in files it anchors', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    await writeFile(
+      join(dir, 'src/clients/create.go'),
+      'package clients\n\n// @implements R-CLI-001\nfunc Create() {}\n// @endimplements R-CLI-001\n',
+    );
+    await writeFile(
+      join(dir, 'src/clients/update.go'),
+      '// @implements R-CLI-001\n// @endimplements R-CLI-001\n',
+    );
+    await writeFile(
+      join(dir, 'src/billing/tax.go'),
+      '// @implements R-CLI-001\n// @endimplements R-CLI-001\n',
+    );
+
+    expect(await ok(['show', 'R-CLI-001'], dir)).toContain(
+      'implementations:\n  src/clients/create.go:3-5\n  src/clients/update.go:1-2\nfile: ',
+    );
+    expect(await json(['show', 'R-CLI-001'], dir)).toMatchObject({
+      rule: {
+        implementations: [
+          { file: 'src/clients/create.go', line: 3, endLine: 5 },
+          { file: 'src/clients/update.go', line: 1, endLine: 2 },
+        ],
+      },
+    });
+  });
+
   it('rejects an unknown id', async () => {
     expect(await runCli(['show', 'R-CLI-999'], repo)).toEqual({
       status: 1,
@@ -245,6 +275,10 @@ describe('for', () => {
     );
   });
 
+  it('answers for a directory as before, without reading it', async () => {
+    expect(await ok(['for', 'src/clients'])).toBe('No active rules anchored to src/clients.\n');
+  });
+
   it('says when no active rule is anchored', async () => {
     expect(await ok(['for', 'README.md'])).toBe('No active rules anchored to README.md.\n');
   });
@@ -259,6 +293,7 @@ describe('for', () => {
           status: 'active',
           summary: 'Every new client gets a zero-balance account.',
           file: 'docs/rules/billing/R-BIL-001.md',
+          regions: [],
         },
         {
           id: 'R-BIL-002',
@@ -266,6 +301,47 @@ describe('for', () => {
           status: 'active',
           summary: 'Invoices are numbered without gaps.',
           file: 'docs/rules/billing/R-BIL-002.md',
+          regions: [],
+        },
+      ],
+    });
+  });
+
+  it('gives the lines of the file that implement each rule', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    await writeFile(
+      join(dir, 'src/clients/create.go'),
+      [
+        'package clients',
+        '',
+        '// @implements R-CLI-001',
+        'func a() {}',
+        '// @endimplements R-CLI-001',
+        '',
+        '// @implements R-CLI-001',
+        'func b() {}',
+        '// @endimplements R-CLI-001',
+        '',
+      ].join('\n'),
+    );
+
+    expect(await ok(['for', 'src/clients/create.go'], dir)).toBe(
+      [
+        'R-BIL-001 (billing): Every new client gets a zero-balance account.',
+        'R-CLI-001 (clients): A client document number is unique per country. (lines 3-5, 7-9)',
+        '',
+      ].join('\n'),
+    );
+    expect(await json(['for', 'src/clients/create.go'], dir)).toMatchObject({
+      rules: [
+        { id: 'R-BIL-001', regions: [] },
+        {
+          id: 'R-CLI-001',
+          regions: [
+            { line: 3, endLine: 5 },
+            { line: 7, endLine: 9 },
+          ],
         },
       ],
     });

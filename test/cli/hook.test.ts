@@ -74,6 +74,27 @@ describe('hook', () => {
     );
   });
 
+  it('tells which lines of the file implement each rule, in the configured language', async () => {
+    const repo = await scratchRepo();
+    await writeFile(
+      join(repo, 'src/clients/create.go'),
+      'package clients\n\n// @implements R-CLI-001\nfunc Create() {}\n// @endimplements R-CLI-001\n',
+    );
+
+    const english = context((await hook(event(join(repo, 'src/clients/create.go')), repo)).stdout);
+    await writeFile(
+      join(repo, 'rulebookguard.config.yaml'),
+      `${await readFile(join(repo, 'rulebookguard.config.yaml'), 'utf8')}language: es\n`,
+    );
+    const spanish = context((await hook(event(join(repo, 'src/clients/create.go')), repo)).stdout);
+
+    expect(english).toContain('Rule file: docs/rules/billing/R-BIL-001.md\n\n');
+    expect(english).toContain('Rule file: docs/rules/clients/R-CLI-001.md\nLines: 3-5\n\n');
+    expect(spanish).toContain(
+      'Archivo de la regla: docs/rules/clients/R-CLI-001.md\nLíneas: 3-5\n\n',
+    );
+  });
+
   it('answers a PostToolUse event of Read, so the rules arrive with the file contents', async () => {
     const repo = await scratchRepo();
     const input = JSON.stringify({

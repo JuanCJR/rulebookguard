@@ -300,7 +300,7 @@ file: docs/rules/clients/R-CLI-001.md
 ...
 ```
 
-`supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when the rule sets them; `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`). Exits 1 for an unknown id.
+`supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when the rule sets them; `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`). An `implementations:` section lists the [`@implements` regions](#marking-the-code-that-enforces-a-rule-with-implements--endimplements) of the rule as `file:line-endLine`, read from the files its anchors match; `--json` has them as `implementations: [{ file, line, endLine }]` (or `[]`). Exits 1 for an unknown id.
 
 ### `search <text> [--context <c>] [--json]`
 
@@ -319,10 +319,10 @@ Active rules whose anchors match a path, relative to the current directory. This
 
 ```sh
 $ rulebookguard for src/clients/create.ts
-R-CLI-001 (clients): A client document number is unique per country.
+R-CLI-001 (clients): A client document number is unique per country. (lines 12-30)
 ```
 
-Exits 1 when the path is outside the rulebook root.
+When the file holds `@implements` regions of a rule, its line ends with their line ranges; `--json` rows carry them as `regions: [{ line, endLine }]` (or `[]`). Exits 1 when the path is outside the rulebook root.
 
 ### `impact <id>`
 
@@ -442,7 +442,7 @@ $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_
 
 Claude Code adds the context next to the tool result, so a `PostToolUse` hook on `Read` delivers the rules together with the file contents, before Claude writes a change (Claude Code requires reading a file before editing it).
 
-Each rule comes with its id, context, summary, rule file and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config.
+Each rule comes with its id, context, summary, rule file, the lines of its `@implements` regions in that file (when there are any) and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config.
 
 > [!NOTE]
 > The hook never blocks a tool and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, another event, unreadable input or any error, it prints nothing and exits 0.
