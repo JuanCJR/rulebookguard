@@ -460,7 +460,7 @@ fileMatchPattern: "src/clients/**/*.go"
 …
 ```
 
-Run it again after changing rules, for example in CI or before committing: it overwrites the generated files and removes, printing `removed <path>`, those of rules that are no longer active. Only a file named after a rule id, with the generated line of that format right after its frontmatter, is removed. An active rule without anchors has no path to attach to, so it is skipped with a warning on stderr. Prints `No active rule to export.` when there is nothing to write, or `No active rule with anchors to export.` when no active rule has anchors. Brace anchors are expanded into one pattern per option; an anchor with a literal comma in a file name cannot be written in the comma-separated formats.
+Run it again after changing rules, for example in CI or before committing: it overwrites the generated files and removes, printing `removed <path>`, those of rules that are no longer active. Only a file named after a rule id, with the generated line of that format right after its frontmatter, is removed. If the file of an active rule lacks that line, it was not generated, so the command fails with exit code 1 before writing or removing anything. An active rule without anchors has no path to attach to, so it is skipped with a warning on stderr. Prints `No active rule to export.` when there is nothing to write, or `No active rule with anchors to export.` when no active rule has anchors. Brace anchors are expanded into one pattern per option; an anchor with a literal comma in a file name cannot be written in the comma-separated formats.
 
 ### `export agents-md [--out <dir>]`
 
