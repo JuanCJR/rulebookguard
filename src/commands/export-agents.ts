@@ -210,14 +210,19 @@ async function writeAgentsMd(
   }
   const before = hasBlock ? existing.slice(0, start) : existing;
   const after = hasBlock ? existing.slice(end + BLOCK_END.length) : '';
+  if (rules.length === 0) {
+    const rest = withoutBlock(before, after);
+    // An empty AGENTS.md would only look like instructions nobody wrote.
+    if (rest === '') {
+      await rm(file);
+      return [text.noActiveRules, text.removedExport(shown)];
+    }
+    await writeFile(file, rest);
+    return [text.noActiveRules, shown];
+  }
   await mkdir(dir, { recursive: true });
-  await writeFile(
-    file,
-    rules.length === 0
-      ? withoutBlock(before, after)
-      : withBlock(before, after, agentsBlock(rules, text), hasBlock),
-  );
-  return rules.length === 0 ? [text.noActiveRules, shown] : [shown];
+  await writeFile(file, withBlock(before, after, agentsBlock(rules, text), hasBlock));
+  return [shown];
 }
 
 function withBlock(before: string, after: string, block: string, hasBlock: boolean): string {

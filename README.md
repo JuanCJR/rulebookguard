@@ -464,7 +464,7 @@ Run it again after changing rules, for example in CI or before committing: it ov
 
 ### `export agents-md [--out <dir>]`
 
-Keeps an index of the active rules in `AGENTS.md`, at the rulebook root or in `--out`. `AGENTS.md` has no path scoping and is always read, so it holds each rule's id, anchors (or `no anchors`), summary and rule file, not the full text. The index lives between `<!-- rulebookguard:start -->` and `<!-- rulebookguard:end -->`: the rest of the file is kept, the block is appended the first time and replaced after that, and it is removed when no rule is active. Anything other than one start marker followed by one end marker, or neither, fails with exit code 1 and leaves the file untouched.
+Keeps an index of the active rules in `AGENTS.md`, at the rulebook root or in `--out`. `AGENTS.md` has no path scoping and is always read, so it holds each rule's id, anchors (or `no anchors`), summary and rule file, not the full text. The index lives between `<!-- rulebookguard:start -->` and `<!-- rulebookguard:end -->`: the rest of the file is kept, the block is appended the first time and replaced after that, and it is removed when no rule is active, along with the file if nothing else is left (printing `removed AGENTS.md`). Anything other than one start marker followed by one end marker, or neither, fails with exit code 1 and leaves the file untouched.
 
 ### `hook`
 

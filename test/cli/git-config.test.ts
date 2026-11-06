@@ -79,37 +79,41 @@ describe('git failures', () => {
     expect(impact.stderr).toMatch(warning);
   });
 
-  it('warns with the first git error line when git fails for another reason', async () => {
-    const repo = await scratchDir();
-    await cp(fixtureRoot('repo'), repo, { recursive: true });
-    const bin = await scratchDir();
-    await writeFile(
-      join(bin, 'git'),
-      [
-        '#!/bin/sh',
-        "echo 'warning: ignored before the real error' >&2",
-        'echo "fatal: detected dubious ownership in repository at \'$PWD\'" >&2',
-        "echo 'second line is not the reason' >&2",
-        'exit 128',
-        '',
-      ].join('\n'),
-    );
-    await chmod(join(bin, 'git'), 0o755);
-    const warning = `warning: git could not list files (fatal: detected dubious ownership in repository at '${repo}'); walking the directory instead.\n`;
-    const path = process.env.PATH;
-    process.env.PATH = bin;
-    try {
-      const lint = await runCli(['lint'], repo);
-      const impact = await runCli(['impact', 'R-CLI-001'], repo);
+  // The fake git is a shebang script, which Windows cannot run.
+  it.skipIf(process.platform === 'win32')(
+    'warns with the first git error line when git fails for another reason',
+    async () => {
+      const repo = await scratchDir();
+      await cp(fixtureRoot('repo'), repo, { recursive: true });
+      const bin = await scratchDir();
+      await writeFile(
+        join(bin, 'git'),
+        [
+          '#!/bin/sh',
+          "echo 'warning: ignored before the real error' >&2",
+          'echo "fatal: detected dubious ownership in repository at \'$PWD\'" >&2',
+          "echo 'second line is not the reason' >&2",
+          'exit 128',
+          '',
+        ].join('\n'),
+      );
+      await chmod(join(bin, 'git'), 0o755);
+      const warning = `warning: git could not list files (fatal: detected dubious ownership in repository at '${repo}'); walking the directory instead.\n`;
+      const path = process.env.PATH;
+      process.env.PATH = bin;
+      try {
+        const lint = await runCli(['lint'], repo);
+        const impact = await runCli(['impact', 'R-CLI-001'], repo);
 
-      expect(lint.status).toBe(1);
-      expect(lint.stderr).toBe(warning);
-      expect(impact.status).toBe(0);
-      expect(impact.stderr).toBe(warning);
-    } finally {
-      process.env.PATH = path;
-    }
-  });
+        expect(lint.status).toBe(1);
+        expect(lint.stderr).toBe(warning);
+        expect(impact.status).toBe(0);
+        expect(impact.stderr).toBe(warning);
+      } finally {
+        process.env.PATH = path;
+      }
+    },
+  );
 
   it('stays silent when the directory is not a git repository', async () => {
     const repo = await scratchDir();

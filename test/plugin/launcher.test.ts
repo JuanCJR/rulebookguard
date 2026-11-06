@@ -52,6 +52,8 @@ async function fakeNpxPath(): Promise<string> {
   const npx = join(bin, 'npx');
   await writeFile(npx, `#!${process.execPath}\n${ECHO}`);
   await chmod(npx, 0o755);
+  // On Windows the launcher reaches npx through the shell, which runs .cmd files and not shebangs.
+  await writeFile(join(bin, 'npx.cmd'), `@"${process.execPath}" "%~dp0npx" %*\r\n`);
   return `${bin}${delimiter}${process.env.PATH ?? ''}`;
 }
 

@@ -1,4 +1,5 @@
-import { cp, mkdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { cp, mkdir, mkdtemp, rm, symlink, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { expandGlobs, listRepoFiles, scanTestTags } from '../../src/index.ts';
@@ -19,6 +20,14 @@ async function repoWithIgnoredBuild(): Promise<string> {
   );
   return dir;
 }
+
+// Windows needs a privilege to create symlinks; without it these cases cannot be set up.
+const probe = await mkdtemp(join(tmpdir(), 'rulebookguard-'));
+const canSymlink = await symlink('target', join(probe, 'link')).then(
+  () => true,
+  () => false,
+);
+await rm(probe, { recursive: true });
 
 describe('listRepoFiles inside a git work tree', () => {
   it('skips files ignored by .gitignore and keeps tracked and untracked files', async () => {
@@ -124,30 +133,33 @@ function addGitlink(dir: string, path: string): void {
 }
 
 describe('listRepoFiles with crafted gitlinks', () => {
-  it('skips a gitlink whose working-tree entry escapes the rulebook root', async () => {
-    const plain = await outsideTree();
-    const repo = await outsideTree();
-    initRepo(repo);
-    const parent = await outsideTree();
-    const dir = await scratchDir();
-    await cp(fixtureRoot('repo'), dir, { recursive: true });
-    initRepo(dir);
-    addGitlink(dir, 'vendor/plain');
-    addGitlink(dir, 'vendor/repo');
-    addGitlink(dir, 'linked/tests');
-    await mkdir(join(dir, 'vendor'), { recursive: true });
-    await symlink(plain, join(dir, 'vendor/plain'));
-    await symlink(repo, join(dir, 'vendor/repo'));
-    await symlink(parent, join(dir, 'linked'));
-    const reasons: string[] = [];
+  it.skipIf(!canSymlink)(
+    'skips a gitlink whose working-tree entry escapes the rulebook root',
+    async () => {
+      const plain = await outsideTree();
+      const repo = await outsideTree();
+      initRepo(repo);
+      const parent = await outsideTree();
+      const dir = await scratchDir();
+      await cp(fixtureRoot('repo'), dir, { recursive: true });
+      initRepo(dir);
+      addGitlink(dir, 'vendor/plain');
+      addGitlink(dir, 'vendor/repo');
+      addGitlink(dir, 'linked/tests');
+      await mkdir(join(dir, 'vendor'), { recursive: true });
+      await symlink(plain, join(dir, 'vendor/plain'));
+      await symlink(repo, join(dir, 'vendor/repo'));
+      await symlink(parent, join(dir, 'linked'));
+      const reasons: string[] = [];
 
-    const files = await listRepoFiles(dir, (reason) => reasons.push(reason));
+      const files = await listRepoFiles(dir, (reason) => reasons.push(reason));
 
-    expect(files.filter((file) => /^(vendor(\/|$)|linked\/)/.test(file))).toEqual([]);
-    expect(files).toContain('src/clients/create.go');
-    expect((await scanTestTags(dir, ['**/test_*.py'])).has('R-CLI-002')).toBe(false);
-    expect(reasons).toEqual([]);
-  });
+      expect(files.filter((file) => /^(vendor(\/|$)|linked\/)/.test(file))).toEqual([]);
+      expect(files).toContain('src/clients/create.go');
+      expect((await scanTestTags(dir, ['**/test_*.py'])).has('R-CLI-002')).toBe(false);
+      expect(reasons).toEqual([]);
+    },
+  );
 
   it('keeps the superproject listing when one submodule cannot be listed', async () => {
     const dir = await repoWithIgnoredBuild();
@@ -169,21 +181,24 @@ describe('listRepoFiles with crafted gitlinks', () => {
 });
 
 describe('scanTestTags with tracked symlinks', () => {
-  it('does not read a test symlink that resolves outside the root', async () => {
-    const outside = await outsideTree();
-    const dir = await scratchDir();
-    await cp(fixtureRoot('repo'), dir, { recursive: true });
-    await symlink(join(outside, 'tests/test_leak.py'), join(dir, 'tests/test_link.py'));
-    initRepo(dir);
+  it.skipIf(!canSymlink)(
+    'does not read a test symlink that resolves outside the root',
+    async () => {
+      const outside = await outsideTree();
+      const dir = await scratchDir();
+      await cp(fixtureRoot('repo'), dir, { recursive: true });
+      await symlink(join(outside, 'tests/test_leak.py'), join(dir, 'tests/test_link.py'));
+      initRepo(dir);
 
-    const tags = await scanTestTags(dir, ['tests/**/test_*.py']);
+      const tags = await scanTestTags(dir, ['tests/**/test_*.py']);
 
-    expect(git(dir, 'ls-files', 'tests/test_link.py').trim()).toBe('tests/test_link.py');
-    expect([...tags.values()].flat().map(({ file }) => file)).not.toContain('tests/test_link.py');
-    expect(tags.has('R-CLI-001')).toBe(true);
-  });
+      expect(git(dir, 'ls-files', 'tests/test_link.py').trim()).toBe('tests/test_link.py');
+      expect([...tags.values()].flat().map(({ file }) => file)).not.toContain('tests/test_link.py');
+      expect(tags.has('R-CLI-001')).toBe(true);
+    },
+  );
 
-  it('reads a test symlink that resolves inside the root', async () => {
+  it.skipIf(!canSymlink)('reads a test symlink that resolves inside the root', async () => {
     const dir = await scratchDir();
     await cp(fixtureRoot('repo'), dir, { recursive: true });
     await mkdir(join(dir, 'shared'), { recursive: true });
@@ -198,17 +213,20 @@ describe('scanTestTags with tracked symlinks', () => {
 });
 
 describe('listRepoFiles outside a git work tree', () => {
-  it('does not follow a symlinked directory that points outside the root', async () => {
-    const outside = await outsideTree();
-    const dir = await scratchDir();
-    await cp(fixtureRoot('repo'), dir, { recursive: true });
-    await symlink(outside, join(dir, 'ext'));
+  it.skipIf(!canSymlink)(
+    'does not follow a symlinked directory that points outside the root',
+    async () => {
+      const outside = await outsideTree();
+      const dir = await scratchDir();
+      await cp(fixtureRoot('repo'), dir, { recursive: true });
+      await symlink(outside, join(dir, 'ext'));
 
-    const files = await listRepoFiles(dir);
+      const files = await listRepoFiles(dir);
 
-    expect(files.filter((file) => file.startsWith('ext'))).toEqual([]);
-    expect(files).toContain('src/clients/create.go');
-  });
+      expect(files.filter((file) => file.startsWith('ext'))).toEqual([]);
+      expect(files).toContain('src/clients/create.go');
+    },
+  );
 
   it('walks the whole tree, skipping only .git and node_modules', async () => {
     const dir = await repoWithIgnoredBuild();

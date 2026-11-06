@@ -72,8 +72,12 @@ describe('plugin agents', () => {
     }
   });
 
-  it('ships the launcher as an executable, so bin/ on PATH can run it', async () => {
-    const { mode } = await stat(new URL('bin/rulebookguard.mjs', pluginDir));
-    expect(mode & 0o111).not.toBe(0);
-  });
+  // Windows has no executable bit to read.
+  it.skipIf(process.platform === 'win32')(
+    'ships the launcher as an executable, so bin/ on PATH can run it',
+    async () => {
+      const { mode } = await stat(new URL('bin/rulebookguard.mjs', pluginDir));
+      expect(mode & 0o111).not.toBe(0);
+    },
+  );
 });

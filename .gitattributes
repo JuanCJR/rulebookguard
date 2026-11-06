@@ -1,0 +1,2 @@
+# Keep LF everywhere: rule bodies, fixtures and the formatter all expect it.
+* text=auto eol=lf
