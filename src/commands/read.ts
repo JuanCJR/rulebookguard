@@ -19,6 +19,7 @@ import {
   writeJson,
   writeLines,
 } from './io.ts';
+import { changedFiles } from './lint.ts';
 
 export const RULE_STATUSES: RuleStatus[] = ['proposed', 'active', 'deprecated'];
 
@@ -55,6 +56,12 @@ export interface ShowJson {
 export interface ForJson {
   path: string;
   rules: (RuleSummaryJson & { file: string; regions: LineSpanJson[] })[];
+}
+
+export interface ForChangedJson {
+  base: string;
+  files: string[];
+  rules: (RuleSummaryJson & { file: string; files: string[] })[];
 }
 
 export interface LineSpanJson {
@@ -244,6 +251,48 @@ export async function forCommand(
       (rule) =>
         `${rule.id} (${rule.context}): ${rule.summary}${rule.regions.length === 0 ? '' : ` (${text.lines(formatSpans(rule.regions))})`}`,
     ),
+  );
+}
+
+export async function forChangedCommand(
+  catalog: Catalog,
+  io: CliIo,
+  base: string,
+  json: boolean,
+): Promise<void> {
+  const text = messages(catalog.config.language);
+  // A file moved away from its anchors still touches their rules, so its old path counts too.
+  const { files } = await changedFiles(catalog.root, base, text, 'for --changed', {
+    bothRenamePaths: true,
+  });
+  const touched = new Map<string, string[]>();
+  for (const file of files) {
+    for (const rule of rulesForPath(catalog.rules, file)) {
+      touched.set(rule.id, [...(touched.get(rule.id) ?? []), file]);
+    }
+  }
+  const rules = sortById(catalog.rules.filter((rule) => rule.status === 'active')).flatMap(
+    (rule) => {
+      const ruleFiles = touched.get(rule.id);
+      return ruleFiles === undefined
+        ? []
+        : [{ ...toSummary(rule), file: rule.file, files: ruleFiles }];
+    },
+  );
+  if (json) {
+    writeJson(io, { base, files, rules } satisfies ForChangedJson);
+    return;
+  }
+  if (rules.length === 0) {
+    writeLines(io, [text.noActiveRulesForChanged(base)]);
+    return;
+  }
+  writeLines(
+    io,
+    rules.flatMap((rule) => [
+      `${rule.id} (${rule.context}): ${rule.summary}`,
+      ...indent(rule.files, text.none),
+    ]),
   );
 }
 

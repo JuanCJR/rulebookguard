@@ -45,8 +45,18 @@ export interface ChangeSet {
 /** Changed spans in the working tree; a pure deletion sits between two lines, as `n + 0.5`. */
 export type LineSpan = [start: number, end: number];
 
-export async function changedSince(cwd: string, ref: string): Promise<ChangeSet> {
-  const changed = await gitPaths(cwd, 'diff', ['--name-only', '--relative', ref, '--']);
+export async function changedSince(
+  cwd: string,
+  ref: string,
+  { bothRenamePaths = false }: { bothRenamePaths?: boolean } = {},
+): Promise<ChangeSet> {
+  const changed = await gitPaths(cwd, 'diff', [
+    '--name-only',
+    '--relative',
+    ...(bothRenamePaths ? ['--no-renames'] : []),
+    ref,
+    '--',
+  ]);
   const untracked = await gitPaths(cwd, 'ls-files', ['--others', '--exclude-standard']);
   return { files: [...new Set([...changed, ...untracked])].sort(), untracked: new Set(untracked) };
 }

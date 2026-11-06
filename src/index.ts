@@ -57,6 +57,7 @@ export {
 } from './catalog/tags.ts';
 export type {
   ContextsJson,
+  ForChangedJson,
   ForJson,
   ImpactJson,
   ListJson,

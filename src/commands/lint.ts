@@ -76,7 +76,9 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
   }
   const text = messages(catalog.config.language);
   const changed =
-    options.base === undefined ? undefined : await changedFiles(catalog.root, options.base, text);
+    options.base === undefined
+      ? undefined
+      : await changedFiles(catalog.root, options.base, text, 'lint --base');
   const warn = gitFallbackWarning(io, catalog.config.language);
   const scan = await scanTestRegions(catalog.root, catalog.config.testGlobs, warn);
   const findings = await lintCatalog(catalog, scan, warn);
@@ -468,15 +470,21 @@ async function testLineChanges(
   return lines;
 }
 
-async function changedFiles(root: string, base: string, text: Messages): Promise<ChangeSet> {
+export async function changedFiles(
+  root: string,
+  base: string,
+  text: Messages,
+  command: string,
+  options?: { bothRenamePaths?: boolean },
+): Promise<ChangeSet> {
   if (!(await isInsideWorkTree(root))) {
-    throw new CliError(text.needsWorkTree(root));
+    throw new CliError(text.needsWorkTree(command, root));
   }
   if (!(await isCommitRef(root, base))) {
     throw new CliError(text.unknownRef(base));
   }
   try {
-    return await changedSince(root, base);
+    return await changedSince(root, base, options);
   } catch (error) {
     throw new CliError(text.cannotListChanged(base, gitFailureReason(error)));
   }

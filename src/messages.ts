@@ -32,6 +32,7 @@ export interface Messages {
   noContexts: string;
   noRules: string;
   noActiveRulesFor: (path: string) => string;
+  noActiveRulesForChanged: (ref: string) => string;
   lines: (spans: string) => string;
   filesMatched: (count: number) => string;
   testsTagging: (id: string, count: number) => string;
@@ -96,7 +97,7 @@ export interface Messages {
   contextOverBudgetHint: string;
   pendingImplementationHint: (id: string) => string;
   lintSummary: (errors: number, warnings: number) => string;
-  needsWorkTree: (root: string) => string;
+  needsWorkTree: (command: string, root: string) => string;
   unknownRef: (ref: string) => string;
   cannotListChanged: (ref: string, reason: string) => string;
 }
@@ -136,6 +137,7 @@ const EN: Messages = {
   noContexts: 'No contexts found. Create one with "rulebookguard new <context>".',
   noRules: 'No rules found.',
   noActiveRulesFor: (path) => `No active rules anchored to ${path}.`,
+  noActiveRulesForChanged: (ref) => `No active rules anchored to the files changed since ${ref}.`,
   lines: (spans) => `lines ${spans}`,
   filesMatched: (count) => `Files matched by anchors (${count}):`,
   testsTagging: (id, count) => `Tests tagging ${id} (${count}):`,
@@ -240,7 +242,8 @@ const EN: Messages = {
     `update or add a test inside an "@rule ${id}" … "@endrule ${id}" region that covers the changed rule`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
-  needsWorkTree: (root) => `lint --base needs a git work tree, but ${root} is not inside one.`,
+  needsWorkTree: (command, root) =>
+    `${command} needs a git work tree, but ${root} is not inside one.`,
   unknownRef: (ref) => `Unknown git ref "${ref}".`,
   cannotListChanged: (ref, reason) => `Cannot list the files changed since "${ref}": ${reason}`,
 };
@@ -282,6 +285,8 @@ const ES: Messages = {
   noContexts: 'No se encontraron contextos. Crea uno con "rulebookguard new <contexto>".',
   noRules: 'No se encontraron reglas.',
   noActiveRulesFor: (path) => `No hay reglas activas ancladas a ${path}.`,
+  noActiveRulesForChanged: (ref) =>
+    `No hay reglas activas ancladas a los archivos cambiados desde ${ref}.`,
   lines: (spans) => `líneas ${spans}`,
   filesMatched: (count) => `Archivos que cubren los anchors (${count}):`,
   testsTagging: (id, count) => `Tests que etiquetan ${id} (${count}):`,
@@ -388,7 +393,8 @@ const ES: Messages = {
     `actualiza o agrega un test dentro de una región "@rule ${id}" … "@endrule ${id}" que cubra el cambio de la regla`,
   lintSummary: (errors, warnings) =>
     `${errors} ${errors === 1 ? 'error' : 'errores'}, ${warnings} ${warnings === 1 ? 'aviso' : 'avisos'}`,
-  needsWorkTree: (root) => `lint --base necesita un work tree de git, pero ${root} no está en uno.`,
+  needsWorkTree: (command, root) =>
+    `${command} necesita un work tree de git, pero ${root} no está en uno.`,
   unknownRef: (ref) => `La referencia de git "${ref}" no existe.`,
   cannotListChanged: (ref, reason) =>
     `No se pudieron listar los archivos cambiados desde "${ref}": ${reason}`,
