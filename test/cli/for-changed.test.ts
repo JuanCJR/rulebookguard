@@ -1,6 +1,7 @@
 import { appendFile, cp, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
+import { changedSince } from '../../src/catalog/git.ts';
 import { git, initRepo } from '../git.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
@@ -18,6 +19,17 @@ async function fixtureCopy(): Promise<string> {
 
 async function committedRepo(): Promise<string> {
   const dir = await fixtureCopy();
+  initRepo(dir);
+  return dir;
+}
+
+// Git only detects a rename when the file has enough content to compare.
+async function repoWithRenamableInvoice(): Promise<string> {
+  const dir = await fixtureCopy();
+  await writeFile(
+    join(dir, 'src/billing/invoice.go'),
+    Array.from({ length: 20 }, (_, line) => `// invoice line ${line}\n`).join(''),
+  );
   initRepo(dir);
   return dir;
 }
@@ -118,6 +130,55 @@ describe('for --changed', () => {
     expect((await runCli(['for', '--changed', 'HEAD'], join(repo, 'src/clients'))).stdout).toBe(
       `${BIL_001}\n  src/billing/tax.go\n`,
     );
+  });
+
+  it('reports the rules of both paths of a renamed file', async () => {
+    const repo = await repoWithRenamableInvoice();
+    git(repo, 'mv', 'src/billing/invoice.go', 'src/clients/invoice.go');
+
+    expect((await runCli(['for', '--changed', 'HEAD'], repo)).stdout).toBe(
+      [
+        BIL_001,
+        '  src/billing/invoice.go',
+        BIL_002,
+        '  src/billing/invoice.go',
+        CLI_001,
+        '  src/clients/invoice.go',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('reports the rules of a file moved out of its anchors', async () => {
+    const repo = await repoWithRenamableInvoice();
+    git(repo, 'mv', 'src/billing/invoice.go', 'invoice.go');
+
+    expect((await runCli(['for', '--changed', 'HEAD'], repo)).stdout).toBe(
+      [BIL_001, '  src/billing/invoice.go', BIL_002, '  src/billing/invoice.go', ''].join('\n'),
+    );
+  });
+
+  it('keeps the view of lint --base, where a rename counts under its new path only', async () => {
+    const repo = await repoWithRenamableInvoice();
+    git(repo, 'mv', 'src/billing/invoice.go', 'invoice.go');
+
+    expect((await changedSince(repo, 'HEAD')).files).toEqual(['invoice.go']);
+  });
+
+  it('matches anchors from a rulebook below the top level of the repository', async () => {
+    const repo = await scratchDir();
+    const rulebook = join(repo, 'packages/app');
+    await cp(fixtureRoot('repo'), rulebook, { recursive: true });
+    initRepo(repo);
+    await appendFile(join(rulebook, 'src/billing/tax.go'), '// edited\n');
+    await writeFile(join(repo, 'outside.go'), 'package outside\n');
+
+    const result = await runCli(['for', '--changed', 'HEAD', '--json'], rulebook);
+
+    expect(JSON.parse(result.stdout)).toMatchObject({
+      files: ['src/billing/tax.go'],
+      rules: [{ id: 'R-BIL-001', files: ['src/billing/tax.go'] }],
+    });
   });
 
   it('fails on an unknown ref', async () => {

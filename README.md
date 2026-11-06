@@ -340,7 +340,7 @@ R-CLI-001 (clients): A client document number is unique per country.
   src/clients/update.ts
 ```
 
-It sees the same files as `lint --base`: the difference between the ref and the working tree, including deleted files and untracked ones that are not ignored. A renamed file counts under its new path only. On a branch that is behind the ref, the files changed on the ref since the branch point count too, so in CI compare against the base of the pull request on the merge commit, which is what a pull request checkout gives you.
+It looks at the difference between the ref and the working tree, including deleted files and untracked ones that are not ignored, as `lint --base` does. A renamed file counts under both paths, so a file moved away from its anchors still reports their rules. On a branch that is behind the ref, the files changed on the ref since the branch point count too, so in CI compare against the base of the pull request on the merge commit, which is what a pull request checkout gives you.
 
 `--json` prints `{ base, files, rules }`, where `files` lists every changed file and each rule carries its own `files`. Prints `No active rules anchored to the files changed since <ref>.` when there are none. Exits 1 for an unknown ref or outside a git work tree, and 2 when given both a path and `--changed`.
 

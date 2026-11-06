@@ -261,7 +261,10 @@ export async function forChangedCommand(
   json: boolean,
 ): Promise<void> {
   const text = messages(catalog.config.language);
-  const { files } = await changedFiles(catalog.root, base, text, 'for --changed');
+  // A file moved away from its anchors still touches their rules, so its old path counts too.
+  const { files } = await changedFiles(catalog.root, base, text, 'for --changed', {
+    bothRenamePaths: true,
+  });
   const touched = new Map<string, string[]>();
   for (const file of files) {
     for (const rule of rulesForPath(catalog.rules, file)) {

@@ -475,6 +475,7 @@ export async function changedFiles(
   base: string,
   text: Messages,
   command: string,
+  options?: { bothRenamePaths?: boolean },
 ): Promise<ChangeSet> {
   if (!(await isInsideWorkTree(root))) {
     throw new CliError(text.needsWorkTree(command, root));
@@ -483,7 +484,7 @@ export async function changedFiles(
     throw new CliError(text.unknownRef(base));
   }
   try {
-    return await changedSince(root, base);
+    return await changedSince(root, base, options);
   } catch (error) {
     throw new CliError(text.cannotListChanged(base, gitFailureReason(error)));
   }
