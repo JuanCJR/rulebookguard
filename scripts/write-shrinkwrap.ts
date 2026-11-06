@@ -45,6 +45,11 @@ export function testedVersions(lock: PnpmLock): Map<string, string> {
     visited.add(key);
 
     const version = resolution.split('(')[0] ?? resolution;
+    if (version.includes('@')) {
+      throw new Error(
+        `${name} is an alias of ${resolution} in pnpm-lock.yaml, which the shrinkwrap cannot pin`,
+      );
+    }
     const known = versions.get(name);
     if (known !== undefined && known !== version) {
       throw new Error(`${name} resolves to ${known} and ${version} in pnpm-lock.yaml`);
