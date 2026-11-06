@@ -43,7 +43,7 @@ Requires Node.js 22 or later.
 rulebookguard does not need to be a dependency of your project. Nothing in your code imports it, so you can run it with `npx`, pinning the version so that every machine and CI run the same one:
 
 ```sh
-npx rulebookguard@0.10.0 lint
+npx rulebookguard@0.11.0 lint
 ```
 
 Each release locks its own dependencies for npm and `npx`, so a pinned version keeps running the same code. Other package managers, such as `pnpm dlx`, ignore that lock and resolve the dependency ranges. Your `package.json` and lockfile stay untouched.
@@ -56,10 +56,10 @@ npm install --save-dev rulebookguard
 
 A first rule in four steps:
 
-1. Set up the rulebook: `npx rulebookguard@0.10.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
-2. Scaffold a rule: `npx rulebookguard@0.10.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
+1. Set up the rulebook: `npx rulebookguard@0.11.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
+2. Scaffold a rule: `npx rulebookguard@0.11.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
 3. Write the rule, add its `anchors`, set `status: active`, and wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
-4. Run `npx rulebookguard@0.10.0 lint`, and add it to CI with the [CI recipe](#ci-recipe).
+4. Run `npx rulebookguard@0.11.0 lint`, and add it to CI with the [CI recipe](#ci-recipe).
 
 ## Configuration
 
@@ -528,7 +528,7 @@ The rulebook is found from `--project` (default: the current directory). A comma
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
 
-Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard@0.10.0 -p @rulebookguard/site@0.10.0 rulebookguard site:run`.
+Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard@0.11.0 -p @rulebookguard/site@0.11.0 rulebookguard site:run`.
 
 Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
 
@@ -581,7 +581,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx --yes rulebookguard@0.10.0 lint --base origin/${{ github.base_ref }}
+      - run: npx --yes rulebookguard@0.11.0 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
