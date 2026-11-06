@@ -4,6 +4,7 @@ import type { Catalog } from '../catalog/load.ts';
 import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
 import { AGENT_FORMATS, exportAgentRules } from './export-agents.ts';
+import { exportKiroAgents, KIRO_AGENTS_FORMAT } from './export-kiro-agents.ts';
 import { CliError, EXIT_USAGE, shownPath, type CliIo, writeLines } from './io.ts';
 
 export const EXPORT_USAGE = 'rulebookguard export <format> [--out <dir>]';
@@ -21,8 +22,12 @@ export async function exportCommand(
     await exportAgentRules(catalog, io, format, out);
     return;
   }
+  if (format === KIRO_AGENTS_FORMAT) {
+    await exportKiroAgents(catalog, io, out);
+    return;
+  }
   if (format !== 'gherkin') {
-    const supported = ['gherkin', ...AGENT_FORMATS].join(', ');
+    const supported = ['gherkin', ...AGENT_FORMATS, KIRO_AGENTS_FORMAT].join(', ');
     throw new CliError(
       `Unknown export format "${format}"; supported: ${supported}.\nUsage: ${EXPORT_USAGE}`,
       EXIT_USAGE,

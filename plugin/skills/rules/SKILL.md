@@ -1,4 +1,5 @@
 ---
+name: rules
 description: Business rules protocol for repositories with a rulebookguard.config.yaml. Use before changing code that may implement a business rule, when a rulebookguard hook injects rules for a file, or when asked to add, change or retire a business rule.
 ---
 
@@ -8,7 +9,7 @@ In this repository the business rules in the rulebook (`rulesDir` in `rulebookgu
 
 ## Before changing code
 
-1. Before editing a file, a hook adds the active rules anchored to it. When it lists rule texts as omitted, read each rule with the `rules_show` tool (or `rulebookguard show <id>`).
+1. Before editing a file, a hook or a steering file may add the active rules anchored to it; if neither did, ask the `rules_for` tool (or `rulebookguard for <path>`). When a hook lists rule texts as omitted, read each rule with the `rules_show` tool (or `rulebookguard show <id>`).
 2. For a file you have not edited yet, or a broader change, ask the `rules_for` tool (or `rulebookguard for <path>`).
    For a change that is not tied to one file, read the rulebook by levels: the `contexts` tool, then `rules_list` for the contexts involved, then `rules_show` for the relevant rules. `rules_search` finds rules by words.
 3. Keep the change consistent with every rule listed. If the change would alter what a rule says, stop and tell the user which rule conflicts and how; do not change the behavior silently.

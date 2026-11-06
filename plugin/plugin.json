@@ -1,0 +1,13 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "rulebookguard",
+  "version": "0.11.0",
+  "description": "Business rules as the source of truth: follow, look up and write the rules anchored to your code.",
+  "author": {
+    "name": "Juan Carlos Jimenez"
+  },
+  "homepage": "https://github.com/JuanCJR/rulebookguard#kiro",
+  "repository": "https://github.com/JuanCJR/rulebookguard",
+  "license": "MIT",
+  "keywords": ["business rules", "business rule", "rulebook", "rulebookguard"]
+}

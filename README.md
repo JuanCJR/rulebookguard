@@ -250,6 +250,7 @@ func validateDocument(country, number string) error {
 | [`export gherkin`](#export-gherkin---out-dir)                         | writes the rules' scenarios as Cucumber `.feature` files     |
 | [`export cursor\|copilot\|kiro`](#export-cursorcopilotkiro---out-dir) | writes the active rules as rule files of other AI tools      |
 | [`export agents-md`](#export-agents-md---out-dir)                     | keeps an index of the active rules in `AGENTS.md`            |
+| [`export kiro-agents`](#export-kiro-agents---out-dir)                 | writes the `rule-author` and `rule-miner` agents for Kiro    |
 | [`hook`](#hook)                                                       | Claude Code hook that injects the rules of a file            |
 | [`mcp`](#mcp---project-dir)                                           | MCP server for AI agents                                     |
 | [`site:generate`](#sitegenerate---out-dir---base-path)                | builds a static site of the rulebook                         |
@@ -488,6 +489,10 @@ Run it again after changing rules, for example in CI or before committing: it ov
 
 Keeps an index of the active rules in `AGENTS.md`, at the rulebook root or in `--out`. `AGENTS.md` has no path scoping and is always read, so it holds each rule's id, anchors (or `no anchors`), summary and rule file, not the full text. The index lives between `<!-- rulebookguard:start -->` and `<!-- rulebookguard:end -->`: the rest of the file is kept, the block is appended the first time and replaced after that, and it is removed when no rule is active, along with the file if nothing else is left (printing `removed AGENTS.md`). Anything other than one start marker followed by one end marker, or neither, fails with exit code 1 and leaves the file untouched.
 
+### `export kiro-agents [--out <dir>]`
+
+Writes `rule-author` and `rule-miner` as [Kiro custom agents](https://kiro.dev/docs/custom-agents/) in `.kiro/agents/rulebookguard-<name>.md`, under the rulebook root or directly in `--out`. Each file carries its own MCP server, pinned to the version of the CLI that wrote it, and the rule writing guide, so it works without the [Kiro power](#kiro). Run it again after upgrading. Other files in the directory are left alone, and if `rulebookguard-rule-author.md` or `rulebookguard-rule-miner.md` lacks the generated line, the command fails with exit code 1 before writing anything.
+
 ### `hook`
 
 A Claude Code hook for `PreToolUse` and `PostToolUse` events of tools that take a `file_path` (the [Claude Code plugin](#claude-code-plugin) wires it up). It reads the hook event as JSON on stdin, takes `tool_input.file_path` (relative paths resolve against the event's `cwd`), finds `rulebookguard.config.yaml` by walking up from that file, and prints the active rules anchored to it as additional context for Claude, under the same `hookEventName`:
@@ -608,3 +613,20 @@ claude plugin install rulebookguard@rulebookguard
 Or, inside Claude Code 2.1.275 or later: `/plugin install rulebookguard --marketplace JuanCJR/rulebookguard`.
 
 The plugin runs the project's own rulebookguard (`node_modules/rulebookguard`, in the project directory or a parent) when its version is at least the plugin's; otherwise it runs `npx rulebookguard@<plugin version>`, which needs Node.js and network access the first time. In a checkout of rulebookguard itself it runs the checkout's own built CLI (`dist/cli.mjs`, from `vp pack`), whatever its version. The hooks never block a tool: any failure, including a timeout, lets it go ahead without rules.
+
+## Kiro
+
+Kiro gets the same rules through three pieces:
+
+| Piece                                                 | What it gives Kiro                                       | How to get it                      |
+| ----------------------------------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| [Steering files](#export-cursorcopilotkiro---out-dir) | the active rules of the files it works on                | `rulebookguard export kiro`        |
+| Power in [`plugin/`](plugin)                          | the `rules` and `rule-writing` skills and the MCP server | import the `plugin` folder         |
+| [Custom agents](#export-kiro-agents---out-dir)        | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
+
+To install the power, open the Powers panel in Kiro, choose **Add Custom Power**, then **Import power from a folder** with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.11.0 mcp` from the directory Kiro starts it in, and needs Node.js and network access the first time.
+
+Keep `rulebookguard.config.yaml` at the root of the Kiro workspace: Kiro reads `.kiro/` from there, and the steering patterns are relative to the rulebook root. There is no hook for Kiro, because steering files already deliver the rules of a matching file.
+
+> [!NOTE]
+> Kiro limits what these pieces reach. Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically, so `rulebookguard export agents-md` is the way to reach them, and powers are listed for CLI V3. A custom agent does not read steering files unless its `resources` include `file://.kiro/steering/**/*.md`.

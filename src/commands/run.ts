@@ -51,6 +51,8 @@ Commands:
                                                      active; --out: output directory
   export agents-md [--out <dir>]                     keep an index of the active rules in a marked block of
                                                      AGENTS.md; --out: its directory (default: rulebook root)
+  export kiro-agents [--out <dir>]                   write the rule-author and rule-miner agents for Kiro in
+                                                     .kiro/agents; --out: output directory
   hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
                                                      the event on stdin and prints the rules anchored to
                                                      the file of the tool (Read, Edit, Write...)

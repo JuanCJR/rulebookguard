@@ -2,7 +2,7 @@
 
 ## Releasing
 
-Releases are published to npm from GitHub Actions with [trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is stored and every version carries a provenance attestation. To release, bump `version` in `package.json`, in `plugin/.claude-plugin/plugin.json` and in the pinned commands of `README.md` (tests keep them equal), merge it to `main`, then push a matching tag:
+Releases are published to npm from GitHub Actions with [trusted publishing](https://docs.npmjs.com/trusted-publishers), so no npm token is stored and every version carries a provenance attestation. To release, bump `version` in `package.json`, in `plugin/.claude-plugin/plugin.json`, in `plugin/plugin.json`, in `plugin/mcp.json` and in the pinned commands of `README.md` (tests keep them equal), merge it to `main`, then push a matching tag:
 
 ```sh
 git tag v0.1.0

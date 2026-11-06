@@ -40,7 +40,7 @@ const AGENTS_MD_FORMAT = 'agents-md';
 const AGENTS_MD_FILE = 'AGENTS.md';
 const BLOCK_START = '<!-- rulebookguard:start -->';
 const BLOCK_END = '<!-- rulebookguard:end -->';
-const RULE_FILE_PREFIX = 'rulebookguard-';
+export const RULE_FILE_PREFIX = 'rulebookguard-';
 
 export const AGENT_FORMATS = [...Object.keys(RULE_FILE_TARGETS), AGENTS_MD_FORMAT];
 
@@ -126,7 +126,11 @@ function ruleFile(rule: RuleDoc, format: string, target: RuleFileTarget, text: M
 }
 
 // A file named like an export but without the generated line was written by someone else.
-async function handWrittenFiles(dir: string, format: string, names: string[]): Promise<string[]> {
+export async function handWrittenFiles(
+  dir: string,
+  format: string,
+  names: string[],
+): Promise<string[]> {
   const existing = new Set(await listNames(dir));
   const handWritten: string[] = [];
   for (const name of names) {

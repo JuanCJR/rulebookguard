@@ -1,4 +1,5 @@
 ---
+name: rule-writing
 description: How to write a rulebookguard business rule so every rule reads the same, whoever writes it. Use when writing, extracting, proposing or reviewing a rule file, or turning a feature, ticket or existing code into rules.
 ---
 
