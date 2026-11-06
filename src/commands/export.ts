@@ -1,9 +1,10 @@
 import { mkdir, writeFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, relative, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import type { Catalog } from '../catalog/load.ts';
 import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
-import { CliError, EXIT_USAGE, type CliIo, writeLines } from './io.ts';
+import { AGENT_FORMATS, exportAgentRules } from './export-agents.ts';
+import { CliError, EXIT_USAGE, shownPath, type CliIo, writeLines } from './io.ts';
 
 export const EXPORT_USAGE = 'rulebookguard export <format> [--out <dir>]';
 
@@ -16,9 +17,14 @@ export async function exportCommand(
   format: string,
   out: string | undefined,
 ): Promise<void> {
+  if (AGENT_FORMATS.includes(format)) {
+    await exportAgentRules(catalog, io, format, out);
+    return;
+  }
   if (format !== 'gherkin') {
+    const supported = ['gherkin', ...AGENT_FORMATS].join(', ');
     throw new CliError(
-      `Unknown export format "${format}"; supported: gherkin.\nUsage: ${EXPORT_USAGE}`,
+      `Unknown export format "${format}"; supported: ${supported}.\nUsage: ${EXPORT_USAGE}`,
       EXIT_USAGE,
     );
   }
@@ -69,9 +75,4 @@ function featureFile(rule: RuleDoc, scenarios: string[], spanish: boolean, text:
     '',
     `${indented.join('\n\n')}\n`,
   ].join('\n');
-}
-
-function shownPath(cwd: string, file: string): string {
-  const fromCwd = relative(cwd, file);
-  return fromCwd.startsWith('..') || isAbsolute(fromCwd) ? file : fromCwd;
 }

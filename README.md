@@ -231,22 +231,23 @@ func validateDocument(country, number string) error {
 
 `rulebookguard --help` prints the command list. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
 
-| Command                                                           | What it does                                                 |
-| ----------------------------------------------------------------- | ------------------------------------------------------------ |
-| [`init <context>`](#init-context---prefix-p---language-enes---ci) | sets up the config, a first context and optionally CI        |
-| [`contexts`](#contexts-l0)                                        | the contexts map (L0)                                        |
-| [`list`](#list---context-c---status-s-l1)                         | rule ids and summaries (L1)                                  |
-| [`show <id>`](#show-id-l2)                                        | the full rule (L2)                                           |
-| [`search <text>`](#search-text---context-c---json)                | rules holding every word of a text                           |
-| [`for <path>`](#for-path)                                         | the active rules anchored to a file                          |
-| [`impact <id>`](#impact-id)                                       | the files and tests a rule touches                           |
-| [`new <context>`](#new-context---prefix-p)                        | scaffolds the next rule of a context                         |
-| [`lint`](#lint---base-ref---json)                                 | checks the whole catalog, and optionally changes since a ref |
-| [`export gherkin`](#export-gherkin---out-dir)                     | writes the rules' scenarios as Cucumber `.feature` files     |
-| [`hook`](#hook)                                                   | Claude Code hook that injects the rules of a file            |
-| [`mcp`](#mcp---project-dir)                                       | MCP server for AI agents                                     |
-| [`site:generate`](#sitegenerate---out-dir---base-path)            | builds a static site of the rulebook                         |
-| [`site:run`](#siterun---out-dir---base-path---port-n)             | builds the site and serves it locally                        |
+| Command                                                               | What it does                                                 |
+| --------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`init <context>`](#init-context---prefix-p---language-enes---ci)     | sets up the config, a first context and optionally CI        |
+| [`contexts`](#contexts-l0)                                            | the contexts map (L0)                                        |
+| [`list`](#list---context-c---status-s-l1)                             | rule ids and summaries (L1)                                  |
+| [`show <id>`](#show-id-l2)                                            | the full rule (L2)                                           |
+| [`search <text>`](#search-text---context-c---json)                    | rules holding every word of a text                           |
+| [`for <path>`](#for-path)                                             | the active rules anchored to a file                          |
+| [`impact <id>`](#impact-id)                                           | the files and tests a rule touches                           |
+| [`new <context>`](#new-context---prefix-p)                            | scaffolds the next rule of a context                         |
+| [`lint`](#lint---base-ref---json)                                     | checks the whole catalog, and optionally changes since a ref |
+| [`export gherkin`](#export-gherkin---out-dir)                         | writes the rules' scenarios as Cucumber `.feature` files     |
+| [`export cursor\|copilot\|kiro`](#export-cursorcopilotkiro---out-dir) | writes the active rules as rule files of other AI tools      |
+| [`hook`](#hook)                                                       | Claude Code hook that injects the rules of a file            |
+| [`mcp`](#mcp---project-dir)                                           | MCP server for AI agents                                     |
+| [`site:generate`](#sitegenerate---out-dir---base-path)                | builds a static site of the rulebook                         |
+| [`site:run`](#siterun---out-dir---base-path---port-n)                 | builds the site and serves it locally                        |
 
 The read commands (`contexts`, `list`, `show`, `search`, `for`, `impact`) accept `--json` for machine consumers. When the catalog has problems they still run, and print one warning on stderr pointing at `lint`.
 
@@ -430,6 +431,35 @@ Feature: R-CLI-001 A client document number is unique per country.
 ```
 
 Generated files are overwritten; nothing else in the output directory is touched, so a feature of a rule that was deprecated or lost its scenarios stays until you delete it. Prints `No rule has Gherkin scenarios.` when there is nothing to write. The tags are Cucumber tags, not `@rule` regions: link the step definitions to the rule with `@rule` … `@endrule` as with any test.
+
+### `export cursor|copilot|kiro [--out <dir>]`
+
+Writes every active rule with anchors as one file that the tool attaches when it works on a matching path, so agents other than Claude Code get the same rules. The files go under the rulebook root by default, or directly in `--out`, relative to the current directory:
+
+| Format    | File                                                      | Scoped with                                         |
+| --------- | --------------------------------------------------------- | --------------------------------------------------- |
+| `cursor`  | `.cursor/rules/rulebookguard-<id>.mdc`                    | `globs`, comma-separated, with `alwaysApply: false` |
+| `copilot` | `.github/instructions/rulebookguard-<id>.instructions.md` | `applyTo`, comma-separated                          |
+| `kiro`    | `.kiro/steering/rulebookguard-<id>.md`                    | `inclusion: fileMatch` and `fileMatchPattern`       |
+
+```sh
+$ rulebookguard export kiro
+.kiro/steering/rulebookguard-R-CLI-001.md
+$ cat .kiro/steering/rulebookguard-R-CLI-001.md
+---
+inclusion: fileMatch
+fileMatchPattern: "src/clients/**/*.go"
+---
+
+<!-- Generated by "rulebookguard export kiro" from docs/rules/clients/R-CLI-001.md; edit the rule instead. -->
+
+**R-CLI-001:** A client document number is unique per country.
+
+# Unique document number
+…
+```
+
+Run it again after changing rules, for example in CI or before committing: it overwrites the generated files and removes, printing `removed <path>`, those of rules that are no longer active. Only a file named after a rule id, with the generated line of that format right after its frontmatter, is removed. An active rule without anchors has no path to attach to, so it is skipped with a warning on stderr. Prints `No active rule to export.` when there is nothing to write, or `No active rule with anchors to export.` when no active rule has anchors. Brace anchors are expanded into one pattern per option; an anchor with a literal comma in a file name cannot be written in the comma-separated formats.
 
 ### `hook`
 

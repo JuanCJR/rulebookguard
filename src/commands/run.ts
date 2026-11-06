@@ -42,6 +42,10 @@ Commands:
   export gherkin [--out <dir>]                       write the Gherkin blocks of each non-deprecated rule as
                                                      <out>/<context>/<id>.feature tagged @<id>;
                                                      --out: output directory (default: features/rules)
+  export cursor|copilot|kiro [--out <dir>]           write each active rule as a rule file of the tool, scoped
+                                                     to its anchors, in .cursor/rules, .github/instructions
+                                                     or .kiro/steering, and remove those of rules no longer
+                                                     active; --out: output directory
   hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
                                                      the event on stdin and prints the rules anchored to
                                                      the file of the tool (Read, Edit, Write...)
