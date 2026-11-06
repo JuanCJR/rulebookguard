@@ -239,6 +239,7 @@ func validateDocument(country, number string) error {
 | [`show <id>`](#show-id-l2)                                            | the full rule (L2)                                           |
 | [`search <text>`](#search-text---context-c---json)                    | rules holding every word of a text                           |
 | [`for <path>`](#for-path)                                             | the active rules anchored to a file                          |
+| [`for --changed <ref>`](#for---changed-ref)                           | the active rules anchored to the files changed since a ref   |
 | [`impact <id>`](#impact-id)                                           | the files and tests a rule touches                           |
 | [`new <context>`](#new-context---prefix-p)                            | scaffolds the next rule of a context                         |
 | [`lint`](#lint---base-ref---json)                                     | checks the whole catalog, and optionally changes since a ref |
@@ -325,6 +326,23 @@ R-CLI-001 (clients): A client document number is unique per country. (lines 12-3
 ```
 
 When the file holds `@implements` regions of a rule, its line ends with their line ranges; `--json` rows carry them as `regions: [{ line, endLine }]` (or `[]`). Exits 1 when the path is outside the rulebook root.
+
+### `for --changed <ref>`
+
+Active rules anchored to the files changed since a git ref, each with those files. This is what a reviewer needs to know about a pull request: which rules it touches, even when no rule file changed.
+
+```sh
+$ rulebookguard for --changed origin/main
+R-BIL-001 (billing): Every new client gets a zero-balance account.
+  src/clients/create.ts
+R-CLI-001 (clients): A client document number is unique per country.
+  src/clients/create.ts
+  src/clients/update.ts
+```
+
+It sees the same files as `lint --base`: the difference between the ref and the working tree, including deleted files and untracked ones that are not ignored. A renamed file counts under its new path only. On a branch that is behind the ref, the files changed on the ref since the branch point count too, so in CI compare against the base of the pull request on the merge commit, which is what a pull request checkout gives you.
+
+`--json` prints `{ base, files, rules }`, where `files` lists every changed file and each rule carries its own `files`. Prints `No active rules anchored to the files changed since <ref>.` when there are none. Exits 1 for an unknown ref or outside a git work tree, and 2 when given both a path and `--changed`.
 
 ### `impact <id>`
 

@@ -10,6 +10,7 @@ import { mcpCommand } from './mcp.ts';
 import { newCommand } from './new.ts';
 import {
   contextsCommand,
+  forChangedCommand,
   forCommand,
   impactCommand,
   listCommand,
@@ -33,6 +34,8 @@ Commands:
   search <text> [--context <c>] [--json]             rules whose id, summary, entities or text hold every
                                                      word of <text>, ignoring case
   for <path> [--json]                                active rules anchored to a path
+  for --changed <ref> [--json]                       active rules anchored to the files changed since <ref>,
+                                                     each with those files
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
   new <context> [--prefix <P>]                       scaffold the next free rule id as a proposed rule;
                                                      creates the context first when it does not exist,
@@ -67,6 +70,8 @@ Exit codes: 0 success, 1 failure (lint: any error), 2 usage error.
 interface CommandSpec {
   usage: string;
   argument?: string;
+  /** An option that replaces the argument. */
+  argumentUnless?: string;
   options: ParseArgsOptionsConfig;
 }
 
@@ -91,7 +96,12 @@ const COMMANDS: Record<string, CommandSpec> = {
     argument: 'text',
     options: { ...JSON_OPTION, context: { type: 'string' } },
   },
-  for: { usage: 'rulebookguard for <path> [--json]', argument: 'path', options: JSON_OPTION },
+  for: {
+    usage: 'rulebookguard for <path>|--changed <ref> [--json]',
+    argument: 'path',
+    argumentUnless: 'changed',
+    options: { ...JSON_OPTION, changed: { type: 'string' } },
+  },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
   new: {
     usage: 'rulebookguard new <context> [--prefix <P>]',
@@ -201,7 +211,11 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       });
       break;
     case 'for':
-      await forCommand(catalog, io, argument, json);
+      if (values.changed === undefined) {
+        await forCommand(catalog, io, argument, json);
+      } else {
+        await forChangedCommand(catalog, io, values.changed as string, json);
+      }
       break;
     case 'impact':
       await impactCommand(catalog, io, argument, json);
@@ -244,7 +258,9 @@ function parse(
   } catch (error) {
     throw new CliError(`${(error as Error).message}\nUsage: ${spec.usage}`, EXIT_USAGE);
   }
-  const expected = spec.argument === undefined ? 0 : 1;
+  const replaced =
+    spec.argumentUnless !== undefined && parsed.values[spec.argumentUnless] !== undefined;
+  const expected = spec.argument === undefined || replaced ? 0 : 1;
   if (parsed.positionals.length < expected) {
     throw new CliError(`Missing argument <${spec.argument}>. Usage: ${spec.usage}`, EXIT_USAGE);
   }
