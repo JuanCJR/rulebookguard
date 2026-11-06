@@ -126,7 +126,7 @@ describe('export gherkin', () => {
       status: 2,
       stdout: '',
       stderr:
-        'Unknown export format "cucumber"; supported: gherkin, cursor, copilot, kiro, agents-md.\nUsage: rulebookguard export <format> [--out <dir>]\n',
+        'Unknown export format "cucumber"; supported: gherkin, cursor, copilot, kiro, agents-md, kiro-agents.\nUsage: rulebookguard export <format> [--out <dir>]\n',
     });
   });
 });

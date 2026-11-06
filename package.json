@@ -17,6 +17,9 @@
   "files": [
     "dist",
     "schemas",
+    "plugin/agents",
+    "plugin/skills",
+    "plugin/plugin.json",
     "npm-shrinkwrap.json"
   ],
   "type": "module",
