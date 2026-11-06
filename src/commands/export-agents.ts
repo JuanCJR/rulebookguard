@@ -5,7 +5,7 @@ import type { Catalog } from '../catalog/load.ts';
 import { isRuleId } from '../format/rule.ts';
 import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
-import { shownPath, type CliIo, writeLines } from './io.ts';
+import { CliError, shownPath, type CliIo, writeLines } from './io.ts';
 
 interface RuleFileTarget {
   dir: string;
@@ -75,9 +75,20 @@ async function writeRuleFiles(
   const rules = anchoredRules(active, io, text);
   const nothing = active.length === 0 ? text.noActiveRules : text.noAnchoredRules;
   const lines: string[] = rules.length === 0 ? [nothing] : [];
+  const fileName = (rule: RuleDoc): string => `${RULE_FILE_PREFIX}${rule.id}${target.extension}`;
+  const handWritten = await handWrittenFiles(dir, format, rules.map(fileName));
+  if (handWritten.length > 0) {
+    throw new CliError(
+      handWritten
+        .map((name) =>
+          text.handWrittenExport(toRepoPath(shownPath(io.cwd, join(dir, name))), format),
+        )
+        .join('\n'),
+    );
+  }
   const current = new Set<string>();
   for (const rule of rules) {
-    const name = `${RULE_FILE_PREFIX}${rule.id}${target.extension}`;
+    const name = fileName(rule);
     current.add(name);
     await mkdir(dir, { recursive: true });
     await writeFile(join(dir, name), ruleFile(rule, format, target, text));
@@ -102,6 +113,18 @@ function ruleFile(rule: RuleDoc, format: string, target: RuleFileTarget, text: M
     '',
     `${normalizedBody(rule)}\n`,
   ].join('\n');
+}
+
+// A file named like an export but without the generated line was written by someone else.
+async function handWrittenFiles(dir: string, format: string, names: string[]): Promise<string[]> {
+  const existing = new Set(await listNames(dir));
+  const handWritten: string[] = [];
+  for (const name of names) {
+    if (existing.has(name) && !hasGeneratedLine(await readFile(join(dir, name), 'utf8'), format)) {
+      handWritten.push(name);
+    }
+  }
+  return handWritten;
 }
 
 // A rule that left the active set would keep steering the agent, so its file goes. Only files this
