@@ -8,6 +8,7 @@ import type { Catalog } from '../catalog/load.ts';
 import type { RuleLanguage } from '../format/types.ts';
 import { siteData } from '../site/data.ts';
 import { normalizeBase, sitePages, siteText } from '../site/pages.ts';
+import { toRepoPath } from '../catalog/files.ts';
 import { CliError, gitFallbackWarning, openCatalog, writeLines, type CliIo } from './io.ts';
 
 type SitePackage = typeof import('@rulebookguard/site');
@@ -38,7 +39,11 @@ export async function siteCommand(
   const out = resolve(io.cwd, options.out ?? 'site');
   const fromCwd = relative(io.cwd, out);
   const shown =
-    fromCwd === '' ? '.' : fromCwd.startsWith('..') || isAbsolute(fromCwd) ? out : fromCwd;
+    fromCwd === ''
+      ? '.'
+      : fromCwd.startsWith('..') || isAbsolute(fromCwd)
+        ? out
+        : toRepoPath(fromCwd);
   await assertReplaceable(out, shown);
 
   const site = await importSitePackage([catalog.root, dirname(fileURLToPath(import.meta.url))]);

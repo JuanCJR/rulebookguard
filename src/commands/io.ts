@@ -1,6 +1,6 @@
 import { isAbsolute, relative } from 'node:path';
 import { findRulebookRoot, loadCatalog, type Catalog } from '../catalog/load.ts';
-import type { GitFallbackListener } from '../catalog/files.ts';
+import { toRepoPath, type GitFallbackListener } from '../catalog/files.ts';
 import { CONFIG_FILE_NAME } from '../format/config.ts';
 import type { RuleDoc, RuleLanguage } from '../format/types.ts';
 import { messages } from '../messages.ts';
@@ -61,7 +61,7 @@ export function writeLines(io: CliIo, lines: string[]): void {
 
 export function shownPath(cwd: string, file: string): string {
   const fromCwd = relative(cwd, file);
-  return fromCwd.startsWith('..') || isAbsolute(fromCwd) ? file : fromCwd;
+  return fromCwd.startsWith('..') || isAbsolute(fromCwd) ? file : toRepoPath(fromCwd);
 }
 
 export function gitFallbackWarning(io: CliIo, language?: RuleLanguage): GitFallbackListener {
