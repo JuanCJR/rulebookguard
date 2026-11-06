@@ -244,6 +244,7 @@ func validateDocument(country, number string) error {
 | [`lint`](#lint---base-ref---json)                                     | checks the whole catalog, and optionally changes since a ref |
 | [`export gherkin`](#export-gherkin---out-dir)                         | writes the rules' scenarios as Cucumber `.feature` files     |
 | [`export cursor\|copilot\|kiro`](#export-cursorcopilotkiro---out-dir) | writes the active rules as rule files of other AI tools      |
+| [`export agents-md`](#export-agents-md---out-dir)                     | keeps an index of the active rules in `AGENTS.md`            |
 | [`hook`](#hook)                                                       | Claude Code hook that injects the rules of a file            |
 | [`mcp`](#mcp---project-dir)                                           | MCP server for AI agents                                     |
 | [`site:generate`](#sitegenerate---out-dir---base-path)                | builds a static site of the rulebook                         |
@@ -460,6 +461,10 @@ fileMatchPattern: "src/clients/**/*.go"
 ```
 
 Run it again after changing rules, for example in CI or before committing: it overwrites the generated files and removes, printing `removed <path>`, those of rules that are no longer active. Only a file named after a rule id, with the generated line of that format right after its frontmatter, is removed. If the file of an active rule lacks that line, it was not generated, so the command fails with exit code 1 before writing or removing anything. An active rule without anchors has no path to attach to, so it is skipped with a warning on stderr. Prints `No active rule to export.` when there is nothing to write, or `No active rule with anchors to export.` when no active rule has anchors. Brace anchors are expanded into one pattern per option; an anchor with a literal comma in a file name cannot be written in the comma-separated formats.
+
+### `export agents-md [--out <dir>]`
+
+Keeps an index of the active rules in `AGENTS.md`, at the rulebook root or in `--out`. `AGENTS.md` has no path scoping and is always read, so it holds each rule's id, anchors (or `no anchors`), summary and rule file, not the full text. The index lives between `<!-- rulebookguard:start -->` and `<!-- rulebookguard:end -->`: the rest of the file is kept, the block is appended the first time and replaced after that, and it is removed when no rule is active. Anything other than one start marker followed by one end marker, or neither, fails with exit code 1 and leaves the file untouched.
 
 ### `hook`
 
