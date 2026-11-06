@@ -16,7 +16,8 @@
   },
   "files": [
     "dist",
-    "schemas"
+    "schemas",
+    "npm-shrinkwrap.json"
   ],
   "type": "module",
   "exports": {
