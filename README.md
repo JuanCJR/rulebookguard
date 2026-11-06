@@ -559,7 +559,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx --yes rulebookguard@0.8.0 lint --base origin/${{ github.base_ref }}
+      - run: npx --yes rulebookguard@0.9.0 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
