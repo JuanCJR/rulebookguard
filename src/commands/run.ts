@@ -46,6 +46,8 @@ Commands:
                                                      to its anchors, in .cursor/rules, .github/instructions
                                                      or .kiro/steering, and remove those of rules no longer
                                                      active; --out: output directory
+  export agents-md [--out <dir>]                     keep an index of the active rules in a marked block of
+                                                     AGENTS.md; --out: its directory (default: rulebook root)
   hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
                                                      the event on stdin and prints the rules anchored to
                                                      the file of the tool (Read, Edit, Write...)

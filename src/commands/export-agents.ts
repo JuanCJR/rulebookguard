@@ -5,7 +5,7 @@ import type { Catalog } from '../catalog/load.ts';
 import { isRuleId } from '../format/rule.ts';
 import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
-import { shownPath, type CliIo, writeLines } from './io.ts';
+import { CliError, shownPath, type CliIo, writeLines } from './io.ts';
 
 interface RuleFileTarget {
   dir: string;
@@ -36,9 +36,13 @@ const RULE_FILE_TARGETS: Record<string, RuleFileTarget> = {
   },
 };
 
+const AGENTS_MD_FORMAT = 'agents-md';
+const AGENTS_MD_FILE = 'AGENTS.md';
+const BLOCK_START = '<!-- rulebookguard:start -->';
+const BLOCK_END = '<!-- rulebookguard:end -->';
 const RULE_FILE_PREFIX = 'rulebookguard-';
 
-export const AGENT_FORMATS = Object.keys(RULE_FILE_TARGETS);
+export const AGENT_FORMATS = [...Object.keys(RULE_FILE_TARGETS), AGENTS_MD_FORMAT];
 
 export async function exportAgentRules(
   catalog: Catalog,
@@ -49,9 +53,15 @@ export async function exportAgentRules(
   const rules = catalog.rules
     .filter((rule) => rule.status === 'active')
     .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
-  const target = RULE_FILE_TARGETS[format] as RuleFileTarget;
-  const dir = out === undefined ? join(catalog.root, target.dir) : resolve(io.cwd, out);
-  writeLines(io, await writeRuleFiles(catalog, io, rules, format, target, dir));
+  const target = RULE_FILE_TARGETS[format];
+  const outDir = (dir: string): string =>
+    out === undefined ? join(catalog.root, dir) : resolve(io.cwd, out);
+  writeLines(
+    io,
+    target === undefined
+      ? await writeAgentsMd(catalog, io, rules, outDir('.'))
+      : await writeRuleFiles(catalog, io, rules, format, target, outDir(target.dir)),
+  );
 }
 
 // These tools attach a file by path, so a rule without anchors has nothing to attach it to.
@@ -148,6 +158,82 @@ async function listNames(dir: string): Promise<string[]> {
   } catch (error) {
     if ((error as { code?: unknown }).code === 'ENOENT') {
       return [];
+    }
+    throw error;
+  }
+}
+
+async function writeAgentsMd(
+  catalog: Catalog,
+  io: CliIo,
+  rules: RuleDoc[],
+  dir: string,
+): Promise<string[]> {
+  const text = messages(catalog.config.language);
+  const file = join(dir, AGENTS_MD_FILE);
+  const shown = toRepoPath(shownPath(io.cwd, file));
+  const existing = await readOptional(file);
+  const start = existing.indexOf(BLOCK_START);
+  const end = existing.indexOf(BLOCK_END);
+  const starts = existing.split(BLOCK_START).length - 1;
+  const ends = existing.split(BLOCK_END).length - 1;
+  // Replacing the first of several blocks would leave stale rules in a file agents always read.
+  if (starts !== ends || starts > 1 || end < start) {
+    throw new CliError(text.invalidAgentsMdMarkers(shown, BLOCK_START, BLOCK_END));
+  }
+  const hasBlock = starts === 1;
+  if (rules.length === 0 && !hasBlock) {
+    return [text.noActiveRules];
+  }
+  const before = hasBlock ? existing.slice(0, start) : existing;
+  const after = hasBlock ? existing.slice(end + BLOCK_END.length) : '';
+  await mkdir(dir, { recursive: true });
+  await writeFile(
+    file,
+    rules.length === 0
+      ? withoutBlock(before, after)
+      : withBlock(before, after, agentsBlock(rules, text), hasBlock),
+  );
+  return rules.length === 0 ? [text.noActiveRules, shown] : [shown];
+}
+
+function withBlock(before: string, after: string, block: string, hasBlock: boolean): string {
+  if (hasBlock) {
+    return `${before}${block}${after}`;
+  }
+  return before.trim() === '' ? `${block}\n` : `${before.trimEnd()}\n\n${block}\n`;
+}
+
+function withoutBlock(before: string, after: string): string {
+  const joined = `${before}${after.replace(/^(?:\r?\n)+/, '')}`;
+  return joined.trim() === '' ? '' : `${joined.trimEnd()}\n`;
+}
+
+// AGENTS.md has no path scoping and is always read, so it holds an index and not the rule texts.
+function agentsBlock(rules: RuleDoc[], text: Messages): string {
+  return [
+    BLOCK_START,
+    `<!-- ${text.generatedAgentsMd} -->`,
+    `## ${text.agentsMdHeading}`,
+    '',
+    text.agentsMdIntro,
+    '',
+    ...rules.map((rule) => {
+      const anchors =
+        rule.anchors.map((anchor) => `\`${toRepoPath(anchor)}\``).join(', ') ||
+        text.agentsMdNoAnchors;
+      return `- \`${rule.id}\` (${anchors}): ${rule.summary} ${text.agentsMdSeeFile(rule.file)}`;
+    }),
+    BLOCK_END,
+  ].join('\n');
+}
+
+async function readOptional(file: string): Promise<string> {
+  try {
+    return await readFile(file, 'utf8');
+  } catch (error) {
+    if ((error as { code?: unknown }).code === 'ENOENT') {
+      return '';
     }
     throw error;
   }
