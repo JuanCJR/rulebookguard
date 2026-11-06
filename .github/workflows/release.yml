@@ -32,6 +32,23 @@ jobs:
       - run: vp test
       - run: vp pack
       - run: npm install --global npm@11.21.0 # trusted publishing needs npm >= 11.5.1
+      # Before anything is published, so that a failure here leaves no half-finished release.
+      - name: Lock the published dependencies to the tested versions
+        run: node scripts/write-shrinkwrap.ts
+      - name: Smoke test the package with its locked dependencies
+        run: |
+          pack="$(mktemp -d)"
+          npm pack --pack-destination "$pack" --silent
+          tar -xzf "$pack"/*.tgz -C "$pack"
+          # npm ignores the shrinkwrap of a local tarball, so install from it directly.
+          # The dev dependencies hold pnpm's workspace: protocol, which npm ci rejects.
+          (
+            cd "$pack/package"
+            test -f npm-shrinkwrap.json
+            npm pkg delete devDependencies
+            npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+          )
+          node "$pack/package/dist/cli.mjs" lint
       - name: Publish @rulebookguard/site
         run: npm publish --access public
         working-directory: packages/site

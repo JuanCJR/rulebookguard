@@ -40,11 +40,15 @@ docs/rules/clients/R-CLI-001.md   ── anchors ──▶  src/clients/**/*.ts
 
 Requires Node.js 22 or later.
 
+rulebookguard does not need to be a dependency of your project. Nothing in your code imports it, so you can run it with `npx`, pinning the version so that every machine and CI run the same one:
+
 ```sh
-npx rulebookguard lint
+npx rulebookguard@0.10.0 lint
 ```
 
-Or add it to a project:
+Each release locks its own dependencies for npm and `npx`, so a pinned version keeps running the same code. Other package managers, such as `pnpm dlx`, ignore that lock and resolve the dependency ranges. Your `package.json` and lockfile stay untouched.
+
+If you prefer to keep the version in your lockfile, and renovate it with the rest of your dependencies, add it as a dev dependency instead:
 
 ```sh
 npm install --save-dev rulebookguard
@@ -52,10 +56,10 @@ npm install --save-dev rulebookguard
 
 A first rule in four steps:
 
-1. Set up the rulebook: `npx rulebookguard init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
-2. Scaffold a rule: `npx rulebookguard new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
+1. Set up the rulebook: `npx rulebookguard@0.10.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
+2. Scaffold a rule: `npx rulebookguard@0.10.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
 3. Write the rule, add its `anchors`, set `status: active`, and wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
-4. Run `npx rulebookguard lint`, and add it to CI with the [CI recipe](#ci-recipe).
+4. Run `npx rulebookguard@0.10.0 lint`, and add it to CI with the [CI recipe](#ci-recipe).
 
 ## Configuration
 
@@ -581,7 +585,7 @@ jobs:
 ```
 
 > [!TIP]
-> Pin the version, or add rulebookguard as a dev dependency and run it from the lockfile, so a new release never changes CI results by itself.
+> Keep the version pinned, or add rulebookguard as a dev dependency and run it from the lockfile, so a new release never changes CI results by itself.
 
 ## Claude Code plugin
 
