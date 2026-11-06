@@ -528,7 +528,7 @@ The rulebook is found from `--project` (default: the current directory). A comma
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
 
-Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard -p @rulebookguard/site rulebookguard site:run`.
+Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard@0.10.0 -p @rulebookguard/site@0.10.0 rulebookguard site:run`.
 
 Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
 

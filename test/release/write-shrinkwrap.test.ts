@@ -1,11 +1,23 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vite-plus/test';
+import { parse } from 'yaml';
 import pkg from '../../package.json' with { type: 'json' };
+import { assertInstalledMatches } from '../../scripts/check-published.ts';
 import {
   assertLockMatches,
   scratchManifest,
   testedVersions,
 } from '../../scripts/write-shrinkwrap.ts';
+
+/** The rulebookguard packages an npx command installs, as written in it. */
+function npxPackages(command: string): string[] {
+  const words = command.trim().split(/\s+/).slice(1);
+  const installed = words.includes('-p')
+    ? words.filter((_, index) => words[index - 1] === '-p')
+    : words.filter((word) => !word.startsWith('-')).slice(0, 1);
+
+  return installed.filter((word) => /^(rulebookguard|@rulebookguard\/site)(@|$)/.test(word));
+}
 
 const lockfile = {
   importers: {
@@ -53,6 +65,28 @@ describe('testedVersions', () => {
 
     expect(() => testedVersions(conflicting)).toThrow(
       'transitive resolves to 4.0.0 and 4.1.0 in pnpm-lock.yaml',
+    );
+  });
+
+  it('refuses an aliased dependency, naming the package behind it', () => {
+    const aliased = {
+      ...lockfile,
+      snapshots: {
+        ...lockfile.snapshots,
+        'other@2.0.0': { dependencies: { renamed: '@scope/real@4.0.0(peer@3.0.0)' } },
+      },
+    };
+
+    expect(() => testedVersions(aliased)).toThrow(
+      'renamed is an alias of @scope/real@4.0.0(peer@3.0.0) in pnpm-lock.yaml, which the shrinkwrap cannot pin',
+    );
+  });
+
+  it('accepts the real lockfile, so a package at two versions fails before a release tag', () => {
+    const lock = parse(readFileSync(new URL('../../pnpm-lock.yaml', import.meta.url), 'utf8'));
+
+    expect([...testedVersions(lock).keys()]).toEqual(
+      expect.arrayContaining(Object.keys(pkg.dependencies)),
     );
   });
 
@@ -126,13 +160,75 @@ describe('assertLockMatches', () => {
 });
 
 describe('README', () => {
-  it('pins every command to the current version', () => {
+  it('pins every npx command to the current version', () => {
     const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
-    const pins = [...readme.matchAll(/npx (?:--yes )?rulebookguard@(\d+\.\d+\.\d+)/g)];
+    const packages = (readme.match(/npx\s[^`\n]*/g) ?? []).flatMap(npxPackages);
+    const expected = new Set([
+      `rulebookguard@${pkg.version}`,
+      `@rulebookguard/site@${pkg.version}`,
+      // The Claude Code plugin section describes the launcher, which fills in its own version.
+      'rulebookguard@<plugin',
+    ]);
 
-    expect(pins.length).toBeGreaterThan(0);
-    expect(pins.map(([, version]) => version).filter((version) => version !== pkg.version)).toEqual(
-      [],
+    expect(packages.length).toBeGreaterThan(0);
+    expect(packages.filter((name) => !expected.has(name))).toEqual([]);
+  });
+
+  it.each([
+    'npx rulebookguard lint',
+    'npx --yes rulebookguard lint',
+    'npx -y rulebookguard lint',
+    'npx  rulebookguard lint',
+    'npx rulebookguard@latest lint',
+    'npx rulebookguard@0.10 lint',
+    'npx -p rulebookguard -p @rulebookguard/site rulebookguard site:run',
+  ])('reads the unpinned package of %s', (command) => {
+    expect(npxPackages(command).some((name) => !name.endsWith(`@${pkg.version}`))).toBe(true);
+  });
+
+  it('does not mistake the binary after -p for a package', () => {
+    const command =
+      'npx -p rulebookguard@1.0.0 -p @rulebookguard/site@1.0.0 rulebookguard site:run';
+
+    expect(npxPackages(command)).toEqual(['rulebookguard@1.0.0', '@rulebookguard/site@1.0.0']);
+  });
+});
+
+describe('assertInstalledMatches', () => {
+  const lock = {
+    packages: {
+      '': {},
+      'node_modules/direct': { version: '1.0.0' },
+      'node_modules/direct/node_modules/nested': { version: '2.0.0' },
+    },
+  };
+  const installed = (versions: Record<string, string>) => (path: string) => versions[path];
+
+  it('accepts an install holding every locked version', () => {
+    const versions = installed({
+      'node_modules/direct': '1.0.0',
+      'node_modules/direct/node_modules/nested': '2.0.0',
+    });
+
+    expect(() => assertInstalledMatches(lock, versions)).not.toThrow();
+  });
+
+  it('refuses an install at another version', () => {
+    const versions = installed({
+      'node_modules/direct': '1.1.0',
+      'node_modules/direct/node_modules/nested': '2.0.0',
+    });
+
+    expect(() => assertInstalledMatches(lock, versions)).toThrow(
+      'node_modules/direct is 1.1.0, but the shrinkwrap locks 1.0.0',
+    );
+  });
+
+  it('refuses an install that did not nest a locked package', () => {
+    const versions = installed({ 'node_modules/direct': '1.0.0' });
+
+    expect(() => assertInstalledMatches(lock, versions)).toThrow(
+      'node_modules/direct/node_modules/nested is not installed, but the shrinkwrap locks 2.0.0',
     );
   });
 });

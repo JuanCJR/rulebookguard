@@ -56,3 +56,5 @@ jobs:
       - name: Pin the site dev dependency to the released version
         run: npm pkg set "devDependencies.@rulebookguard/site=$(node -p 'require("./package.json").version')"
       - run: npm publish
+      - name: Check that the registry serves the locked dependencies
+        run: node scripts/check-published.ts
