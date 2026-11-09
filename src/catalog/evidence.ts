@@ -57,10 +57,14 @@ type PathKind = 'file' | 'directory' | 'missing';
  */
 export async function createEvidenceResolver(
   root: string,
-  from: readonly string[] = [root, dirname(fileURLToPath(import.meta.url))],
+  loadSymbols: () => Promise<SymbolsPackage | undefined> = () =>
+    importOptionalPackage<SymbolsPackage>(SYMBOLS_PACKAGE, [
+      root,
+      dirname(fileURLToPath(import.meta.url)),
+    ]),
 ): Promise<EvidenceResolver> {
   const realRoot = await realpath(root);
-  const symbols = await importOptionalPackage<SymbolsPackage>(SYMBOLS_PACKAGE, from);
+  const symbols = await loadSymbols();
   const kinds = new Map<string, Promise<PathKind>>();
   const sources = new Map<string, Promise<Source>>();
 

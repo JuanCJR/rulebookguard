@@ -6,3 +6,6 @@ coverage/
 npm-shrinkwrap.json
 # Local AI runtime state
 .atl/
+
+# Copied from the grammar packages when @rulebookguard/symbols is packed
+packages/symbols/grammars/

@@ -175,7 +175,17 @@ The Markdown body holds the full rule and its examples (Gherkin scenarios or tab
 | `test/clients/create.test.ts "rejects a duplicate document"` | the test with that name                           |
 | `src/clients/create.ts`                                      | the file                                          |
 
-Lines are found when the rule is read, so the link follows the code as it moves. Built in, a heuristic finds the line where a symbol is defined (function, method, class, constant, assignment or key, in most languages) or the line holding a quoted string. With the optional `@rulebookguard/symbols` package installed, files in the languages it knows resolve to the full range of the definition or of the test. `lint` warns with `dead-evidence` when the file is gone or the symbol is not found, so a rename shows up instead of leaving a stale link. Deprecated rules are not checked. An older `path:line` or `path:line-endLine` entry still works, and only its file is checked.
+Lines are found when the rule is read, so the link follows the code as it moves. Built in, a heuristic finds the line where a symbol is defined (function, method, class, constant, assignment or key, in most languages) or the line holding a quoted string. With the optional [`@rulebookguard/symbols`](#exact-ranges-with-rulebookguardsymbols) package installed, files in the languages it knows resolve to the full range of the definition or of the test. `lint` warns with `dead-evidence` when the file is gone or the symbol is not found, so a rename shows up instead of leaving a stale link. Deprecated rules are not checked. An older `path:line` or `path:line-endLine` entry still works, and only its file is checked.
+
+#### Exact ranges with `@rulebookguard/symbols`
+
+The heuristic gives one line. For the full range of a function, class, method or test, install the optional package, which reads the code with [tree-sitter](https://tree-sitter.github.io/):
+
+```sh
+npm install --save-dev rulebookguard @rulebookguard/symbols
+```
+
+It knows JavaScript, TypeScript (and TSX), Python, Go, Java, C# and Rust; files in other languages keep using the heuristic, and so does any file it fails to read. It is a separate package because its grammars add about 11 MB; they ship inside it, so installing it builds nothing. Without it, nothing fails: lines come from the heuristic.
 
 ### Linking tests with `@rule` … `@endrule`
 

@@ -16,7 +16,9 @@ function npxPackages(command: string): string[] {
     ? words.filter((_, index) => words[index - 1] === '-p')
     : words.filter((word) => !word.startsWith('-')).slice(0, 1);
 
-  return installed.filter((word) => /^(rulebookguard|@rulebookguard\/site)(@|$)/.test(word));
+  return installed.filter((word) =>
+    /^(rulebookguard|@rulebookguard\/(?:site|symbols))(@|$)/.test(word),
+  );
 }
 
 const lockfile = {
@@ -166,6 +168,7 @@ describe('README', () => {
     const expected = new Set([
       `rulebookguard@${pkg.version}`,
       `@rulebookguard/site@${pkg.version}`,
+      `@rulebookguard/symbols@${pkg.version}`,
       // The Claude Code plugin section describes the launcher, which fills in its own version.
       'rulebookguard@<plugin',
     ]);

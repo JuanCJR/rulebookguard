@@ -19,13 +19,15 @@ jobs:
         with:
           node-version: '24'
           cache: false # never restore caches into a release build
-      - name: Tag matches both package versions
+      - name: Tag matches every package version
         run: |
           version="$(node -p 'require("./package.json").version')"
           site="$(node -p 'require("./packages/site/package.json").version')"
           peer="$(node -p 'require("./package.json").peerDependencies["@rulebookguard/site"]')"
-          if [ "v$version" != "$GITHUB_REF_NAME" ] || [ "$site" != "$version" ] || [ "$peer" != "^$version" ]; then
-            echo "Tag $GITHUB_REF_NAME, package.json version $version, packages/site version $site and peer range $peer must agree" >&2
+          symbols="$(node -p 'require("./packages/symbols/package.json").version')"
+          symbolsPeer="$(node -p 'require("./package.json").peerDependencies["@rulebookguard/symbols"]')"
+          if [ "v$version" != "$GITHUB_REF_NAME" ] || [ "$site" != "$version" ] || [ "$peer" != "^$version" ] || [ "$symbols" != "$version" ] || [ "$symbolsPeer" != "^$version" ]; then
+            echo "Tag $GITHUB_REF_NAME, package.json version $version, packages/site version $site, packages/symbols version $symbols and peer ranges $peer and $symbolsPeer must agree" >&2
             exit 1
           fi
       - run: vp check
@@ -52,9 +54,15 @@ jobs:
       - name: Publish @rulebookguard/site
         run: npm publish --access public
         working-directory: packages/site
-      # npm does not rewrite pnpm's workspace: protocol, so pin the dev link to the version just published.
-      - name: Pin the site dev dependency to the released version
-        run: npm pkg set "devDependencies.@rulebookguard/site=$(node -p 'require("./package.json").version')"
+      # prepack copies the grammar files into the package, so installing it builds nothing.
+      - name: Publish @rulebookguard/symbols
+        run: npm publish --access public
+        working-directory: packages/symbols
+      # npm does not rewrite pnpm's workspace: protocol, so pin the dev links to the version just published.
+      - name: Pin the site and symbols dev dependencies to the released version
+        run: |
+          version="$(node -p 'require("./package.json").version')"
+          npm pkg set "devDependencies.@rulebookguard/site=$version" "devDependencies.@rulebookguard/symbols=$version"
       - run: npm publish
       - name: Check that the registry serves the locked dependencies
         run: node scripts/check-published.ts
