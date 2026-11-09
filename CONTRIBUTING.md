@@ -9,7 +9,7 @@ git tag v0.1.0
 git push origin v0.1.0
 ```
 
-It publishes `@rulebookguard/site`, then `@rulebookguard/symbols` (whose `prepack` copies the grammar files into it), then `rulebookguard`. Trusted publishing is configured per package on npmjs.com, and a package must exist before it can be configured, so the first version of a new package is published once by hand with `npm publish --access public` from its directory, and its trusted publisher is added afterwards.
+It publishes `@rulebookguard/site`, then `@rulebookguard/symbols` (whose `prepack` copies the grammar files into it), then `rulebookguard`. Trusted publishing is configured per package on npmjs.com, and a package must exist before it can be configured, so before the first release that includes a new package, publish a placeholder version of it once by hand (for example `npm version 0.0.0-setup.0 --no-git-tag-version` then `npm publish --access public --tag setup` from its directory, without committing the version change) and add its trusted publisher. Never hand-publish the release version itself: the workflow's own `npm publish` of it would then fail after the packages before it are already public.
 
 The `Release` workflow fails without publishing when the tag does not match the package versions, or when `vp check`, `vp test` or `vp pack` fails.
 

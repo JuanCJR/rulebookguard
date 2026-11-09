@@ -64,7 +64,8 @@ export async function createEvidenceResolver(
     ]),
 ): Promise<EvidenceResolver> {
   const realRoot = await realpath(root);
-  const symbols = await loadSymbols();
+  // An installed package that fails to load, such as one missing web-tree-sitter, leaves the regex.
+  const symbols = await loadSymbols().catch(() => undefined);
   const kinds = new Map<string, Promise<PathKind>>();
   const sources = new Map<string, Promise<Source>>();
 
@@ -126,12 +127,20 @@ function symbolText(parsed: EvidenceEntry): string | undefined {
 }
 
 // A path that escapes the root, through `..` or a symlink, counts as missing: it is never read.
+// A path through a file (`src/a.ts/b`) throws ENOTDIR on POSIX where Windows says ENOENT.
 async function pathKind(path: string, realRoot: string): Promise<PathKind> {
-  if (!(await resolvesInside(path, realRoot))) {
-    return 'missing';
+  try {
+    if (!(await resolvesInside(path, realRoot))) {
+      return 'missing';
+    }
+    const info = await stat(path);
+    return info.isFile() ? 'file' : info.isDirectory() ? 'directory' : 'missing';
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOTDIR') {
+      return 'missing';
+    }
+    throw error;
   }
-  const info = await stat(path);
-  return info.isFile() ? 'file' : info.isDirectory() ? 'directory' : 'missing';
 }
 
 async function readSource(

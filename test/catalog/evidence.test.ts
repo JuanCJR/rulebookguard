@@ -64,6 +64,22 @@ describe('createEvidenceResolver', () => {
     expect(await resolve('src/clients.ts Clients.create')).toMatchObject({ line: 2, endLine: 2 });
   });
 
+  it('keeps resolving with the regex when the package fails to load', async () => {
+    const resolve = await createEvidenceResolver(await repo(), () =>
+      Promise.reject(new Error('Cannot find package web-tree-sitter')),
+    );
+
+    expect(await resolve('src/clients.ts Clients.create')).toMatchObject({ line: 2, endLine: 2 });
+  });
+
+  it('reports a path through a file as missing instead of failing', async () => {
+    const resolve = await createEvidenceResolver(await repo());
+
+    expect(await resolve('src/clients.ts/Clients create')).toMatchObject({
+      problem: 'missing-file',
+    });
+  });
+
   it('reports a missing file or symbol and a directory named with a symbol', async () => {
     const resolve = await createEvidenceResolver(await repo());
 

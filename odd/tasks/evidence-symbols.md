@@ -15,11 +15,11 @@ Objective: make the rule-miner trace flows to the bottom, stop it from editing p
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S1 | inline | done | |
-| T2 | S2 | inline | pending | |
-| T3 | S3, S4 | inline | pending | |
-| T4 | S5 | inline | pending | |
-| T5 | S6 | inline | pending | |
+| T1 | S1 | inline | done | e5b7922 |
+| T2 | S2 | inline | done | e5b7922 |
+| T3 | S3, S4 | inline | done | 4c4e2e3 |
+| T4 | S5 | inline | done | 8ca8a07 |
+| T5 | S6 | inline | done | 5547935, fix below |
 
 ## Log
 
@@ -28,3 +28,9 @@ Objective: make the rule-miner trace flows to the bottom, stop it from editing p
 - **L3 (2026-11-09, T1 evidence):** passive prompt change; `test/plugin` and `test/cli/export-kiro-agents.test.ts` 32 passed, 1 skipped.
 - **L4 (2026-11-09, spike):** in scratch, `web-tree-sitter` 0.27.1 loaded the TypeScript (ABI 14), Python and C# (ABI 15) grammars; `tags.scm` gave `validateDocument definition.function 2-4`, `Clients definition.class 5-9`, `create definition.method 6-8`. Sizes: C# 5.2 MB, TS and TSX 1.4 MB each, Rust 1.1 MB, others ≈ 0.2–0.45 MB, runtime 208 KB; ≈ 11 MB total.
 - **L5 (2026-11-09, plan):** all inline (one maintainer, no parallel units with a writer reason). Forecast ≈ 1100 authored changed lines: slices T1+T2 | T3 | T4 | T5. Risk: T5 item 5 (release workflow, new published package, dependency); T4 item 3 watch (JSON output only gains fields).
+- **L6 (2026-11-09, T2 evidence):** passive prompt and docs change (`rule-miner` step 10 and hard limits, `rules` skill step 3, README plugin section); plugin tests pass. Committed with T1 as `e5b7922`; assess medium, `under_budget`.
+- **L7 (2026-11-09, T3 evidence):** RED: 3 failing lint tests plus `test/format/evidence.test.ts` not loading. GREEN: 390 passed (2 Astro site tests timed out under load and passed alone, 19/19). `vp check` pass; dogfood `lint` clean: the repo's 41 evidence entries all resolve with the regex. Decision: `path:line[-endLine]` entries stay valid and only their file is checked, because an existing test (`lint origin metadata`) uses `src/billing/invoice.go:7` on a 3-line file. `importSitePackage` now uses a shared `importOptionalPackage`; its missing-package test passes unchanged. The `rule-writing` skill change moved to T4, where `show` resolves entries.
+- **L8 (2026-11-09, T4 evidence):** RED: 5 failing (show text+JSON, show without evidence, for, hook, site). Two exact-JSON tests gained the new fields (`evidenceLinks`, `evidence`), additive as in implements-regions L4. Entries written as `path:line` print as before. `for` and the hook merge region and evidence lines; regions-only output unchanged. GREEN: 394 passed, `vp check` pass. Dogfood: `show R-LIN-009` lists each entry with its line.
+- **L9 (2026-11-09, T5 evidence):** package tests written with the package (no RED observed). Under `vp`, `NODE_PATH` includes `node_modules/.pnpm/node_modules`, so any directory resolves the package in tests: `createEvidenceResolver` takes an injectable loader to test the fallback. Clean-dir check: `npm pack` (prepack copies 7 wasm, tags and LICENSE files; 940 kB packed, 10.8 MB unpacked) then `npm install` of the tarball without `--ignore-scripts` added 2 packages and resolved `go 1-3`. A forced frozen install failed with `ERR_PNPM_IGNORED_BUILDS` for the grammar packages: `pnpm-workspace.yaml` now sets `allowBuilds: <grammar>: false`, and the reinstall passes. pnpm 12.18 (bundled with vp) re-resolved dev-only peers in the lockfile (astro now on `@types/node` 20). 403 passed, `vp check` pass, dogfood `lint` clean and `show R-LIN-009` gives full ranges (`lintCatalog` 128-232). Release workflow checks and publishes the package; CONTRIBUTING notes that trusted publishing needs a first manual publish of a new package. Assess with `--escalate-item 5`: high, review due.
+- **L10 (2026-11-09, independent verifier):** S1, S2, S5, S6 met; S3 partial, S4 met. Invariant: for rules without evidence, `lint`, `show`, `for` (text and JSON minus the new keys) are byte-identical to `main`. Blocker B1: on POSIX `realpath` of a path through a file throws ENOTDIR, so `src/billing/invoice.go/x Total` crashed `lint`/`show`/`for`/`site` (Windows says ENOENT). Advisories: a hand-published release version strands a half release; Rust `Type::method` falls back to one line (the tags query has no `impl` definitions); a directory with a symbol reads "does not exist"; an installed but broken symbols package crashed instead of falling back; paths with spaces cannot be entries (by design).
+- **L11 (2026-11-09, correction):** `pathKind` maps ENOTDIR to missing; the default loader's failure falls back to the regex; CONTRIBUTING says to hand-publish a placeholder version, never the release version. Recheck of B1 in `node:22-alpine`: the entry now gives `missing-file`. 405 passed, `vp check` pass. Rust ranges and the directory message stay as advisories.
