@@ -164,6 +164,19 @@ Scenario: Duplicate document in the same country
 
 The Markdown body holds the full rule and its examples (Gherkin scenarios or tables). Rules do not list their tests: the link lives only in the tests, through `@rule` tags.
 
+### Evidence
+
+`evidence` links a rule to the code and tests where it shows, without touching them. Each entry is a path, optionally followed by what to look for in that file:
+
+| entry                                                        | resolves to                                       |
+| ------------------------------------------------------------ | ------------------------------------------------- |
+| `src/clients/create.ts validateDocument`                     | the definition of `validateDocument`              |
+| `src/clients/service.ts Clients.create`                      | `create` inside `Clients` (`::` and `#` work too) |
+| `test/clients/create.test.ts "rejects a duplicate document"` | the test with that name                           |
+| `src/clients/create.ts`                                      | the file                                          |
+
+Lines are found when the rule is read, so the link follows the code as it moves. Built in, a heuristic finds the line where a symbol is defined (function, method, class, constant, assignment or key, in most languages) or the line holding a quoted string. With the optional `@rulebookguard/symbols` package installed, files in the languages it knows resolve to the full range of the definition or of the test. `lint` warns with `dead-evidence` when the file is gone or the symbol is not found, so a rename shows up instead of leaving a stale link. Deprecated rules are not checked. An older `path:line` or `path:line-endLine` entry still works, and only its file is checked.
+
 ### Linking tests with `@rule` … `@endrule`
 
 A test links to a rule with a region: `@rule <ID>` opens it and `@endrule <ID>` closes it, in a file matched by `testGlobs`. Both lines belong to the region. Regions may nest (a suite tagged with one rule holding tests tagged with others) as long as they close in order. One line can carry several markers.
@@ -413,6 +426,7 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 | error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)   |
 | error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`      |
 | warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                    |
+| warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists |
 
 ```sh
 $ rulebookguard lint

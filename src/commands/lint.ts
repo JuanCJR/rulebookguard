@@ -1,4 +1,5 @@
 import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../catalog/files.ts';
+import { createEvidenceResolver } from '../catalog/evidence.ts';
 import {
   changedLines,
   changedSince,
@@ -226,6 +227,38 @@ export async function lintCatalog(
     }
   }
   // @endimplements R-LIN-009
+  findings.push(...(await deadEvidence(catalog, text)));
+  return findings;
+}
+
+// Deprecated rules keep the evidence of the code they once described, so only live rules count.
+async function deadEvidence(catalog: Catalog, text: Messages): Promise<LintFinding[]> {
+  const rules = catalog.rules.filter(
+    (rule) => rule.status !== 'deprecated' && (rule.evidence?.length ?? 0) > 0,
+  );
+  if (rules.length === 0) {
+    return [];
+  }
+  const resolve = await createEvidenceResolver(catalog.root);
+  const findings: LintFinding[] = [];
+  for (const rule of rules) {
+    for (const entry of rule.evidence ?? []) {
+      const link = await resolve(entry);
+      if (link.problem === undefined) {
+        continue;
+      }
+      findings.push({
+        severity: 'warning',
+        code: 'dead-evidence',
+        file: rule.file,
+        message:
+          link.problem === 'missing-file'
+            ? text.deadEvidenceFile(rule.id, entry, link.file)
+            : text.deadEvidenceSymbol(rule.id, entry, link.symbol ?? '', link.file),
+        hint: text.deadEvidenceHint,
+      });
+    }
+  }
   return findings;
 }
 

@@ -36,7 +36,7 @@ function markerPattern(kind: RegionKind): RegExp {
 }
 
 // Markers count only on lines that start with a comment, so ids quoted in test names or strings are not links.
-const COMMENT_LINE = /^\s*(?:\/\/|\/\*|\*|#|--|;|<!--|%)/;
+export const COMMENT_LINE: RegExp = /^\s*(?:\/\/|\/\*|\*|#|--|;|<!--|%)/;
 
 export function findRuleTags(source: string): RuleTag[] {
   const tags: RuleTag[] = [];

@@ -57,6 +57,8 @@ export interface Messages {
   unmatchedEndimplementsTag: (id: string) => string;
   implementsOutsideAnchors: (id: string) => string;
   contextOverBudget: (context: string, count: number, budget: number) => string;
+  deadEvidenceFile: (id: string, entry: string, file: string) => string;
+  deadEvidenceSymbol: (id: string, entry: string, symbol: string, file: string) => string;
   pendingImplementation: (id: string, base: string) => string;
   unknownRuleReference: (field: string, id: string) => string;
   selfRuleReference: (field: string) => string;
@@ -96,6 +98,7 @@ export interface Messages {
   unmatchedEndimplementsTagHint: (id: string) => string;
   implementsOutsideAnchorsHint: (id: string) => string;
   contextOverBudgetHint: string;
+  deadEvidenceHint: string;
   pendingImplementationHint: (id: string) => string;
   lintSummary: (errors: number, warnings: number) => string;
   needsWorkTree: (command: string, root: string) => string;
@@ -170,6 +173,9 @@ const EN: Messages = {
     `marks code as implementing ${id}, but no anchor of ${id} matches this file`,
   contextOverBudget: (context, count, budget) =>
     `context "${context}" has ${count} rules, more than the contextBudget of ${budget}`,
+  deadEvidenceFile: (id, entry, file) => `evidence "${entry}" of ${id}: ${file} does not exist`,
+  deadEvidenceSymbol: (id, entry, symbol, file) =>
+    `evidence "${entry}" of ${id}: "${symbol}" is not found in ${file}`,
   pendingImplementation: (id, base) =>
     `rule ${id} changed since ${base} but none of the tests tagging it changed`,
   unknownRuleReference: (field, id) => `${field} names ${id}, which does not exist`,
@@ -241,6 +247,8 @@ const EN: Messages = {
     `add an anchor to ${id} that matches this file, or move the region to a file it anchors`,
   contextOverBudgetHint:
     'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
+  deadEvidenceHint:
+    'point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
   pendingImplementationHint: (id) =>
     `update or add a test inside an "@rule ${id}" … "@endrule ${id}" region that covers the changed rule`,
   lintSummary: (errors, warnings) =>
@@ -322,6 +330,9 @@ const ES: Messages = {
     `marca código como implementación de ${id}, pero ningún anchor de ${id} coincide con este archivo`,
   contextOverBudget: (context, count, budget) =>
     `el contexto "${context}" tiene ${count} reglas, más que el contextBudget de ${budget}`,
+  deadEvidenceFile: (id, entry, file) => `la evidencia "${entry}" de ${id}: ${file} no existe`,
+  deadEvidenceSymbol: (id, entry, symbol, file) =>
+    `la evidencia "${entry}" de ${id}: "${symbol}" no aparece en ${file}`,
   pendingImplementation: (id, base) =>
     `la regla ${id} cambió desde ${base} pero no cambió ninguno de los tests que la etiquetan`,
   unknownRuleReference: (field, id) => `${field} nombra a ${id}, que no existe`,
@@ -394,6 +405,8 @@ const ES: Messages = {
     `agrega a ${id} un anchor que coincida con este archivo, o mueve la región a un archivo que ancle`,
   contextOverBudgetHint:
     'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
+  deadEvidenceHint:
+    'apunta la entrada al archivo y al símbolo que muestran la regla hoy ("ruta símbolo"), o quítala',
   pendingImplementationHint: (id) =>
     `actualiza o agrega un test dentro de una región "@rule ${id}" … "@endrule ${id}" que cubra el cambio de la regla`,
   lintSummary: (errors, warnings) =>
