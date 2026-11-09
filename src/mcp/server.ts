@@ -11,7 +11,7 @@ export function createRulesServer(projectDir: string): McpServer {
     'rules_for',
     {
       description:
-        'Active business rules anchored to a file (id, context, summary, rule file). Call it before changing a file; the rules are the source of truth for its behavior.',
+        'Active business rules anchored to a file (id, context, summary, rule file, and the lines of the file each rule names through @implements regions or evidence). Call it before changing a file; the rules are the source of truth for its behavior.',
       inputSchema: z.object({
         path: z.string().describe('File path, absolute or relative to the project directory'),
       }),
@@ -24,7 +24,7 @@ export function createRulesServer(projectDir: string): McpServer {
     'rules_show',
     {
       description:
-        'Full text of one business rule: summary, anchors, entities, supersedes and the rule body with its examples.',
+        'Full text of one business rule: summary, anchors, entities, supersedes, evidence with the lines each entry resolves to, and the rule body with its examples.',
       inputSchema: z.object({ id: z.string().describe('Rule id, for example R-CLI-001') }),
       annotations: { readOnlyHint: true },
     },

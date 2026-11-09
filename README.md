@@ -164,6 +164,29 @@ Scenario: Duplicate document in the same country
 
 The Markdown body holds the full rule and its examples (Gherkin scenarios or tables). Rules do not list their tests: the link lives only in the tests, through `@rule` tags.
 
+### Evidence
+
+`evidence` links a rule to the code and tests where it shows, without touching them. Each entry is a path, optionally followed by what to look for in that file:
+
+| entry                                                        | resolves to                                       |
+| ------------------------------------------------------------ | ------------------------------------------------- |
+| `src/clients/create.ts validateDocument`                     | the definition of `validateDocument`              |
+| `src/clients/service.ts Clients.create`                      | `create` inside `Clients` (`::` and `#` work too) |
+| `test/clients/create.test.ts "rejects a duplicate document"` | the test with that name                           |
+| `src/clients/create.ts`                                      | the file                                          |
+
+Lines are found when the rule is read, so the link follows the code as it moves. Built in, a heuristic finds the line where a symbol is defined (function, method, class, constant, assignment or key, in most languages) or the line holding a quoted string. With the optional [`@rulebookguard/symbols`](#exact-ranges-with-rulebookguardsymbols) package installed, files in the languages it knows resolve to the full range of the definition or of the test. `lint` warns with `dead-evidence` when the file is gone or the symbol is not found, so a rename shows up instead of leaving a stale link. Deprecated rules are not checked. An older `path:line` or `path:line-endLine` entry still works, and only its file is checked.
+
+#### Exact ranges with `@rulebookguard/symbols`
+
+The heuristic gives one line. For the full range of a function, class, method or test, install the optional package, which reads the code with [tree-sitter](https://tree-sitter.github.io/):
+
+```sh
+npm install --save-dev rulebookguard @rulebookguard/symbols
+```
+
+It knows JavaScript, TypeScript (and TSX), Python, Go, Java, C# and Rust; files in other languages keep using the heuristic, and so does any file it fails to read. It is a separate package because its grammars add about 11 MB; they ship inside it, so installing it builds nothing. Without it, nothing fails: lines come from the heuristic.
+
 ### Linking tests with `@rule` … `@endrule`
 
 A test links to a rule with a region: `@rule <ID>` opens it and `@endrule <ID>` closes it, in a file matched by `testGlobs`. Both lines belong to the region. Regions may nest (a suite tagged with one rule holding tests tagged with others) as long as they close in order. One line can carry several markers.
@@ -308,7 +331,7 @@ file: docs/rules/clients/R-CLI-001.md
 ...
 ```
 
-`supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when the rule sets them; `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`). An `implementations:` section lists the [`@implements` regions](#marking-the-code-that-enforces-a-rule-with-implements--endimplements) of the rule as `file:line-endLine`, read from the files its anchors match; `--json` has them as `implementations: [{ file, line, endLine }]` (or `[]`). Exits 1 for an unknown id.
+`supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when the rule sets them; `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`). Each [evidence](#evidence) entry with a symbol is followed by the lines it resolves to, as `(lines a-b)`; `--json` keeps `evidence` as written and adds `evidenceLinks: [{ entry, file, line, endLine }]`, with `null` lines for an entry that does not resolve (or `[]`). An `implementations:` section lists the [`@implements` regions](#marking-the-code-that-enforces-a-rule-with-implements--endimplements) of the rule as `file:line-endLine`, read from the files its anchors match; `--json` has them as `implementations: [{ file, line, endLine }]` (or `[]`). Exits 1 for an unknown id.
 
 ### `search <text> [--context <c>] [--json]`
 
@@ -330,7 +353,7 @@ $ rulebookguard for src/clients/create.ts
 R-CLI-001 (clients): A client document number is unique per country. (lines 12-30)
 ```
 
-When the file holds `@implements` regions of a rule, its line ends with their line ranges; `--json` rows carry them as `regions: [{ line, endLine }]` (or `[]`). Exits 1 when the path is outside the rulebook root.
+When the file holds `@implements` regions of a rule, or lines its [evidence](#evidence) resolves to, its line ends with those line ranges; `--json` rows carry them apart, as `regions: [{ line, endLine }]` and `evidence: [{ entry, line, endLine }]` (each `[]` when there are none). Exits 1 when the path is outside the rulebook root.
 
 ### `for --changed <ref>`
 
@@ -413,6 +436,7 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 | error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)   |
 | error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`      |
 | warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                    |
+| warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists |
 
 ```sh
 $ rulebookguard lint
@@ -504,7 +528,7 @@ $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_
 
 Claude Code adds the context next to the tool result, so a `PostToolUse` hook on `Read` delivers the rules together with the file contents, before Claude writes a change (Claude Code requires reading a file before editing it).
 
-Each rule comes with its id, context, summary, rule file, the lines of its `@implements` regions in that file (when there are any) and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config.
+Each rule comes with its id, context, summary, rule file, the lines of its `@implements` regions and of its evidence in that file (when there are any) and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config.
 
 > [!NOTE]
 > The hook never blocks a tool and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, another event, unreadable input or any error, it prints nothing and exits 0.
@@ -559,7 +583,7 @@ The site has:
 - **Home:** the contexts map, with how many rules of each status every context holds.
 - **A page per context** with its description and rules.
 - **All rules:** one table filterable by text, context and status.
-- **A page per rule:** summary, status, entities, rule file, the supersedes chain both ways, the origin (an `extracted` rule still `proposed` is flagged as not validated by the business yet) and evidence, the rule text, its anchors and the files they match, the tests tagging it, and the git history of the rule file.
+- **A page per rule:** summary, status, entities, rule file, the supersedes chain both ways, the origin (an `extracted` rule still `proposed` is flagged as not validated by the business yet) and evidence, each entry with the `file:line-endLine` it resolves to, the rule text, its anchors and the files they match, the tests tagging it, and the git history of the rule file.
 - **Health:** the `lint` findings when the site was built.
 - Full-text search (Pagefind).
 
@@ -598,9 +622,9 @@ The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
 
 - **Hooks:** after every `Read` and before every `Write`, it runs `rulebookguard hook`, so Claude gets the active rules anchored to a file together with its contents, before it writes a change. A `Write` of a new file, which needs no `Read`, gets them right after the file is created.
 - **MCP server:** the tools of `rulebookguard mcp` (`rules_for`, `rules_show`, `contexts`, `rules_list`, `rules_search`, `lint`), for rules of files Claude has not opened yet and for working on the rulebook itself.
-- **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code, marked with `@implements`) only when the user asks for the behavior change.
+- **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code, inside its `@implements` regions when it has any; new regions only on request) only when the user asks for the behavior change.
 - **Skill** `rulebookguard:rule-writing`: the shared writing guide, so a rule reads the same whoever writes it: one verifiable behavior, a one-line summary in business language, Gherkin examples, and `origin` and `evidence` for rules lifted from code.
-- **Agent** `rulebookguard:rule-miner`: lifts the business rules existing code already enforces, one context at a time. It writes them as `proposed` rules with `origin: extracted`, evidence as `path symbol` and questions for the business, through `rulebookguard new`, and marks the code that enforces each rule with `@implements` … `@endimplements`. It checks existing rules first to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates a rule or edits existing rules, and adds only marker comments to code: a person reviews the diff and activates what holds. Ask for it by name, for example "use rule-miner on the clients context".
+- **Agent** `rulebookguard:rule-miner`: lifts the business rules existing code already enforces, one context at a time. It writes them as `proposed` rules with `origin: extracted`, evidence as `path symbol` and questions for the business, through `rulebookguard new`. It traces every flow of the context from its entry points down to persistence before writing, and its report starts with the flows it traced. It does not edit production code: it suggests the lines that enforce each rule, and adds `@implements` … `@endimplements` markers only when asked. It checks existing rules first to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates a rule or edits existing rules, and touches code only to add marker comments when asked: a person reviews the diff and activates what holds. Ask for it by name, for example "use rule-miner on the clients context".
 - **Agent** `rulebookguard:rule-author`: designs the rules a feature needs before its code. By default it writes nothing: it reads the rulebook by levels and returns a rule change plan with new rules and their Gherkin, changed rules as diffs, deprecations, conflicts with active rules, test skeletons and open questions, then stops for a person to approve. Called again with the approved plan, it writes the new rules as `proposed` through `rulebookguard new`, applies the approved diffs and finishes when `lint` has no errors of its own. Tests and code come after, as the `rules` skill says. Ask for it by name, for example "use rule-author for this feature: …".
 
 Install it from this repository's marketplace:

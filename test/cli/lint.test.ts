@@ -452,3 +452,68 @@ describe('lint origin metadata', () => {
     );
   });
 });
+
+describe('lint dead evidence', () => {
+  const evidence = (...entries: string[]): string =>
+    `origin: extracted\nevidence:\n${entries.map((entry) => `  - '${entry}'`).join('\n')}`;
+
+  it('warns when the file or the symbol of an evidence entry is gone, and exits 0', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(
+      repo,
+      'R-BIL-001',
+      evidence(
+        'src/billing/invoice.go Invoice',
+        'src/billing/invoice.go Missing',
+        'src/billing/gone.go Invoice',
+        'src/billing/invoice.go',
+        'src/billing/invoice.go:7',
+        'tests/billing/invoice_test.go "no such test"',
+      ),
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning dead-evidence docs/rules/billing/R-BIL-001.md evidence "src/billing/invoice.go Missing" of R-BIL-001: "Missing" is not found in src/billing/invoice.go',
+        '  hint: point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
+        'warning dead-evidence docs/rules/billing/R-BIL-001.md evidence "src/billing/gone.go Invoice" of R-BIL-001: src/billing/gone.go does not exist',
+        '  hint: point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
+        'warning dead-evidence docs/rules/billing/R-BIL-001.md evidence "tests/billing/invoice_test.go "no such test"" of R-BIL-001: "no such test" is not found in tests/billing/invoice_test.go',
+        '  hint: point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
+        '0 errors, 3 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('does not check the evidence of deprecated rules', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-CLI-003', evidence('src/clients/gone.go Create'));
+
+    expect((await runCli(['lint'], repo)).stdout).toBe('No issues found.\n');
+  });
+
+  it('does not follow an evidence path outside the repository', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-BIL-001', evidence('../outside.go Invoice'));
+
+    expect((await runCli(['lint'], repo)).stdout).toContain(
+      'evidence "../outside.go Invoice" of R-BIL-001: ../outside.go does not exist',
+    );
+  });
+
+  it('prints the warning in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await addFrontmatter(repo, 'R-BIL-001', evidence('src/billing/invoice.go Missing'));
+
+    expect((await runCli(['lint'], repo)).stdout).toContain(
+      [
+        'warning dead-evidence docs/rules/billing/R-BIL-001.md la evidencia "src/billing/invoice.go Missing" de R-BIL-001: "Missing" no aparece en src/billing/invoice.go',
+        '  sugerencia: apunta la entrada al archivo y al símbolo que muestran la regla hoy ("ruta símbolo"), o quítala',
+      ].join('\n'),
+    );
+  });
+});

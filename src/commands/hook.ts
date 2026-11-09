@@ -3,7 +3,7 @@ import { rulesForPath } from '../catalog/anchors.ts';
 import { findRulebookRoot, loadCatalog } from '../catalog/load.ts';
 import type { RuleDoc, RuleLanguage } from '../format/types.ts';
 import type { CliIo } from './io.ts';
-import { formatSpans, regionsIn, type LineSpanJson } from './read.ts';
+import { evidenceIn, formatSpans, mergeSpans, regionsIn, type LineSpanJson } from './read.ts';
 
 export const HOOK_BODY_LIMIT = 10_000;
 
@@ -66,11 +66,13 @@ async function hookContext(event: ToolEvent, cwd: string): Promise<string | unde
   if (rules.length === 0) {
     return undefined;
   }
+  // An unreadable file still gets its rules, only without line numbers.
+  const regions = await regionsIn(root, repoPath).catch(() => () => []);
+  const evidence = await evidenceIn(catalog, repoPath).catch(() => () => []);
   return render(
     repoPath,
     rules,
-    // An unreadable file still gets its rules, only without line numbers.
-    await regionsIn(root, repoPath).catch(() => () => []),
+    (id) => mergeSpans(regions(id), evidence(id)),
     TEXT[catalog.config.language ?? 'en'],
   );
 }

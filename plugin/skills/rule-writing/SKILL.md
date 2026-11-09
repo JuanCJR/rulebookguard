@@ -22,7 +22,7 @@ Follow these rules for every rule file, whether a person or an agent writes it, 
 - `supersedes`: the id of the rule this one replaces; set the old one to `deprecated`.
 - `dependsOn`: rules that must hold for this one to make sense. `conflictsWith`: rules that cannot be active together with this one.
 - `origin`: `extracted` when the rule was lifted from existing code, `authored` when written from a feature or a decision.
-- `evidence`: for extracted rules, every place in code or tests where the behavior shows, as `path symbol` (the function, method or constant), never `path:line`: line numbers go stale when the code moves. The exact lines live in `@implements` regions. No evidence, no extracted rule.
+- `evidence`: for extracted rules, every place in code or tests where the behavior shows, as `path symbol` (the function, method or constant), never `path:line`: line numbers go stale when the code moves. Write a test name as a quoted string (`test/clients/create.test.ts "rejects a duplicate document"`) and a method as `Class.method`. `rulebookguard show` resolves each entry to the lines it names, and `lint` warns with `dead-evidence` when the file or the symbol is gone. Optional `@implements` regions mark exact lines when a symbol is too coarse. No evidence, no extracted rule.
 
 ## The body
 

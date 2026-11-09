@@ -1,3 +1,4 @@
+import { createEvidenceResolver, type EvidenceLink } from '../catalog/evidence.ts';
 import { expandGlobs, type GitFallbackListener } from '../catalog/files.ts';
 import { runGit } from '../catalog/git.ts';
 import type { Catalog } from '../catalog/load.ts';
@@ -23,6 +24,8 @@ export interface SiteRule {
   /** The rules this one replaces, nearest first, including ids with no rule file. */
   supersedes: string[];
   supersededBy: string | undefined;
+  /** The rule's evidence entries with the lines they resolve to. */
+  evidence: EvidenceLink[];
 }
 
 export interface SiteData {
@@ -40,6 +43,9 @@ export async function siteData(
   const scan = await scanTestRegions(catalog.root, catalog.config.testGlobs, onGitFallback);
   const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
   const rules = [...catalog.rules].sort((a, b) => compare(a.id, b.id));
+  const resolveEvidence = rules.some((rule) => (rule.evidence?.length ?? 0) > 0)
+    ? await createEvidenceResolver(catalog.root)
+    : undefined;
   return {
     contexts: [...catalog.contexts].sort((a, b) => compare(a.context, b.context)),
     rules: await Promise.all(
@@ -50,6 +56,10 @@ export async function siteData(
         history: await history(catalog.root, rule.file),
         supersedes: chain(rule, byId),
         supersededBy: rules.find((other) => other.supersedes === rule.id)?.id,
+        evidence:
+          resolveEvidence === undefined
+            ? []
+            : await Promise.all((rule.evidence ?? []).map(resolveEvidence)),
       })),
     ),
     findings: await lintCatalog(catalog, scan, onGitFallback),

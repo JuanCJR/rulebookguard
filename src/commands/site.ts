@@ -1,14 +1,14 @@
 import { readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { createServer, type IncomingMessage, type Server, type ServerResponse } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { fileURLToPath, pathToFileURL } from 'node:url';
+import { fileURLToPath } from 'node:url';
 import type { Catalog } from '../catalog/load.ts';
 import type { RuleLanguage } from '../format/types.ts';
 import { siteData } from '../site/data.ts';
 import { normalizeBase, sitePages, siteText } from '../site/pages.ts';
 import { toRepoPath } from '../catalog/files.ts';
+import { importOptionalPackage } from '../optional-package.ts';
 import { CliError, gitFallbackWarning, openCatalog, writeLines, type CliIo } from './io.ts';
 
 type SitePackage = typeof import('@rulebookguard/site');
@@ -72,17 +72,9 @@ export async function siteCommand(
 
 /** Imports the site builder from the first of `from` that resolves it. */
 export async function importSitePackage(from: readonly string[]): Promise<SitePackage> {
-  for (const directory of from) {
-    let entry: string;
-    try {
-      entry = createRequire(join(directory, 'package.json')).resolve(SITE_PACKAGE);
-    } catch (error) {
-      if ((error as NodeJS.ErrnoException).code === 'MODULE_NOT_FOUND') {
-        continue;
-      }
-      throw error;
-    }
-    return (await import(pathToFileURL(entry).href)) as SitePackage;
+  const site = await importOptionalPackage<SitePackage>(SITE_PACKAGE, from);
+  if (site !== undefined) {
+    return site;
   }
   throw new CliError(
     `The site commands need the ${SITE_PACKAGE} package. Install it next to rulebookguard: npm install --save-dev ${SITE_PACKAGE}`,

@@ -162,6 +162,7 @@ describe('show', () => {
         conflictsWith: [],
         origin: null,
         evidence: [],
+        evidenceLinks: [],
         implementations: [],
         file: 'docs/rules/clients/R-CLI-001.md',
         body: '# Unique document number\n\nTwo clients in the same country cannot share a document number.\n',
@@ -294,6 +295,7 @@ describe('for', () => {
           summary: 'Every new client gets a zero-balance account.',
           file: 'docs/rules/billing/R-BIL-001.md',
           regions: [],
+          evidence: [],
         },
         {
           id: 'R-BIL-002',
@@ -302,6 +304,7 @@ describe('for', () => {
           summary: 'Invoices are numbered without gaps.',
           file: 'docs/rules/billing/R-BIL-002.md',
           regions: [],
+          evidence: [],
         },
       ],
     });
@@ -552,6 +555,89 @@ describe('search', () => {
       status: 1,
       stdout: '',
       stderr: 'Unknown context "nope". Run "rulebookguard contexts" to list them.\n',
+    });
+  });
+});
+
+describe('evidence lines', () => {
+  async function withEvidence(...entries: string[]): Promise<string> {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    const file = join(dir, 'docs/rules/clients/R-CLI-001.md');
+    await writeFile(
+      file,
+      (await readFile(file, 'utf8')).replace(
+        /^id: .*$/m,
+        `$&\norigin: extracted\nevidence:\n${entries.map((entry) => `  - '${entry}'`).join('\n')}`,
+      ),
+    );
+    return dir;
+  }
+
+  it('show prints the lines each evidence symbol resolves to, and lists them in JSON', async () => {
+    const dir = await withEvidence(
+      'src/clients/create.go Create',
+      'src/clients/create.go Missing',
+      'src/clients/create.go:12',
+    );
+
+    expect(await ok(['show', 'R-CLI-001'], dir)).toContain(
+      'evidence:\n  src/clients/create.go Create (lines 3-3)\n  src/clients/create.go Missing\n  src/clients/create.go:12\nfile: ',
+    );
+    expect(await json(['show', 'R-CLI-001'], dir)).toMatchObject({
+      rule: {
+        evidence: [
+          'src/clients/create.go Create',
+          'src/clients/create.go Missing',
+          'src/clients/create.go:12',
+        ],
+        evidenceLinks: [
+          {
+            entry: 'src/clients/create.go Create',
+            file: 'src/clients/create.go',
+            line: 3,
+            endLine: 3,
+          },
+          {
+            entry: 'src/clients/create.go Missing',
+            file: 'src/clients/create.go',
+            line: null,
+            endLine: null,
+          },
+          {
+            entry: 'src/clients/create.go:12',
+            file: 'src/clients/create.go',
+            line: 12,
+            endLine: 12,
+          },
+        ],
+      },
+    });
+  });
+
+  it('show lists no evidence links for a rule without evidence', async () => {
+    expect(await json(['show', 'R-CLI-001'])).toMatchObject({ rule: { evidenceLinks: [] } });
+  });
+
+  it('for adds the evidence lines in the path to the lines of each rule', async () => {
+    const dir = await withEvidence('src/clients/create.go Create', 'src/clients/update.go');
+
+    expect(await ok(['for', 'src/clients/create.go'], dir)).toBe(
+      [
+        'R-BIL-001 (billing): Every new client gets a zero-balance account.',
+        'R-CLI-001 (clients): A client document number is unique per country. (lines 3-3)',
+        '',
+      ].join('\n'),
+    );
+    expect(await json(['for', 'src/clients/create.go'], dir)).toMatchObject({
+      rules: [
+        { id: 'R-BIL-001', regions: [], evidence: [] },
+        {
+          id: 'R-CLI-001',
+          regions: [],
+          evidence: [{ entry: 'src/clients/create.go Create', line: 3, endLine: 3 }],
+        },
+      ],
     });
   });
 });

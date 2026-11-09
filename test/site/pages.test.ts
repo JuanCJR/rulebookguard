@@ -71,6 +71,13 @@ describe('sitePages', () => {
       '## Evidence\n\n- `src/billing/tax.go:4`\n- `src/billing/invoice.go:9`\n',
     );
     expect(files.get('src/content/docs/billing/r-bil-004.md')).toContain('| Origin | extracted |');
+    await writeFile(
+      join(repo, 'docs/rules/billing/R-BIL-005.md'),
+      "---\nid: R-BIL-005\ncontext: billing\nentities: []\nstatus: proposed\norigin: extracted\nevidence: ['src/billing/invoice.go Invoice', 'src/billing/invoice.go Missing']\nanchors: []\nsummary: Invoices exist.\n---\n",
+    );
+    expect((await pages({ repo })).get('src/content/docs/billing/r-bil-005.md')).toContain(
+      '## Evidence\n\n- `src/billing/invoice.go Invoice` → `src/billing/invoice.go:3-3`\n- `src/billing/invoice.go Missing`\n',
+    );
     const plain = files.get('src/content/docs/billing/r-bil-002.md') ?? '';
     expect(plain).not.toContain('| Origin |');
     expect(plain).not.toContain('## Evidence');
