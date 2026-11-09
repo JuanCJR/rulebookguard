@@ -1,5 +1,6 @@
 import { isAbsolute, relative, resolve } from 'node:path';
 import { rulesForPath } from '../catalog/anchors.ts';
+import { createEvidenceResolver, type EvidenceLink } from '../catalog/evidence.ts';
 import { expandGlobs, toRepoPath } from '../catalog/files.ts';
 import type { Catalog } from '../catalog/load.ts';
 import {
@@ -8,6 +9,7 @@ import {
   type TagLocation,
   type TagRegion,
 } from '../catalog/tags.ts';
+import { parseEvidence } from '../format/evidence.ts';
 import type { RuleDoc, RuleOrigin, RuleStatus } from '../format/types.ts';
 import { messages } from '../messages.ts';
 import {
@@ -47,6 +49,8 @@ export interface ShowJson {
     conflictsWith: string[];
     origin: RuleOrigin | null;
     evidence: string[];
+    /** Each evidence entry with the lines it resolves to, or null lines when it does not. */
+    evidenceLinks: EvidenceLinkJson[];
     implementations: TagRegion[];
     file: string;
     body: string;
@@ -55,7 +59,22 @@ export interface ShowJson {
 
 export interface ForJson {
   path: string;
-  rules: (RuleSummaryJson & { file: string; regions: LineSpanJson[] })[];
+  rules: (RuleSummaryJson & {
+    file: string;
+    regions: LineSpanJson[];
+    evidence: EvidenceSpanJson[];
+  })[];
+}
+
+export interface EvidenceLinkJson {
+  entry: string;
+  file: string;
+  line: number | null;
+  endLine: number | null;
+}
+
+export interface EvidenceSpanJson extends LineSpanJson {
+  entry: string;
 }
 
 export interface ForChangedJson {
@@ -180,6 +199,7 @@ export async function showCommand(
   );
   const implementations =
     (await scanImplementations(catalog.root, files)).regions.get(rule.id) ?? [];
+  const links = await resolveEvidence(catalog, rule.evidence ?? []);
   if (json) {
     writeJson(io, {
       rule: {
@@ -191,6 +211,12 @@ export async function showCommand(
         conflictsWith: rule.conflictsWith ?? [],
         origin: rule.origin ?? null,
         evidence: rule.evidence ?? [],
+        evidenceLinks: links.map(({ entry, file, line, endLine }) => ({
+          entry,
+          file,
+          line,
+          endLine,
+        })),
         implementations,
         file: rule.file,
         body: rule.body,
@@ -198,7 +224,8 @@ export async function showCommand(
     } satisfies ShowJson);
     return;
   }
-  const none = messages(catalog.config.language).none;
+  const text = messages(catalog.config.language);
+  const none = text.none;
   const header = [
     `${rule.id}: ${rule.summary}`,
     `context: ${rule.context}`,
@@ -210,7 +237,15 @@ export async function showCommand(
     ...(rule.dependsOn?.length ? [`dependsOn: ${rule.dependsOn.join(', ')}`] : []),
     ...(rule.conflictsWith?.length ? [`conflictsWith: ${rule.conflictsWith.join(', ')}`] : []),
     ...(rule.origin === undefined ? [] : [`origin: ${rule.origin}`]),
-    ...(rule.evidence?.length ? ['evidence:', ...indent(rule.evidence, none)] : []),
+    ...(links.length
+      ? [
+          'evidence:',
+          ...indent(
+            links.map((link) => withLines(link, text.lines)),
+            none,
+          ),
+        ]
+      : []),
     ...(implementations.length
       ? [
           'implementations:',
@@ -234,9 +269,15 @@ export async function forCommand(
   const text = messages(catalog.config.language);
   const path = toRootPath(catalog, resolve(io.cwd, input), input);
   const regions = await regionsIn(catalog.root, path);
+  const evidence = await evidenceIn(catalog, path);
   const rules = rulesForPath(catalog.rules, path)
     .filter((rule) => rule.status === 'active')
-    .map((rule) => ({ ...toSummary(rule), file: rule.file, regions: regions(rule.id) }));
+    .map((rule) => ({
+      ...toSummary(rule),
+      file: rule.file,
+      regions: regions(rule.id),
+      evidence: evidence(rule.id),
+    }));
   if (json) {
     writeJson(io, { path, rules } satisfies ForJson);
     return;
@@ -249,7 +290,7 @@ export async function forCommand(
     io,
     rules.map(
       (rule) =>
-        `${rule.id} (${rule.context}): ${rule.summary}${rule.regions.length === 0 ? '' : ` (${text.lines(formatSpans(rule.regions))})`}`,
+        `${rule.id} (${rule.context}): ${rule.summary}${linesNote(mergeSpans(rule.regions, rule.evidence), text.lines)}`,
     ),
   );
 }
@@ -302,6 +343,77 @@ export async function regionsIn(
 ): Promise<(id: string) => LineSpanJson[]> {
   const found = (await scanImplementations(root, [path])).regions;
   return (id) => (found.get(id) ?? []).map(({ line, endLine }) => ({ line, endLine }));
+}
+
+async function resolveEvidence(catalog: Catalog, entries: string[]): Promise<EvidenceLink[]> {
+  if (entries.length === 0) {
+    return [];
+  }
+  const resolveEntry = await createEvidenceResolver(catalog.root);
+  return Promise.all(entries.map(resolveEntry));
+}
+
+/** The resolved evidence lines each rule has in `path`, by rule id. */
+export async function evidenceIn(
+  catalog: Catalog,
+  path: string,
+): Promise<(id: string) => EvidenceSpanJson[]> {
+  const found = new Map<string, EvidenceSpanJson[]>();
+  const inPath = catalog.rules
+    .map((rule) => ({
+      id: rule.id,
+      entries: (rule.evidence ?? []).filter((entry) => parseEvidence(entry).file === path),
+    }))
+    .filter(({ entries }) => entries.length > 0);
+  if (inPath.length === 0) {
+    return () => [];
+  }
+  const resolveEntry = await createEvidenceResolver(catalog.root);
+  for (const { id, entries } of inPath) {
+    const spans: EvidenceSpanJson[] = [];
+    for (const { entry, line, endLine } of await Promise.all(entries.map(resolveEntry))) {
+      if (line !== null && endLine !== null) {
+        spans.push({ entry, line, endLine });
+      }
+    }
+    if (spans.length > 0) {
+      found.set(id, spans);
+    }
+  }
+  return (id) => found.get(id) ?? [];
+}
+
+/** Region and evidence lines together, in order and without repeats. */
+export function mergeSpans(...groups: LineSpanJson[][]): LineSpanJson[] {
+  const seen = new Set<string>();
+  return groups
+    .flat()
+    .map(({ line, endLine }) => ({ line, endLine }))
+    .sort((a, b) => a.line - b.line || a.endLine - b.endLine)
+    .filter(({ line, endLine }) => {
+      const key = `${line}-${endLine}`;
+      if (seen.has(key)) {
+        return false;
+      }
+      seen.add(key);
+      return true;
+    });
+}
+
+function linesNote(spans: LineSpanJson[], lines: (spans: string) => string): string {
+  return spans.length === 0 ? '' : ` (${lines(formatSpans(spans))})`;
+}
+
+// An older `path:line` entry already says its lines, so they are not repeated.
+function withLines(link: EvidenceLink, lines: (spans: string) => string): string {
+  if (
+    link.line === null ||
+    link.endLine === null ||
+    parseEvidence(link.entry).lines !== undefined
+  ) {
+    return link.entry;
+  }
+  return `${link.entry}${linesNote([{ line: link.line, endLine: link.endLine }], lines)}`;
 }
 
 export function formatSpans(spans: LineSpanJson[]): string {

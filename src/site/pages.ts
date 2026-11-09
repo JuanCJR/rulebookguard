@@ -1,4 +1,6 @@
 import type { RuleLanguage, RuleStatus } from '../format/types.ts';
+import type { EvidenceLink } from '../catalog/evidence.ts';
+import { parseEvidence } from '../format/evidence.ts';
 import type { SiteData, SiteRule } from './data.ts';
 
 export interface SiteOptions {
@@ -221,7 +223,7 @@ export const collections = { docs: defineCollection({ loader: docsLoader(), sche
 }
 
 function rulePage(
-  { rule, files, tests, history, supersedes, supersededBy }: SiteRule,
+  { rule, files, tests, history, supersedes, supersededBy, evidence }: SiteRule,
   text: Text,
   base: string,
   ruleLink: (id: string) => string,
@@ -246,7 +248,6 @@ function rulePage(
         : rule.origin,
     ]);
   }
-  const evidence = rule.evidence ?? [];
   return page(rule.id, rule.summary, [
     `**${cell(rule.summary)}**`,
     '',
@@ -260,15 +261,7 @@ function rulePage(
     '',
     ...(evidence.length === 0
       ? []
-      : [
-          `## ${text.evidence}`,
-          '',
-          ...list(
-            evidence.map((item) => `\`${item}\``),
-            text.none,
-          ),
-          '',
-        ]),
+      : [`## ${text.evidence}`, '', ...list(evidence.map(evidenceItem), text.none), '']),
     `## ${text.anchors}`,
     '',
     ...list(
@@ -405,6 +398,16 @@ function page(title: string, description: string, lines: string[]): string {
     ...lines,
     '',
   ].join('\n');
+}
+
+// An older `path:line` entry already says its lines, so they are not repeated.
+function evidenceItem(link: EvidenceLink): string {
+  const item = `\`${link.entry}\``;
+  return link.line === null ||
+    link.endLine === null ||
+    parseEvidence(link.entry).lines !== undefined
+    ? item
+    : `${item} → \`${link.file}:${link.line}-${link.endLine}\``;
 }
 
 function list(items: string[], empty: string): string[] {

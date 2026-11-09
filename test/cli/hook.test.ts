@@ -95,6 +95,22 @@ describe('hook', () => {
     );
   });
 
+  it('adds the lines of the rule evidence in the file', async () => {
+    const repo = await scratchRepo();
+    const rule = join(repo, 'docs/rules/clients/R-CLI-001.md');
+    await writeFile(
+      rule,
+      (await readFile(rule, 'utf8')).replace(
+        /^id: .*$/m,
+        "$&\norigin: extracted\nevidence: ['src/clients/create.go Create']",
+      ),
+    );
+
+    const text = context((await hook(event(join(repo, 'src/clients/create.go')), repo)).stdout);
+
+    expect(text).toContain('Rule file: docs/rules/clients/R-CLI-001.md\nLines: 3-3\n\n');
+  });
+
   it('answers a PostToolUse event of Read, so the rules arrive with the file contents', async () => {
     const repo = await scratchRepo();
     const input = JSON.stringify({
