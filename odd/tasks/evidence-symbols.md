@@ -1,0 +1,30 @@
+# rulebookguard — deeper rule mining, optional `@implements`, evidence resolved to symbols
+
+Objective: make the rule-miner trace flows to the bottom, stop it from editing production code by default, and resolve each `evidence` entry (`path symbol`) to the lines it names, with a regex resolver built in and exact ranges from tree-sitter through an optional package. Branch: `feat/evidence-symbols`. Delivery: `ask-on-risk` → `stacked-to-main` (reused from implements-regions). Test runner: `pnpm exec vp test`.
+
+## Specs
+
+- **S1 — Mine to the bottom.** User (verbatim): "El agente rule miner no quiso navegar lo mas profundo posible hasta que se lo pedi en la revision de la primera iteracion, esto igual hace que no considere ciertas consideraciones en las reglas de negocio". `rule-miner` gets a trace step: list the entry points, follow every call the outcome depends on down to persistence (schema constraints, enums, shared constants, config), stop only where the code leaves the context or is technical plumbing; a check owned by another module is read but its rule is not written here. The report opens with **Flows traced**.
+- **S2 — `@implements` optional.** User (verbatim): "La edicion en codigo para marcar las regiones de logica de negocio la vi muy invasiva" and "la opcion 1 de dejarlo opcional me parece perfecto". Assumptions: `rule-miner` adds no `@implements` markers unless the request asks for them; its report lists the suggested regions as `path:line-endLine` instead. Skills and `rule-author` present regions as optional, for when a symbol is too coarse. The `@implements` feature itself (lint, readers) is unchanged.
+- **S3 — Resolve evidence.** User (verbatim): "me llama la atencion tener la opcion C de links a simbolos" and "seria igual un gran plus usarlo, implementemoslo". Assumptions: an entry is `<path>` or `<path> <symbol>`; a symbol is an identifier, a dotted member (`Clients.create`: the member inside the container's range) or a quoted string (a test name). Built in, with no new dependency: a regex resolver that finds the definition line of an identifier (common definition keywords across languages) or the first line holding a quoted string, giving `line` = `endLine`. Path-only entries resolve to the file. When `@rulebookguard/symbols` is installed and the file's language is supported, tree-sitter gives the definition's full range, and a quoted string resolves to its enclosing call.
+- **S4 — Lint dead evidence.** Assumption: new **warning** `dead-evidence` when an entry's file does not exist in the repository or its symbol is not found; exit code unchanged (warnings never fail). EN and ES message and hint; README lint table.
+- **S5 — Readers show resolved evidence.** Assumptions: `show` prints each evidence entry followed by its lines (`(lines a-b)`), and its JSON keeps `evidence: string[]` unchanged and adds `evidenceLinks: [{ entry, file, line, endLine }]` with `line`/`endLine` null when unresolved. `for <path>` JSON rows add `evidence: [{ entry, line, endLine }]` for resolved entries in that path; the human line and the hook list region and evidence lines together. The site rule page shows each entry's `path:line-endLine`. MCP tool descriptions mention the new fields. Without evidence, output is unchanged.
+- **S6 — Optional package `@rulebookguard/symbols`.** Assumptions: `packages/symbols`, version in lockstep with the root, optional peer dependency like `@rulebookguard/site`, loaded the same way (catalog root, then the CLI's folder); absent → regex resolver silently. It pins `web-tree-sitter` 0.27.1 (0.27.2 is two days old) and ships the `.wasm` and `queries/tags.scm` of TypeScript, TSX, JavaScript, Python, Go, Java, C# and Rust copied from the grammar packages, never depending on them at runtime (their install runs `node-gyp-build`). TypeScript queries = JavaScript tags + TypeScript tags. The release workflow checks and publishes it like the site package.
+
+## Tasks
+
+| ID | Specs | Route | Status | Commit |
+|----|-------|-------|--------|--------|
+| T1 | S1 | inline | done | |
+| T2 | S2 | inline | pending | |
+| T3 | S3, S4 | inline | pending | |
+| T4 | S5 | inline | pending | |
+| T5 | S6 | inline | pending | |
+
+## Log
+
+- **L1 (2026-11-09, user, verbatim):** "estuve probando los agentes de rule miner y creando nuevas reglas en un proyecto real y tengo algo de feedback: 1. La edicion en codigo para marcar las regiones de logica de negocio la vi muy invasiva, me parece que es mejor que en las reglas dejemos el rango de lineas de codigo a modo de links para ahi tener documentado donde se aplica esa regla de negocio 2. El agente rule miner no quiso navegar lo mas profundo posible hasta que se lo pedi en la revision de la primera iteracion, esto igual hace que no considere ciertas consideraciones en las reglas de negocio"
+- **L2 (2026-11-09, user, verbatim):** "manda a implementar el punto 2 y vamos a discutir un poco sobre la opcion A. la opcion 1 de dejarlo opcional me parece perfecto, pero igual me llama la atencion tener la opcion C de links a simbolos" — then, after tree-sitter was explained: "entiendo, seria igual un gran plus usarlo, implementemoslo". Line ranges stored in rules were set aside: they drift silently when code moves. This reverses the M-11 choice of `@implements` over tree-sitter (implements-regions L1) for mining only.
+- **L3 (2026-11-09, T1 evidence):** passive prompt change; `test/plugin` and `test/cli/export-kiro-agents.test.ts` 32 passed, 1 skipped.
+- **L4 (2026-11-09, spike):** in scratch, `web-tree-sitter` 0.27.1 loaded the TypeScript (ABI 14), Python and C# (ABI 15) grammars; `tags.scm` gave `validateDocument definition.function 2-4`, `Clients definition.class 5-9`, `create definition.method 6-8`. Sizes: C# 5.2 MB, TS and TSX 1.4 MB each, Rust 1.1 MB, others ≈ 0.2–0.45 MB, runtime 208 KB; ≈ 11 MB total.
+- **L5 (2026-11-09, plan):** all inline (one maintainer, no parallel units with a writer reason). Forecast ≈ 1100 authored changed lines: slices T1+T2 | T3 | T4 | T5. Risk: T5 item 5 (release workflow, new published package, dependency); T4 item 3 watch (JSON output only gains fields).
