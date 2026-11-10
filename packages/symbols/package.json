@@ -1,6 +1,6 @@
 {
   "name": "@rulebookguard/symbols",
-  "version": "0.13.0",
+  "version": "0.13.1",
   "description": "Tree-sitter symbol ranges for the evidence of rulebookguard rules.",
   "homepage": "https://github.com/JuanCJR/rulebookguard#readme",
   "bugs": {

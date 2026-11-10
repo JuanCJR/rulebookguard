@@ -11,7 +11,7 @@
 
 Keep business rules as the single source of truth, readable by humans and AI, and bound to the code and tests that implement them.
 
-[Overview](#overview) • [Get started](#getting-started) • [Writing rules](#writing-rules) • [Commands](#commands) • [CI recipe](#ci-recipe) • [Claude Code plugin](#claude-code-plugin)
+[Overview](#overview) • [Get started](#getting-started) • [Writing rules](#writing-rules) • [Commands](#commands) • [CI recipe](#ci-recipe) • [Claude Code plugin](#claude-code-plugin) • [Use cases](#use-cases) • [Upgrading](#upgrading)
 
 </div>
 
@@ -43,7 +43,7 @@ Requires Node.js 22 or later.
 rulebookguard does not need to be a dependency of your project. Nothing in your code imports it, so you can run it with `npx`, pinning the version so that every machine and CI run the same one:
 
 ```sh
-npx rulebookguard@0.13.0 lint
+npx rulebookguard@0.13.1 lint
 ```
 
 Each release locks its own dependencies for npm and `npx`, so a pinned version keeps running the same code. Other package managers, such as `pnpm dlx`, ignore that lock and resolve the dependency ranges. Your `package.json` and lockfile stay untouched.
@@ -56,10 +56,10 @@ npm install --save-dev rulebookguard
 
 A first rule in four steps:
 
-1. Set up the rulebook: `npx rulebookguard@0.13.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
-2. Scaffold a rule: `npx rulebookguard@0.13.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
+1. Set up the rulebook: `npx rulebookguard@0.13.1 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
+2. Scaffold a rule: `npx rulebookguard@0.13.1 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
 3. Write the rule, add its `anchors`, set `status: active`, and wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
-4. Run `npx rulebookguard@0.13.0 lint`, and add it to CI with the [CI recipe](#ci-recipe).
+4. Run `npx rulebookguard@0.13.1 lint`, and add it to CI with the [CI recipe](#ci-recipe).
 
 ## Configuration
 
@@ -557,7 +557,7 @@ The rulebook is found from `--project` (default: the current directory). A comma
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
 
-Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard@0.13.0 -p @rulebookguard/site@0.13.0 rulebookguard site:run`.
+Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard@0.13.1 -p @rulebookguard/site@0.13.1 rulebookguard site:run`.
 
 Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
 
@@ -610,7 +610,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx --yes rulebookguard@0.13.0 lint --base origin/${{ github.base_ref }}
+      - run: npx --yes rulebookguard@0.13.1 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
@@ -648,9 +648,68 @@ Kiro gets the same rules through three pieces:
 | Power in [`plugin/`](plugin)                          | the `rules` and `rule-writing` skills and the MCP server | import the `plugin` folder         |
 | [Custom agents](#export-kiro-agents---out-dir)        | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
 
-To install the power, open the Powers panel in Kiro, choose **Add Custom Power**, then **Import power from a folder** with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.13.0 mcp` from the directory Kiro starts it in, and needs Node.js and network access the first time.
+To install the power, open the Powers panel in Kiro, choose **Add Custom Power**, then **Import power from a folder** with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.13.1 mcp` from the directory Kiro starts it in, and needs Node.js and network access the first time.
 
 Keep `rulebookguard.config.yaml` at the root of the Kiro workspace: Kiro reads `.kiro/` from there, and the steering patterns are relative to the rulebook root. There is no hook for Kiro, because steering files already deliver the rules of a matching file.
 
 > [!NOTE]
 > Kiro limits what these pieces reach. Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically, so `rulebookguard export agents-md` is the way to reach them, and powers are listed for CLI V3. A custom agent does not read steering files unless its `resources` include `file://.kiro/steering/**/*.md`.
+
+## Use cases
+
+The [Claude Code plugin](#claude-code-plugin) and the [Kiro](#kiro) agents handle the requests below. The prompts are examples to adapt: they work in any language, and naming the agent (`rule-miner`, `rule-author`) is what hands the task to it.
+
+### Survey: adopting rulebookguard in an existing project
+
+Start with the map, then lift the rules one context at a time, so each batch is small enough to review.
+
+- "Map this repository into rulebookguard contexts: list the business domains under `src/`, propose a context name and id prefix for each, and run `rulebookguard init` for the first one. Do not write rules yet."
+- "Use rule-miner on the clients context."
+- "Use rule-miner on the billing context, and mark the code that enforces each rule with `@implements`."
+
+`rule-miner` writes `proposed` rules with their evidence and questions for the business. Review its diff, answer the questions, and set `status: active` on what holds.
+
+### Analysis: reading the rulebook before a change
+
+- "Use rule-author for this feature: clients who register online can be created without a phone number."
+- "Which business rules apply to `src/billing/invoice.ts`, and which of them have no test?"
+- "List the rules my branch touches against origin/main, and tell me which ones changed without a change in their tests."
+- "List the open questions for the business in the proposed rules of the clients context, grouped by rule."
+
+### Remapping: keeping rules linked after the code moves
+
+Evidence and anchors point at code, so a refactor can leave them behind. `lint` reports it as `dead-evidence` and `unmatched-anchor`.
+
+- "Run `rulebookguard lint` and fix every `dead-evidence` warning: find where each symbol moved or what it was renamed to, and update the evidence entry. Do not change the rule text."
+- "We moved `src/clients` to `src/customers`. Update the anchors and the evidence of the clients rules, then run lint until no `unmatched-anchor` or `dead-evidence` is left."
+- "Rewrite every evidence entry written as `path:line` in the rulebook as `path symbol`, naming the function, method or test at that line."
+- "Replace the `@implements` markers in `src/` with evidence entries on their rules: for each region, add the enclosing symbol as `path symbol` to the rule's evidence, then remove both marker lines. Show me the diff before removing anything."
+
+### Version adjustments: upgrading the rulebook
+
+- "Read the Upgrading notes of rulebookguard between our version and the latest one, and tell me what they change for this repository before touching anything."
+- "Upgrade rulebookguard to the latest version following the Upgrading section of its README: bump every pinned version, apply the notes of each version in between, and run lint."
+
+## Upgrading
+
+1. **Read the notes** below for every version between yours and the new one.
+2. **Bump every pinned version** to the new one: the `rulebookguard@<version>` in `npx` commands in CI (`.github/workflows/rulebookguard.yml` when `init --ci` wrote it) and in scripts, and the `rulebookguard`, `@rulebookguard/site` and `@rulebookguard/symbols` dev dependencies, which must share the version:
+
+   ```sh
+   npm install --save-dev rulebookguard@<version> @rulebookguard/symbols@<version>
+   ```
+
+3. **Update the agents.** Claude Code: `claude plugin marketplace update rulebookguard`, then `claude plugin update rulebookguard@rulebookguard`, and restart Claude Code. Kiro: update the clone of the `plugin` folder, import the power again, and run `rulebookguard export kiro-agents` again.
+4. **Regenerate the exported files** you keep in the repository (`export gherkin`, `export cursor|copilot|kiro`, `export agents-md`), so they match the new version.
+5. **Run `rulebookguard lint`** and fix what it reports. New warnings never change the exit code.
+
+| Version | What changes                                                                                                                                                                                                                                                                                                                         | What to do                                                                                                                                                                                                                           |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.13.1  | These Use cases and Upgrading sections. 0.13.0 was published by hand by mistake, without the release workflow's provenance and locked dependencies.                                                                                                                                                                                  | Skip 0.13.0: upgrade to 0.13.1.                                                                                                                                                                                                      |
+| 0.13    | [Evidence](#evidence) entries resolve to lines in `show`, `for`, the hook and the site; `lint` warns with `dead-evidence`; the optional [`@rulebookguard/symbols`](#exact-ranges-with-rulebookguardsymbols) package gives full ranges. `rule-miner` traces flows down to persistence and adds `@implements` markers only when asked. | Nothing required. Optionally install `@rulebookguard/symbols`, fix the `dead-evidence` warnings, and rewrite `path:line` entries as `path symbol` (of those, only the file is checked). Existing `@implements` markers keep working. |
+| 0.12    | Kiro support: a power and `export kiro-agents`.                                                                                                                                                                                                                                                                                      | Nothing.                                                                                                                                                                                                                             |
+| 0.11    | Each release locks its dependencies for npm and `npx`.                                                                                                                                                                                                                                                                               | Nothing.                                                                                                                                                                                                                             |
+| 0.10    | `for --changed <ref>`.                                                                                                                                                                                                                                                                                                               | Nothing.                                                                                                                                                                                                                             |
+| 0.9     | A `@rule` marker counts only on a line that starts with a comment.                                                                                                                                                                                                                                                                   | Move markers in test names, strings or after code to their own comment line: rules tagged only that way are reported as `untested-rule`.                                                                                             |
+| 0.7     | Every `@rule` needs its `@endrule`, and `lint --base` needs a change inside a region of each changed rule.                                                                                                                                                                                                                           | Close each `@rule <ID>` with `@endrule <ID>` after the test that proves it.                                                                                                                                                          |
+| 0.5     | The site commands moved to the `@rulebookguard/site` package.                                                                                                                                                                                                                                                                        | Install `@rulebookguard/site` next to `rulebookguard` to keep using `site:generate` and `site:run`.                                                                                                                                  |
