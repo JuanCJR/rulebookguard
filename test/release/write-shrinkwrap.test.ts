@@ -162,20 +162,23 @@ describe('assertLockMatches', () => {
 });
 
 describe('README', () => {
-  it('pins every npx command to the current version', () => {
-    const readme = readFileSync(new URL('../../README.md', import.meta.url), 'utf8');
-    const packages = (readme.match(/npx\s[^`\n]*/g) ?? []).flatMap(npxPackages);
-    const expected = new Set([
-      `rulebookguard@${pkg.version}`,
-      `@rulebookguard/site@${pkg.version}`,
-      `@rulebookguard/symbols@${pkg.version}`,
-      // The Claude Code plugin section describes the launcher, which fills in its own version.
-      'rulebookguard@<plugin',
-    ]);
+  it.each(['README.md', 'README.es.md'])(
+    'pins every npx command in %s to the current version',
+    (file) => {
+      const readme = readFileSync(new URL(`../../${file}`, import.meta.url), 'utf8');
+      const packages = (readme.match(/npx\s[^`\n]*/g) ?? []).flatMap(npxPackages);
+      const expected = new Set([
+        `rulebookguard@${pkg.version}`,
+        `@rulebookguard/site@${pkg.version}`,
+        `@rulebookguard/symbols@${pkg.version}`,
+        // The Claude Code plugin section describes the launcher, which fills in its own version.
+        'rulebookguard@<plugin',
+      ]);
 
-    expect(packages.length).toBeGreaterThan(0);
-    expect(packages.filter((name) => !expected.has(name))).toEqual([]);
-  });
+      expect(packages.length).toBeGreaterThan(0);
+      expect(packages.filter((name) => !expected.has(name))).toEqual([]);
+    },
+  );
 
   it.each([
     'npx rulebookguard lint',
