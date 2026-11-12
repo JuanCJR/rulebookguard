@@ -12,6 +12,7 @@ Follow these rules for every rule file, whether a person or an agent writes it, 
 - A rule states one business behavior. If its text needs "and also", split it into two rules.
 - Write it in the language of the business: what a client, an invoice or an order may or may not do. No class names, functions, tables or HTTP codes in the summary or the rule statement.
 - It must be verifiable: a person can write a test that passes when the rule holds and fails when it does not. "Fast", "secure" or "user friendly" are not rules.
+- If the body needs more than about 20 lines of prose, it most likely states two behaviors: split it.
 
 ## The fields
 
@@ -27,7 +28,7 @@ Follow these rules for every rule file, whether a person or an agent writes it, 
 ## The body
 
 1. A `#` title of a few words.
-2. The full rule in plain sentences: the behavior, its limits and its exceptions.
+2. The full rule in plain sentences: the behavior, its limits and its exceptions. One idea per sentence, active voice, common words.
 3. At least one example as a ` ```gherkin ` scenario (`Given` / `When` / `Then`) with concrete values, or a table. Cover the edge the rule names (the limit, the duplicate, the expired case).
 4. For an extracted rule, a final "Questions for the business" list: what the code does that might be a bug or a technical detail rather than intent, for example "Is the limit of 3 attempts a business rule or a technical value?".
 
@@ -35,4 +36,5 @@ Follow these rules for every rule file, whether a person or an agent writes it, 
 
 - Search existing rules first (`rules_search`, or `rulebookguard search <words>`); change or supersede a rule instead of writing a duplicate.
 - Create files only with `rulebookguard new <context>`, then fill them in.
+- When you change an existing rule, compare the old and new text: every limit, value, exception and example of the old rule is still there, or its removal is intended and named in your plan or summary.
 - Run `rulebookguard lint` (or the `lint` tool). If it reports an error, the rule is not done.
