@@ -9,17 +9,13 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-blue?style=flat-square&logo=typescript&logoColor=white)](https://www.typescriptlang.org)
 [![License](https://img.shields.io/badge/License-MIT-yellow?style=flat-square)](LICENSE)
 
-Keep business rules as the single source of truth, readable by humans and AI, and bound to the code and tests that implement them.
+**English** • [Español](README.es.md)
 
-[Overview](#overview) • [Get started](#getting-started) • [Writing rules](#writing-rules) • [Commands](#commands) • [CI recipe](#ci-recipe) • [Claude Code plugin](#claude-code-plugin) • [Use cases](#use-cases) • [Upgrading](#upgrading)
+[Install](#install) • [Quick start](#quick-start) • [Writing rules](#writing-rules) • [Commands](#commands) • [Configuration](#configuration) • [CI](#ci-recipe) • [AI agents](#ai-agents) • [Upgrading](#upgrading)
 
 </div>
 
-## Overview
-
-Business rules usually end up scattered across code, tickets and people's memory. Neither a developer's memory nor an AI model's reading of the code is deterministic.
-
-`rulebookguard` keeps each rule in its own small Markdown file, links it to the code it governs (**anchors**) and to the tests that prove it (**`@rule` … `@endrule` regions**), and fails CI when they drift apart. It is language-agnostic: rules are Markdown, and tests in any language link to them through a comment.
+Business rules drift apart from the code and tests that implement them. rulebookguard keeps each rule in a small Markdown file, links it to its code (**anchors**) and its tests (**`@rule` … `@endrule` regions**), and fails CI when they drift. It is language-agnostic, and it hands the rules of a file to AI agents before they edit it.
 
 ```text
 docs/rules/clients/R-CLI-001.md   ── anchors ──▶  src/clients/**/*.ts
@@ -27,80 +23,38 @@ docs/rules/clients/R-CLI-001.md   ── anchors ──▶  src/clients/**/*.ts
           └── @rule R-CLI-001 … @endrule R-CLI-001  in  src/clients/create.test.ts
 ```
 
-## Features
+## Install
 
-- **Atomic rules.** One file per rule, with YAML frontmatter validated against a versioned JSON Schema.
-- **Progressive disclosure.** Contexts map (L0), `id + summary` per context (L1), the full rule (L2), so neither people nor AI models have to read the whole catalog.
-- **Inverse index.** Given a file path, list the active rules anchored to it. Deterministic glob matching, no embeddings.
-- **Linter.** Untested rules, tags pointing at missing or deprecated rules, dead anchors, invalid files, and rules changed without a change in their tests.
-- **AI-ready.** A Claude Code hook, an MCP server and a skill hand the rules of a file to an agent before it edits it.
-- **Static site.** A read-only, searchable view of the rulebook for the whole team.
-
-## Getting started
-
-Requires Node.js 22 or later.
-
-rulebookguard does not need to be a dependency of your project. Nothing in your code imports it, so you can run it with `npx`, pinning the version so that every machine and CI run the same one:
+Requires Node.js 22 or later. Nothing in your code imports rulebookguard, so run it with `npx` and pin the version:
 
 ```sh
 npx rulebookguard@0.13.1 lint
 ```
 
-Each release locks its own dependencies for npm and `npx`, so a pinned version keeps running the same code. Other package managers, such as `pnpm dlx`, ignore that lock and resolve the dependency ranges. Your `package.json` and lockfile stay untouched.
-
-If you prefer to keep the version in your lockfile, and renovate it with the rest of your dependencies, add it as a dev dependency instead:
+Each release locks its dependencies for npm and `npx` (`pnpm dlx` and others ignore that lock). To keep the version in your lockfile instead:
 
 ```sh
 npm install --save-dev rulebookguard
 ```
 
-A first rule in four steps:
+## Quick start
 
-1. Set up the rulebook: `npx rulebookguard@0.13.1 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow (see [Configuration](#configuration) to adjust `testGlobs`).
-2. Scaffold a rule: `npx rulebookguard@0.13.1 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
-3. Write the rule, add its `anchors`, set `status: active`, and wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
-4. Run `npx rulebookguard@0.13.1 lint`, and add it to CI with the [CI recipe](#ci-recipe).
-
-## Configuration
-
-Put `rulebookguard.config.yaml` at the repository root. Commands find it by walking up from the current directory, and every path in the catalog is relative to the directory that holds it.
-
-```yaml
-schema: 1
-rulesDir: docs/rules # default: docs/rules
-testGlobs: # required: files scanned for @rule tags
-  - 'src/**/*.test.ts'
-  - 'tests/**/test_*.py'
-contextBudget: 30 # default: 30; lint warns when a context holds more rules
-language: es # default: en; language of the text that rulebookguard generates
-```
-
-`schema` and `testGlobs` are required (`testGlobs: []` is valid but finds no tags). Unknown fields are rejected. The JSON Schemas ship with the package under `rulebookguard/schemas/v1/`.
-
-`language` (`en` or `es`) sets the language of the text rulebookguard writes for you: the template of `new`, the hook context, the site, and every message printed once the config is loaded (lint findings, errors, warnings and headers, also the `message` of `--json` output). Lint codes, JSON keys and values such as `active` stay in English, and so do `--help`, argument errors and the findings of an invalid config file, which come before the config is read. Rule content is free text and is never checked for language, so rules can be written in any language whatever this setting says.
-
-> [!NOTE]
-> `language` needs rulebookguard 0.1.1 or later; older versions reject it as an unknown field.
-
-<details>
-<summary>How files are listed</summary>
-
-Inside a git work tree, files are listed with `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched by anchors or test globs; files inside submodules are listed too. A submodule path that is a symlink, or that resolves outside the rulebook root, is skipped. A test file that is a symlink is scanned for `@rule` tags only when its target lies inside the rulebook root. If one submodule cannot be listed, commands print `warning: could not list files of submodule "<path>" (<reason>); skipping it.` and keep the rest of the git listing. Outside git, or when the rulebook root itself is git-ignored, the whole tree is walked, skipping only `.git` and `node_modules`. If git fails (for example, git is missing from `PATH` or the repository has dubious ownership), commands print one warning on stderr and walk the tree instead.
-
-</details>
+1. `npx rulebookguard@0.13.1 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow. Adjust `testGlobs` in the [config](#configuration).
+2. `npx rulebookguard@0.13.1 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
+3. Write the rule, add its `anchors`, and set `status: active`. Wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
+4. `npx rulebookguard@0.13.1 lint`. Then add it to CI with the [CI recipe](#ci-recipe).
 
 ## Writing rules
 
 ### Catalog layout
 
-Rules are grouped by context, one directory per context:
+One directory per context, one file per rule:
 
 ```text
 docs/rules/
   clients/
     _context.md       # the context: name, id prefix, summary
     R-CLI-001.md      # one rule per file, named after its id
-    R-CLI-002.md
   billing/
     _context.md
     R-BIL-001.md
@@ -118,9 +72,9 @@ summary: Customers that receive installation services.
 The clients context owns customer identity and contact data.
 ```
 
-The `context` field must match the directory name, and every rule id in the directory must start with `R-<prefix>-`.
+`context` must match the directory name. Every rule id in the directory must start with `R-<prefix>-`.
 
-### Rule file format
+### Rule file
 
 ````markdown
 ---
@@ -148,55 +102,25 @@ Scenario: Duplicate document in the same country
 ```
 ````
 
-| Field           | Required | Meaning                                                                        |
-| --------------- | -------- | ------------------------------------------------------------------------------ |
-| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name               |
-| `context`       | yes      | the context directory the rule lives in                                        |
-| `entities`      | yes      | domain entities the rule talks about                                           |
-| `status`        | yes      | `proposed`, `active` or `deprecated`                                           |
-| `supersedes`    | no       | id of the rule this one replaces                                               |
-| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles                            |
-| `conflictsWith` | no       | ids of the rules that cannot be active together with this one                  |
-| `origin`        | no       | `authored` (written from intent) or `extracted` (lifted from code)             |
-| `evidence`      | no       | where the rule shows in code or tests, for example `src/x.ts validateDocument` |
-| `anchors`       | yes      | repo-relative globs of the code that implements the rule                       |
-| `summary`       | yes      | one line; this is what `list` shows                                            |
+| Field           | Required | Meaning                                                            |
+| --------------- | -------- | ------------------------------------------------------------------ |
+| `id`            | yes      | `R-<PREFIX>-<NNN>`, three digits, unique, equal to the file name   |
+| `context`       | yes      | the context directory the rule lives in                            |
+| `entities`      | yes      | domain entities the rule talks about                               |
+| `status`        | yes      | `proposed`, `active` or `deprecated`                               |
+| `supersedes`    | no       | id of the rule this one replaces                                   |
+| `dependsOn`     | no       | ids of the rules this one needs in force; no cycles                |
+| `conflictsWith` | no       | ids of the rules that cannot be active together with this one      |
+| `origin`        | no       | `authored` (written from intent) or `extracted` (lifted from code) |
+| `evidence`      | no       | where the rule shows in code or tests, see [Evidence](#evidence)   |
+| `anchors`       | yes      | repo-relative globs of the code that implements the rule           |
+| `summary`       | yes      | one line; this is what `list` shows                                |
 
-The Markdown body holds the full rule and its examples (Gherkin scenarios or tables). Rules do not list their tests: the link lives only in the tests, through `@rule` tags.
+The body holds the full rule and its examples. Rules do not list their tests: the link lives only in the tests.
 
-### Evidence
+### Linking tests: `@rule` … `@endrule`
 
-`evidence` links a rule to the code and tests where it shows, without touching them. Each entry is a path, optionally followed by what to look for in that file:
-
-| entry                                                        | resolves to                                       |
-| ------------------------------------------------------------ | ------------------------------------------------- |
-| `src/clients/create.ts validateDocument`                     | the definition of `validateDocument`              |
-| `src/clients/service.ts Clients.create`                      | `create` inside `Clients` (`::` and `#` work too) |
-| `test/clients/create.test.ts "rejects a duplicate document"` | the test with that name                           |
-| `src/clients/create.ts`                                      | the file                                          |
-
-Lines are found when the rule is read, so the link follows the code as it moves. Built in, a heuristic finds the line where a symbol is defined (function, method, class, constant, assignment or key, in most languages) or the line holding a quoted string. With the optional [`@rulebookguard/symbols`](#exact-ranges-with-rulebookguardsymbols) package installed, files in the languages it knows resolve to the full range of the definition or of the test. `lint` warns with `dead-evidence` when the file is gone or the symbol is not found, so a rename shows up instead of leaving a stale link. Deprecated rules are not checked. An older `path:line` or `path:line-endLine` entry still works, and only its file is checked.
-
-#### Exact ranges with `@rulebookguard/symbols`
-
-The heuristic gives one line. For the full range of a function, class, method or test, install the optional package, which reads the code with [tree-sitter](https://tree-sitter.github.io/):
-
-```sh
-npm install --save-dev rulebookguard @rulebookguard/symbols
-```
-
-It knows JavaScript, TypeScript (and TSX), Python, Go, Java, C# and Rust; files in other languages keep using the heuristic, and so does any file it fails to read. It is a separate package because its grammars add about 11 MB; they ship inside it, so installing it builds nothing. Without it, nothing fails: lines come from the heuristic.
-
-### Linking tests with `@rule` … `@endrule`
-
-A test links to a rule with a region: `@rule <ID>` opens it and `@endrule <ID>` closes it, in a file matched by `testGlobs`. Both lines belong to the region. Regions may nest (a suite tagged with one rule holding tests tagged with others) as long as they close in order. One line can carry several markers.
-
-> [!IMPORTANT]
-> Every `@rule` needs its `@endrule`, otherwise `lint` reports `unclosed-rule-tag`; an `@endrule` with no open `@rule` of the same id is reported as `unmatched-endrule-tag`. The region tells `lint --base` which lines belong to the rule: a changed rule needs a change inside one of its regions, not anywhere in the test file.
-
-Markers count only on a line that starts with a comment: `//`, `/*`, `*`, `#`, `--`, `;`, `<!--` or `%`, after any indentation. A marker in a test name, a string or a comment after code on the same line is not a link, so test files may quote `@rule` freely. Inside a `/* … */` block, start each marker line with `*`, as in the Java example below; a bare inner line is not taken as a comment.
-
-TypeScript or JavaScript:
+In a file matched by `testGlobs`, `@rule <ID>` opens a region and `@endrule <ID>` closes it. Both lines belong to the region.
 
 ```ts
 // @rule R-CLI-001
@@ -206,7 +130,18 @@ it('rejects a duplicate document in the same country', () => {
 // @endrule R-CLI-001
 ```
 
-Go:
+> [!IMPORTANT]
+> Every `@rule` needs its `@endrule`, or `lint` reports `unclosed-rule-tag`. An `@endrule` with no open `@rule` of the same id is `unmatched-endrule-tag`. `lint --base` needs a change **inside** a region of a changed rule, not anywhere in the test file.
+
+- A marker counts only on a line that starts with a comment: `//`, `/*`, `*`, `#`, `--`, `;`, `<!--` or `%`, after any indentation.
+- A marker in a test name, a string, or after code on the same line is not a link.
+- Inside a `/* … */` block, start each marker line with `*`.
+- Regions may nest if they close in order. One line can carry several markers.
+
+<details>
+<summary>Go and Java examples</summary>
+
+Several markers on one line (Go):
 
 ```go
 // @rule R-CLI-001 @rule R-BIL-001
@@ -214,16 +149,7 @@ func TestCreateClient(t *testing.T) {}
 // @endrule R-BIL-001 @endrule R-CLI-001
 ```
 
-Python:
-
-```python
-# @rule R-CLI-001
-def test_duplicate_document():
-    ...
-# @endrule R-CLI-001
-```
-
-Java or Kotlin:
+Block comments (Java or Kotlin):
 
 ```java
 /** @rule R-CLI-001 */
@@ -232,17 +158,11 @@ void rejectsDuplicateDocument() {}
 /** @endrule R-CLI-001 */
 ```
 
-SQL:
+</details>
 
-```sql
--- @rule R-BIL-002
-SELECT count(*) FROM invoices WHERE number IS NULL;
--- @endrule R-BIL-002
-```
+### Marking enforcing code: `@implements` … `@endimplements`
 
-### Marking the code that enforces a rule with `@implements` … `@endimplements`
-
-Anchors say which files a rule governs; an `@implements <ID>` … `@endimplements <ID>` region says which lines enforce it, so the link moves with the code instead of pointing at a line number. Regions are optional and follow the same comment rule, nesting and pairing as `@rule` regions. Only files matched by some rule's `anchors` are scanned, and a region must sit in a file its own rule anchors.
+Optional. Anchors say which files a rule governs; an `@implements <ID>` … `@endimplements <ID>` region says which lines enforce it. Same comment, nesting and pairing rules as `@rule`. Only files matched by some rule's `anchors` are scanned, and a region must sit in a file its own rule anchors.
 
 ```go
 // @implements R-CLI-001
@@ -252,38 +172,57 @@ func validateDocument(country, number string) error {
 // @endimplements R-CLI-001
 ```
 
-`lint` reports `unclosed-implements-tag`, `unmatched-endimplements-tag`, `unknown-implements-tag`, `deprecated-implements-tag` and `implements-outside-anchors` (see the table under `lint`).
+### Evidence
+
+`evidence` links a rule to code without touching the code. Each entry is a path, optionally followed by what to find in it:
+
+| entry                                                        | resolves to                                       |
+| ------------------------------------------------------------ | ------------------------------------------------- |
+| `src/clients/create.ts validateDocument`                     | the definition of `validateDocument`              |
+| `src/clients/service.ts Clients.create`                      | `create` inside `Clients` (`::` and `#` work too) |
+| `test/clients/create.test.ts "rejects a duplicate document"` | the test with that name                           |
+| `src/clients/create.ts`                                      | the file                                          |
+
+Lines are resolved when the rule is read, so the link follows the code. `lint` warns `dead-evidence` when the file or symbol is gone; deprecated rules are not checked. A legacy `path:line` or `path:line-endLine` entry still works, but only its file is checked.
+
+By default a heuristic finds one line. For full ranges, install the optional package (uses [tree-sitter](https://tree-sitter.github.io/); JavaScript, TypeScript/TSX, Python, Go, Java, C#, Rust; ~11 MB, nothing to build):
+
+```sh
+npm install --save-dev rulebookguard @rulebookguard/symbols
+```
+
+Other languages, and files it fails to read, fall back to the heuristic.
 
 ## Commands
 
-`rulebookguard --help` prints the command list. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
+`rulebookguard --help` lists them. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
 
-| Command                                                               | What it does                                                 |
-| --------------------------------------------------------------------- | ------------------------------------------------------------ |
-| [`init <context>`](#init-context---prefix-p---language-enes---ci)     | sets up the config, a first context and optionally CI        |
-| [`contexts`](#contexts-l0)                                            | the contexts map (L0)                                        |
-| [`list`](#list---context-c---status-s-l1)                             | rule ids and summaries (L1)                                  |
-| [`show <id>`](#show-id-l2)                                            | the full rule (L2)                                           |
-| [`search <text>`](#search-text---context-c---json)                    | rules holding every word of a text                           |
-| [`for <path>`](#for-path)                                             | the active rules anchored to a file                          |
-| [`for --changed <ref>`](#for---changed-ref)                           | the active rules anchored to the files changed since a ref   |
-| [`impact <id>`](#impact-id)                                           | the files and tests a rule touches                           |
-| [`new <context>`](#new-context---prefix-p)                            | scaffolds the next rule of a context                         |
-| [`lint`](#lint---base-ref---json)                                     | checks the whole catalog, and optionally changes since a ref |
-| [`export gherkin`](#export-gherkin---out-dir)                         | writes the rules' scenarios as Cucumber `.feature` files     |
-| [`export cursor\|copilot\|kiro`](#export-cursorcopilotkiro---out-dir) | writes the active rules as rule files of other AI tools      |
-| [`export agents-md`](#export-agents-md---out-dir)                     | keeps an index of the active rules in `AGENTS.md`            |
-| [`export kiro-agents`](#export-kiro-agents---out-dir)                 | writes the `rule-author` and `rule-miner` agents for Kiro    |
-| [`hook`](#hook)                                                       | Claude Code hook that injects the rules of a file            |
-| [`mcp`](#mcp---project-dir)                                           | MCP server for AI agents                                     |
-| [`site:generate`](#sitegenerate---out-dir---base-path)                | builds a static site of the rulebook                         |
-| [`site:run`](#siterun---out-dir---base-path---port-n)                 | builds the site and serves it locally                        |
+| Command                                       | What it does                                                 |
+| --------------------------------------------- | ------------------------------------------------------------ |
+| [`init <context>`](#init)                     | sets up the config, a first context and optionally CI        |
+| [`contexts`](#contexts-list-show-search)      | the contexts map (L0)                                        |
+| [`list`](#contexts-list-show-search)          | rule ids and summaries (L1)                                  |
+| [`show <id>`](#contexts-list-show-search)     | the full rule (L2)                                           |
+| [`search <text>`](#contexts-list-show-search) | rules holding every word of a text                           |
+| [`for <path>`](#for)                          | the active rules anchored to a file                          |
+| [`for --changed <ref>`](#for)                 | the active rules anchored to the files changed since a ref   |
+| [`impact <id>`](#impact)                      | the files and tests a rule touches                           |
+| [`new <context>`](#new)                       | scaffolds the next rule of a context                         |
+| [`lint`](#lint)                               | checks the whole catalog, and optionally changes since a ref |
+| [`export gherkin`](#export)                   | writes the rules' scenarios as Cucumber `.feature` files     |
+| [`export cursor\|copilot\|kiro`](#export)     | writes the active rules as rule files of other AI tools      |
+| [`export agents-md`](#export)                 | keeps an index of the active rules in `AGENTS.md`            |
+| [`export kiro-agents`](#export)               | writes the `rule-author` and `rule-miner` agents for Kiro    |
+| [`hook`](#hook)                               | Claude Code hook that injects the rules of a file            |
+| [`mcp`](#mcp)                                 | MCP server for AI agents                                     |
+| [`site:generate`](#site)                      | builds a static site of the rulebook                         |
+| [`site:run`](#site)                           | builds the site and serves it locally                        |
 
-The read commands (`contexts`, `list`, `show`, `search`, `for`, `impact`) accept `--json` for machine consumers. When the catalog has problems they still run, and print one warning on stderr pointing at `lint`.
+The read commands (`contexts`, `list`, `show`, `search`, `for`, `impact`) accept `--json`. With catalog problems they still run and print one warning on stderr pointing at `lint`.
 
-### `init <context> [--prefix <P>] [--language <en|es>] [--ci]`
+### `init`
 
-Sets up a rulebook in the current directory and prints the paths it wrote: `rulebookguard.config.yaml`, then the context, the same one `new` would create (`--prefix` works the same way).
+`init <context> [--prefix <P>] [--language <en|es>] [--ci]`
 
 ```sh
 $ rulebookguard init clients --ci
@@ -292,28 +231,34 @@ docs/rules/clients/_context.md
 .github/workflows/rulebookguard.yml
 ```
 
-The config uses `rulesDir: docs/rules` and these `testGlobs`, which you can narrow afterwards: `**/*.test.*`, `**/*.spec.*`, `**/test_*.py` and `**/*_test.go`. `--language` writes `language` into the config, so the context template and later messages follow it. `--ci` also writes the GitHub Actions workflow of the [CI recipe](#ci-recipe), pinned to the running version.
+- Writes `rulesDir: docs/rules` and `testGlobs` `**/*.test.*`, `**/*.spec.*`, `**/test_*.py`, `**/*_test.go`. Narrow them afterwards.
+- `--prefix` works as in `new`. `--language` writes `language` into the config.
+- `--ci` writes the [CI recipe](#ci-recipe) workflow, pinned to the running version.
+- Exit 1, writing nothing: the config (or, with `--ci`, the workflow) already exists, or the context name or prefix is invalid. Exit 2: `--language` other than `en` or `es`.
 
-Exits 1, writing nothing, when `rulebookguard.config.yaml` (or, with `--ci`, the workflow) already exists in the current directory, or when the context name or prefix is invalid. Exits 2 for a `--language` other than `en` or `es`.
-
-### `contexts` (L0)
+### `contexts`, `list`, `show`, `search`
 
 ```sh
 $ rulebookguard contexts
 billing (BIL, 2 rules): Invoices and taxes charged to clients.
 clients (CLI, 3 rules): Customers that receive installation services.
-```
 
-### `list [--context <c>] [--status <s>]` (L1)
-
-```sh
 $ rulebookguard list --context clients --status active
+R-CLI-001 [active] A client document number is unique per country.
+
+$ rulebookguard search "document number"
 R-CLI-001 [active] A client document number is unique per country.
 ```
 
-Prints `No rules found.` when no rule matches, and `contexts` says so when the catalog has no context yet. Exits 1 for an unknown context and 2 for an invalid status.
+| Command                                  | Notes                                                                                                                                                                                                                                                  |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `contexts`                               | Says so when the catalog has no context yet.                                                                                                                                                                                                           |
+| `list [--context <c>] [--status <s>]`    | `No rules found.` when nothing matches. Exit 1: unknown context. Exit 2: invalid status.                                                                                                                                                               |
+| `search <text> [--context <c>] [--json]` | Rules in any status whose id, summary, entities or text hold every word, ignoring case. Plain substring, no index. Output and `--json` (`{ "rules": [...] }`) like `list`; `No rules found.` on no match. Exit 2: empty text. Exit 1: unknown context. |
+| `show <id>`                              | The full rule. Exit 1: unknown id.                                                                                                                                                                                                                     |
 
-### `show <id>` (L2)
+<details>
+<summary><code>show</code> output and JSON shape</summary>
 
 ```sh
 $ rulebookguard show R-CLI-001
@@ -331,33 +276,24 @@ file: docs/rules/clients/R-CLI-001.md
 ...
 ```
 
-`supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when the rule sets them; `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`). Each [evidence](#evidence) entry with a symbol is followed by the lines it resolves to, as `(lines a-b)`; `--json` keeps `evidence` as written and adds `evidenceLinks: [{ entry, file, line, endLine }]`, with `null` lines for an entry that does not resolve (or `[]`). An `implementations:` section lists the [`@implements` regions](#marking-the-code-that-enforces-a-rule-with-implements--endimplements) of the rule as `file:line-endLine`, read from the files its anchors match; `--json` has them as `implementations: [{ file, line, endLine }]` (or `[]`). Exits 1 for an unknown id.
+- `supersedes`, `dependsOn`, `conflictsWith`, `origin` and `evidence` lines appear only when set. `--json` always has `supersedes` and `origin` (or `null`), and `dependsOn`, `conflictsWith` and `evidence` (or `[]`).
+- Each [evidence](#evidence) entry with a symbol is followed by `(lines a-b)`. `--json` keeps `evidence` as written and adds `evidenceLinks: [{ entry, file, line, endLine }]`, with `null` lines when unresolved (or `[]`).
+- `implementations:` lists the rule's [`@implements` regions](#marking-enforcing-code-implements--endimplements) as `file:line-endLine`, read from the files its anchors match. `--json`: `implementations: [{ file, line, endLine }]` (or `[]`).
 
-### `search <text> [--context <c>] [--json]`
+</details>
 
-Rules in any status whose id, summary, entities or text hold every word of `<text>`, ignoring case. Plain substring search, no index or embeddings: enough to find an existing rule before writing a new one. `--context` narrows it to one context. Rows and `--json` (`{ "rules": [...] }`) look like `list`; no match prints `No rules found.`
+### `for`
 
-```sh
-$ rulebookguard search "document number"
-R-CLI-001 [active] A client document number is unique per country.
-```
-
-Exits 2 for an empty text and 1 for an unknown context.
-
-### `for <path>`
-
-Active rules whose anchors match a path, relative to the current directory. This is what an editor hook or an AI agent asks before touching a file.
+`for <path>` lists the active rules anchored to a path (relative to the current directory). Ask it before touching a file.
 
 ```sh
 $ rulebookguard for src/clients/create.ts
 R-CLI-001 (clients): A client document number is unique per country. (lines 12-30)
 ```
 
-When the file holds `@implements` regions of a rule, or lines its [evidence](#evidence) resolves to, its line ends with those line ranges; `--json` rows carry them apart, as `regions: [{ line, endLine }]` and `evidence: [{ entry, line, endLine }]` (each `[]` when there are none). Exits 1 when the path is outside the rulebook root.
+Line ranges come from `@implements` regions and resolved [evidence](#evidence). `--json` rows carry `regions: [{ line, endLine }]` and `evidence: [{ entry, line, endLine }]` (`[]` when none). Exit 1: path outside the rulebook root.
 
-### `for --changed <ref>`
-
-Active rules anchored to the files changed since a git ref, each with those files. This is what a reviewer needs to know about a pull request: which rules it touches, even when no rule file changed.
+`for --changed <ref>` lists the active rules anchored to the files changed since a ref, each with those files. Use it to see which rules a pull request touches.
 
 ```sh
 $ rulebookguard for --changed origin/main
@@ -368,13 +304,14 @@ R-CLI-001 (clients): A client document number is unique per country.
   src/clients/update.ts
 ```
 
-It looks at the difference between the ref and the working tree, including deleted files and untracked ones that are not ignored, as `lint --base` does. A renamed file counts under both paths, so a file moved away from its anchors still reports their rules. On a branch that is behind the ref, the files changed on the ref since the branch point count too, so in CI compare against the base of the pull request on the merge commit, which is what a pull request checkout gives you.
+- Compares the ref with the working tree, like `lint --base`: deleted files and non-ignored untracked files count. A renamed file counts under both paths.
+- On a branch behind the ref, files changed on the ref since the branch point count too. In CI, compare against the pull request base on the merge commit (the default pull request checkout).
+- `--json`: `{ base, files, rules }`; each rule carries its own `files`.
+- None: `No active rules anchored to the files changed since <ref>.` Exit 1: unknown ref or outside a git work tree. Exit 2: both a path and `--changed`.
 
-`--json` prints `{ base, files, rules }`, where `files` lists every changed file and each rule carries its own `files`. Prints `No active rules anchored to the files changed since <ref>.` when there are none. Exits 1 for an unknown ref or outside a git work tree, and 2 when given both a path and `--changed`.
+### `impact`
 
-### `impact <id>`
-
-Files matched by a rule's anchors and the tests tagging it.
+`impact <id>`: files matched by a rule's anchors, and the tests tagging it. Exit 1: unknown id.
 
 ```sh
 $ rulebookguard impact R-CLI-001
@@ -386,18 +323,9 @@ Tests tagging R-CLI-001 (1):
   src/clients/create.test.ts:12
 ```
 
-Exits 1 for an unknown id.
+### `new`
 
-### `new <context> [--prefix <P>]`
-
-Scaffolds the next free id of a context as a `proposed` rule and prints its path. Ids are never reused, and an existing file is never overwritten. The placeholder text of the new rule follows `language` in the config.
-
-```sh
-$ rulebookguard new clients
-docs/rules/clients/R-CLI-004.md
-```
-
-When the context does not exist yet, `new` creates its `_context.md` first and prints both paths. The prefix defaults to the first three letters and digits of the name, upper-cased; `--prefix` sets another one.
+`new <context> [--prefix <P>]` scaffolds the next free id as a `proposed` rule and prints its path. A missing context gets its `_context.md` first.
 
 ```sh
 $ rulebookguard new inventory
@@ -405,11 +333,24 @@ docs/rules/inventory/_context.md
 docs/rules/inventory/R-INV-001.md
 ```
 
-Exits 1, writing nothing, when the context has no free id left, when the name is not lowercase letters, digits, `-` or `_`, when the prefix is invalid or already used by another context, or when `--prefix` differs from the prefix of an existing context.
+- Ids are never reused; existing files are never overwritten. Placeholder text follows `language`.
+- The prefix defaults to the first three letters and digits of the name, upper-cased. `--prefix` sets another.
+- Exit 1, writing nothing: no free id left; name not lowercase letters, digits, `-` or `_`; prefix invalid or used by another context; `--prefix` differs from an existing context's prefix.
 
-### `lint [--base <ref>] [--json]`
+### `lint`
 
-Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:line] <message>`, with a `hint:` line under it that says how to fix it, followed by a count.
+`lint [--base <ref>] [--json]` checks the whole catalog. Exit 1 on any error; 0 with only warnings or nothing (`No issues found.`).
+
+```sh
+$ rulebookguard lint
+error untested-rule docs/rules/billing/R-BIL-002.md active rule R-BIL-002 has no test tagging it
+  hint: wrap a test in a file matched by testGlobs with "@rule R-BIL-002" and "@endrule R-BIL-002", or set the rule's status to proposed
+warning context-over-budget docs/rules/clients/_context.md context "clients" has 31 rules, more than the contextBudget of 30
+  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml
+1 error, 1 warning
+```
+
+Format: `<severity> <code> <file>[:line] <message>`, a `hint:` line, then a count. `--json`: `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
 | Severity | Code                          | Meaning                                                            |
 | -------- | ----------------------------- | ------------------------------------------------------------------ |
@@ -438,18 +379,9 @@ Checks the whole catalog. Each finding is printed as `<severity> <code> <file>[:
 | warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                    |
 | warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists |
 
-```sh
-$ rulebookguard lint
-error untested-rule docs/rules/billing/R-BIL-002.md active rule R-BIL-002 has no test tagging it
-  hint: wrap a test in a file matched by testGlobs with "@rule R-BIL-002" and "@endrule R-BIL-002", or set the rule's status to proposed
-warning context-over-budget docs/rules/clients/_context.md context "clients" has 31 rules, more than the contextBudget of 30
-  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml
-1 error, 1 warning
-```
+An invalid config is reported as `schema` findings. Tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
 
-Exits 1 when there is any error, and 0 when there are only warnings or nothing at all (`No issues found.`). An invalid `rulebookguard.config.yaml` is reported as `schema` findings too; tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
-
-With `--base <ref>`, lint also compares `<ref>` with the working tree (`git diff --name-only <ref>` plus untracked files, so uncommitted work counts). A rule whose file changed must come with a change inside at least one of its `@rule` … `@endrule` regions (`git diff -U0 <ref>`; a test file that is still untracked counts whole, and a deletion counts when it falls strictly inside the region), otherwise it is reported as `pending-implementation`. A change elsewhere in the same test file, such as another test or a blank line between regions, does not count; an active rule that no test tags at all is reported only as `untested-rule`. Only rules whose status is `active` after the change are checked: new active rules are checked, `proposed` and `deprecated` rules are not. Outside a git work tree, with a ref git cannot resolve, or when git fails while listing the changes, lint fails with exit code 1.
+**`--base <ref>`** also checks what changed against `<ref>`: a changed rule file needs a change inside one of its `@rule` … `@endrule` regions, or it is `pending-implementation`.
 
 ```sh
 $ rulebookguard lint --base origin/main
@@ -458,11 +390,28 @@ error pending-implementation docs/rules/clients/R-CLI-001.md rule R-CLI-001 chan
 1 error, 0 warnings
 ```
 
-`--json` prints `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
+<details>
+<summary>How <code>--base</code> decides what changed</summary>
 
-### `export gherkin [--out <dir>]`
+- Changed files: `git diff --name-only <ref>` plus untracked files, so uncommitted work counts.
+- Region changes: `git diff -U0 <ref>`. An untracked test file counts whole. A deletion counts when it falls strictly inside the region.
+- A change elsewhere in the test file (another test, a blank line between regions) does not count.
+- An active rule no test tags is reported only as `untested-rule`.
+- Only rules `active` after the change are checked: new active rules yes, `proposed` and `deprecated` no.
+- Exit 1 outside a git work tree, with a ref git cannot resolve, or when git fails listing changes.
 
-Writes the ` ```gherkin ` blocks of every rule that is not deprecated as `<out>/<context>/<id>.feature`, relative to the current directory (`--out` defaults to `features/rules`). Each file is tagged with the rule id, so Cucumber runs or filters a rule's scenarios with `--tags @R-CLI-001`. Blocks hold scenarios; their `# language:` lines are dropped, and with `language: es` the file starts with `# language: es` and uses `Característica:`.
+</details>
+
+### `export`
+
+All `export` commands take `[--out <dir>]`, relative to the current directory. Generated files carry a "Generated by" line; edit the rule instead.
+
+| Command                        | Writes                                                                                                                                 |
+| ------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| `export gherkin`               | the ` ```gherkin ` blocks of every non-deprecated rule as `<out>/<context>/<id>.feature` (default `features/rules`)                    |
+| `export cursor\|copilot\|kiro` | one file per active rule with anchors, scoped to its anchors (table below)                                                             |
+| `export agents-md`             | an index of the active rules in `AGENTS.md`                                                                                            |
+| `export kiro-agents`           | `rule-author` and `rule-miner` as [Kiro custom agents](https://kiro.dev/docs/custom-agents/) in `.kiro/agents/rulebookguard-<name>.md` |
 
 ```sh
 $ rulebookguard export gherkin
@@ -478,11 +427,17 @@ Feature: R-CLI-001 A client document number is unique per country.
     Then the creation is rejected with "document already registered"
 ```
 
-Generated files are overwritten; nothing else in the output directory is touched, so a feature of a rule that was deprecated or lost its scenarios stays until you delete it. Prints `No rule has Gherkin scenarios.` when there is nothing to write. The tags are Cucumber tags, not `@rule` regions: link the step definitions to the rule with `@rule` … `@endrule` as with any test.
+<details>
+<summary>Export details</summary>
 
-### `export cursor|copilot|kiro [--out <dir>]`
+**`export gherkin`**
 
-Writes every active rule with anchors as one file that the tool attaches when it works on a matching path, so agents other than Claude Code get the same rules. The files go under the rulebook root by default, or directly in `--out`, relative to the current directory:
+- Each file is tagged with the rule id: run or filter a rule's scenarios with Cucumber `--tags @R-CLI-001`. These are Cucumber tags, not `@rule` regions: link step definitions with `@rule` … `@endrule`.
+- `# language:` lines in blocks are dropped. With `language: es` the file starts with `# language: es` and uses `Característica:`.
+- Generated files are overwritten; nothing else in the output directory is touched. A feature of a rule that was deprecated or lost its scenarios stays until you delete it.
+- Nothing to write: `No rule has Gherkin scenarios.`
+
+**`export cursor|copilot|kiro`**: files go under the rulebook root, or directly in `--out`:
 
 | Format    | File                                                      | Scoped with                                         |
 | --------- | --------------------------------------------------------- | --------------------------------------------------- |
@@ -507,35 +462,51 @@ fileMatchPattern: "src/clients/**/*.go"
 …
 ```
 
-Run it again after changing rules, for example in CI or before committing: it overwrites the generated files and removes, printing `removed <path>`, those of rules that are no longer active. Only a file named after a rule id, with the generated line of that format right after its frontmatter, is removed. If the file of an active rule lacks that line, it was not generated, so the command fails with exit code 1 before writing or removing anything. An active rule without anchors has no path to attach to, so it is skipped with a warning on stderr. Prints `No active rule to export.` when there is nothing to write, or `No active rule with anchors to export.` when no active rule has anchors. Brace anchors are expanded into one pattern per option; an anchor with a literal comma in a file name cannot be written in the comma-separated formats.
+- Rerun after changing rules (in CI or before committing). It overwrites generated files and removes those of rules no longer active, printing `removed <path>`.
+- Only a file named after a rule id, with the generated line right after its frontmatter, is removed. If an active rule's file lacks that line, the command exits 1 before writing or removing anything.
+- An active rule without anchors is skipped with a warning on stderr.
+- Nothing to write: `No active rule to export.` or `No active rule with anchors to export.`
+- Brace anchors expand into one pattern per option. An anchor with a literal comma in a file name cannot be written in the comma-separated formats.
 
-### `export agents-md [--out <dir>]`
+**`export agents-md`**
 
-Keeps an index of the active rules in `AGENTS.md`, at the rulebook root or in `--out`. `AGENTS.md` has no path scoping and is always read, so it holds each rule's id, anchors (or `no anchors`), summary and rule file, not the full text. The index lives between `<!-- rulebookguard:start -->` and `<!-- rulebookguard:end -->`: the rest of the file is kept, the block is appended the first time and replaced after that, and it is removed when no rule is active, along with the file if nothing else is left (printing `removed AGENTS.md`). Anything other than one start marker followed by one end marker, or neither, fails with exit code 1 and leaves the file untouched.
+- Writes at the rulebook root or in `--out`. `AGENTS.md` is always read and has no path scoping, so it holds each rule's id, anchors (or `no anchors`), summary and rule file, not the full text.
+- The index lives between `<!-- rulebookguard:start -->` and `<!-- rulebookguard:end -->`. The rest of the file is kept; the block is appended the first time and replaced after that.
+- No active rule: the block is removed, and the file too if nothing else is left (`removed AGENTS.md`).
+- Anything other than one start marker followed by one end marker, or neither, exits 1 and leaves the file untouched.
 
-### `export kiro-agents [--out <dir>]`
+**`export kiro-agents`**
 
-Writes `rule-author` and `rule-miner` as [Kiro custom agents](https://kiro.dev/docs/custom-agents/) in `.kiro/agents/rulebookguard-<name>.md`, under the rulebook root or directly in `--out`. Each file carries its own MCP server, pinned to the version of the CLI that wrote it, and the rule writing guide, so it works without the [Kiro power](#kiro). Run it again after upgrading. Other files in the directory are left alone, and if `rulebookguard-rule-author.md` or `rulebookguard-rule-miner.md` lacks the generated line, the command fails with exit code 1 before writing anything.
+- Writes under the rulebook root or directly in `--out`. Each file carries its own MCP server, pinned to the CLI version that wrote it, and the rule writing guide, so it works without the [Kiro power](#kiro). Rerun after upgrading.
+- Other files in the directory are left alone. If `rulebookguard-rule-author.md` or `rulebookguard-rule-miner.md` lacks the generated line, the command exits 1 before writing anything.
+
+</details>
 
 ### `hook`
 
-A Claude Code hook for `PreToolUse` and `PostToolUse` events of tools that take a `file_path` (the [Claude Code plugin](#claude-code-plugin) wires it up). It reads the hook event as JSON on stdin, takes `tool_input.file_path` (relative paths resolve against the event's `cwd`), finds `rulebookguard.config.yaml` by walking up from that file, and prints the active rules anchored to it as additional context for Claude, under the same `hookEventName`:
+A Claude Code hook for `PreToolUse` and `PostToolUse` events of tools that take a `file_path`. The [Claude Code plugin](#claude-code-plugin) wires it up. It prints the active rules anchored to the file as additional context, under the same `hookEventName`:
 
 ```sh
 $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"/repo/src/billing/invoice.go"}}' | rulebookguard hook
 {"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Business rules anchored to src/billing/invoice.go (rulebookguard). …"}}
 ```
 
-Claude Code adds the context next to the tool result, so a `PostToolUse` hook on `Read` delivers the rules together with the file contents, before Claude writes a change (Claude Code requires reading a file before editing it).
-
-Each rule comes with its id, context, summary, rule file, the lines of its `@implements` regions and of its evidence in that file (when there are any) and full text; when the texts add up to more than 10,000 characters only the summaries are listed, with a pointer to `rulebookguard show <id>`. The header follows `language` in the config.
-
 > [!NOTE]
 > The hook never blocks a tool and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, another event, unreadable input or any error, it prints nothing and exits 0.
 
-### `mcp [--project <dir>]`
+<details>
+<summary>Hook details</summary>
 
-An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with read-only tools:
+- Reads the event JSON on stdin and takes `tool_input.file_path` (relative paths resolve against the event's `cwd`). Finds `rulebookguard.config.yaml` by walking up from that file.
+- A `PostToolUse` hook on `Read` delivers the rules with the file contents, before Claude writes a change (Claude Code requires reading a file before editing it).
+- Each rule comes with its id, context, summary, rule file, the lines of its `@implements` regions and evidence in that file, and full text. Above 10,000 characters only summaries are listed, with a pointer to `rulebookguard show <id>`.
+- The header follows `language`.
+
+</details>
+
+### `mcp`
+
+`mcp [--project <dir>]`: an [MCP](https://modelcontextprotocol.io) server over stdio with read-only tools. The rulebook is found from `--project` (default: the current directory).
 
 | Tool           | Input                                                  | Answers                                                       |
 | -------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
@@ -546,55 +517,94 @@ An [MCP](https://modelcontextprotocol.io) server over stdio for AI agents, with 
 | `rules_search` | `text`, `context`?                                     | what `rulebookguard search <text> --json` prints              |
 | `lint`         | `base`?: a git ref                                     | what `rulebookguard lint --json` prints, with `--base` if set |
 
-The rulebook is found from `--project` (default: the current directory). A command that would fail answers a tool error carrying the same message the CLI prints, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.` Lint findings are data, not a failure: `lint` answers its JSON report even when it has errors, and fails only when lint cannot run.
+A failing command answers a tool error with the CLI's message, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.` Lint findings are data: `lint` fails only when lint cannot run.
 
-### `site:generate [--out <dir>] [--base <path>]`
+### `site`
 
 > [!IMPORTANT]
-> The site commands build with Astro, which lives in a separate package so that installing the linter does not download it. Install it next to `rulebookguard` (it requires Node.js 22.23.4 or later):
+> The site commands need a separate package (Astro, Node.js 22.23.4 or later):
 >
 > ```sh
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
+>
+> Without it they exit 1 with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off: `npx -p rulebookguard@0.13.1 -p @rulebookguard/site@0.13.1 rulebookguard site:run`.
 
-Without it, the site commands fail, exit 1, with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off, without installing: `npx -p rulebookguard@0.13.1 -p @rulebookguard/site@0.13.1 rulebookguard site:run`.
-
-Builds a read-only static site of the rulebook with [Astro Starlight](https://starlight.astro.build) into `--out` (default `site`, relative to the current directory) and prints that path. Open it from disk or publish it as is, for example on GitHub Pages; pass `--base` when it is served from a sub-path (`--base /rules`).
+| Command                                                   | What it does                                                                                                               |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `site:generate [--out <dir>] [--base <path>]` (or `site`) | builds a read-only [Astro Starlight](https://starlight.astro.build) site into `--out` (default `site`) and prints the path |
+| `site:run [--out <dir>] [--base <path>] [--port <n>]`     | builds, then serves `--out` on `127.0.0.1` (port 4321, or `--port`) until Ctrl+C                                           |
 
 ```sh
 $ rulebookguard site:generate --out public/rules --base /rules
 public/rules
-```
 
-`site` is the same command.
-
-### `site:run [--out <dir>] [--base <path>] [--port <n>]`
-
-Builds the site like `site:generate`, then serves `--out` on `127.0.0.1` (port 4321, or `--port`) and prints the URL, until Ctrl+C. Unknown paths get the site's 404 page. A taken port fails, exit 1, before building.
-
-```sh
 $ rulebookguard site:run
 site
 Serving site at http://127.0.0.1:4321/ (Ctrl+C to stop)
 ```
 
-The site has:
-
-- **Home:** the contexts map, with how many rules of each status every context holds.
-- **A page per context** with its description and rules.
-- **All rules:** one table filterable by text, context and status.
-- **A page per rule:** summary, status, entities, rule file, the supersedes chain both ways, the origin (an `extracted` rule still `proposed` is flagged as not validated by the business yet) and evidence, each entry with the `file:line-endLine` it resolves to, the rule text, its anchors and the files they match, the tests tagging it, and the git history of the rule file.
-- **Health:** the `lint` findings when the site was built.
-- Full-text search (Pagefind).
-
-Generated text and the interface follow `language` in the config. The site is a view: rules are still edited in their files, through pull requests.
+- Open it from disk or publish it as is (for example GitHub Pages). Use `--base` when served from a sub-path.
+- `site:run`: unknown paths get the 404 page; a taken port exits 1 before building.
 
 > [!WARNING]
-> `site` replaces `--out` only when it is empty or was written by an earlier `site`; any other non-empty directory makes it fail, exit 1, without touching it. Add the output directory to `.gitignore` unless you mean to commit it.
+> `site` replaces `--out` only when it is empty or was written by an earlier `site`. Any other non-empty directory exits 1, untouched. Add the output directory to `.gitignore` unless you mean to commit it.
+
+<details>
+<summary>What the site shows</summary>
+
+- **Home:** the contexts map, with rule counts per status.
+- **A page per context** with its description and rules.
+- **All rules:** one table filterable by text, context and status.
+- **A page per rule:** summary, status, entities, rule file, supersedes chain both ways, origin (an `extracted` rule still `proposed` is flagged as not validated by the business yet), evidence with `file:line-endLine`, text, anchors and matched files, tagging tests, and the rule file's git history.
+- **Health:** the `lint` findings at build time.
+- Full-text search (Pagefind).
+
+The interface follows `language`. The site is a view: edit rules in their files, through pull requests.
+
+</details>
+
+## Configuration
+
+`rulebookguard.config.yaml` at the repository root. Commands find it by walking up from the current directory; catalog paths are relative to its directory.
+
+```yaml
+schema: 1
+testGlobs: ['src/**/*.test.ts', 'tests/**/test_*.py']
+language: es
+```
+
+| Key             | Required | Default      | Meaning                                                                                       |
+| --------------- | -------- | ------------ | --------------------------------------------------------------------------------------------- |
+| `schema`        | yes      | —            | config schema version (`1`)                                                                   |
+| `testGlobs`     | yes      | —            | files scanned for `@rule` tags; `[]` is valid but finds no tags                               |
+| `rulesDir`      | no       | `docs/rules` | where the contexts live                                                                       |
+| `contextBudget` | no       | `30`         | `lint` warns when a context holds more rules                                                  |
+| `language`      | no       | `en`         | `en` or `es`: language of the text rulebookguard generates (0.1.1+; older versions reject it) |
+
+Unknown fields are rejected. The JSON Schemas ship under `rulebookguard/schemas/v1/`.
+
+<details>
+<summary>What <code>language</code> covers</summary>
+
+It covers the `new` template, the hook context, the site, and every message printed once the config is loaded (lint findings, errors, warnings, headers, and the `message` of `--json` output). Lint codes, JSON keys and values such as `active` stay in English. So do `--help`, argument errors and the findings of an invalid config file, which come before the config is read. Rule content is never checked for language.
+
+</details>
+
+<details>
+<summary>How files are listed</summary>
+
+- Inside a git work tree: `git ls-files --cached --others --exclude-standard`, so anything in `.gitignore` (`dist/`, `coverage/`, caches) is never matched. Files inside submodules are listed too.
+- A submodule path that is a symlink, or resolves outside the rulebook root, is skipped. A symlinked test file is scanned only when its target is inside the rulebook root.
+- A submodule that cannot be listed prints `warning: could not list files of submodule "<path>" (<reason>); skipping it.` and the rest is kept.
+- Outside git, or when the rulebook root is git-ignored, the whole tree is walked, skipping `.git` and `node_modules`.
+- If git fails (missing from `PATH`, dubious ownership), commands print one warning on stderr and walk the tree.
+
+</details>
 
 ## CI recipe
 
-Run the linter on every pull request, comparing against the branch it targets. The full history is needed so that the base branch exists. `rulebookguard init --ci` writes this file as `.github/workflows/rulebookguard.yml`.
+`rulebookguard init --ci` writes this as `.github/workflows/rulebookguard.yml`. `fetch-depth: 0` makes the base branch available.
 
 ```yaml
 name: rules
@@ -614,102 +624,109 @@ jobs:
 ```
 
 > [!TIP]
-> Keep the version pinned, or add rulebookguard as a dev dependency and run it from the lockfile, so a new release never changes CI results by itself.
+> Keep the version pinned, or run it from your lockfile, so a new release never changes CI results by itself.
 
-## Claude Code plugin
+## AI agents
 
-The plugin in [`plugin/`](plugin) connects the rulebook to Claude Code:
-
-- **Hooks:** after every `Read` and before every `Write`, it runs `rulebookguard hook`, so Claude gets the active rules anchored to a file together with its contents, before it writes a change. A `Write` of a new file, which needs no `Read`, gets them right after the file is created.
-- **MCP server:** the tools of `rulebookguard mcp` (`rules_for`, `rules_show`, `contexts`, `rules_list`, `rules_search`, `lint`), for rules of files Claude has not opened yet and for working on the rulebook itself.
-- **Skill** `rulebookguard:rules`: the protocol, that is, follow the rules, and change a rule (then its tests, then the code, inside its `@implements` regions when it has any; new regions only on request) only when the user asks for the behavior change.
-- **Skill** `rulebookguard:rule-writing`: the shared writing guide, so a rule reads the same whoever writes it: one verifiable behavior, a one-line summary in business language, Gherkin examples, and `origin` and `evidence` for rules lifted from code.
-- **Agent** `rulebookguard:rule-miner`: lifts the business rules existing code already enforces, one context at a time. It writes them as `proposed` rules with `origin: extracted`, evidence as `path symbol` and questions for the business, through `rulebookguard new`. It traces every flow of the context from its entry points down to persistence before writing, and its report starts with the flows it traced. It does not edit production code: it suggests the lines that enforce each rule, and adds `@implements` … `@endimplements` markers only when asked. It checks existing rules first to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates a rule or edits existing rules, and touches code only to add marker comments when asked: a person reviews the diff and activates what holds. Ask for it by name, for example "use rule-miner on the clients context".
-- **Agent** `rulebookguard:rule-author`: designs the rules a feature needs before its code. By default it writes nothing: it reads the rulebook by levels and returns a rule change plan with new rules and their Gherkin, changed rules as diffs, deprecations, conflicts with active rules, test skeletons and open questions, then stops for a person to approve. Called again with the approved plan, it writes the new rules as `proposed` through `rulebookguard new`, applies the approved diffs and finishes when `lint` has no errors of its own. Tests and code come after, as the `rules` skill says. Ask for it by name, for example "use rule-author for this feature: …".
-
-Install it from this repository's marketplace:
+### Claude Code plugin
 
 ```sh
 claude plugin marketplace add JuanCJR/rulebookguard
 claude plugin install rulebookguard@rulebookguard
 ```
 
-Or, inside Claude Code 2.1.275 or later: `/plugin install rulebookguard --marketplace JuanCJR/rulebookguard`.
+Or, in Claude Code 2.1.275 or later: `/plugin install rulebookguard --marketplace JuanCJR/rulebookguard`.
 
-The plugin runs the project's own rulebookguard (`node_modules/rulebookguard`, in the project directory or a parent) when its version is at least the plugin's; otherwise it runs `npx rulebookguard@<plugin version>`, which needs Node.js and network access the first time. In a checkout of rulebookguard itself it runs the checkout's own built CLI (`dist/cli.mjs`, from `vp pack`), whatever its version. The hooks never block a tool: any failure, including a timeout, lets it go ahead without rules.
+The plugin in [`plugin/`](plugin) provides:
 
-## Kiro
+| Piece                              | What it does                                                                                                                                                 |
+| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Hooks                              | run `rulebookguard hook` after every `Read` and before every `Write` (a `Write` of a new file gets the rules right after creation)                           |
+| MCP server                         | the [`mcp`](#mcp) tools, for files Claude has not opened and for working on the rulebook                                                                     |
+| Skill `rulebookguard:rules`        | the protocol: follow the rules; change a rule (then tests, then code, inside its `@implements` regions; new regions only on request) only when the user asks |
+| Skill `rulebookguard:rule-writing` | the shared writing guide: one verifiable behavior, a one-line business summary, Gherkin, `origin` and `evidence` for extracted rules                         |
+| Agent `rulebookguard:rule-miner`   | lifts rules existing code enforces into `proposed` rules, one context at a time. Ask: "use rule-miner on the clients context"                                |
+| Agent `rulebookguard:rule-author`  | plans the rule changes a feature needs, stops for approval, then writes them. Ask: "use rule-author for this feature: …"                                     |
 
-Kiro gets the same rules through three pieces:
+The plugin runs the project's own `node_modules/rulebookguard` (in the project directory or a parent) when its version is at least the plugin's; otherwise `npx rulebookguard@<plugin version>`, which needs Node.js and network the first time. In a rulebookguard checkout it runs the built `dist/cli.mjs` (from `vp pack`). Any hook failure, including a timeout, lets the tool go ahead without rules.
 
-| Piece                                                 | What it gives Kiro                                       | How to get it                      |
-| ----------------------------------------------------- | -------------------------------------------------------- | ---------------------------------- |
-| [Steering files](#export-cursorcopilotkiro---out-dir) | the active rules of the files it works on                | `rulebookguard export kiro`        |
-| Power in [`plugin/`](plugin)                          | the `rules` and `rule-writing` skills and the MCP server | import the `plugin` folder         |
-| [Custom agents](#export-kiro-agents---out-dir)        | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
+<details>
+<summary>What the agents do and never do</summary>
 
-To install the power, open the Powers panel in Kiro, choose **Add Custom Power**, then **Import power from a folder** with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.13.1 mcp` from the directory Kiro starts it in, and needs Node.js and network access the first time.
+**rule-miner** writes `proposed` rules with `origin: extracted`, evidence as `path symbol`, and questions for the business, through `rulebookguard new`. It traces every flow of the context from entry points to persistence first, and its report starts with those flows. It checks existing rules to avoid duplicates, stays within `contextBudget`, wraps tests that already verify a rule in `@rule` … `@endrule`, and finishes only when `lint` has no errors of its own. It never activates or edits existing rules, and does not edit production code: it suggests enforcing lines and adds `@implements` … `@endimplements` markers only when asked. A person reviews the diff and activates what holds.
 
-Keep `rulebookguard.config.yaml` at the root of the Kiro workspace: Kiro reads `.kiro/` from there, and the steering patterns are relative to the rulebook root. There is no hook for Kiro, because steering files already deliver the rules of a matching file.
+**rule-author** writes nothing by default. It reads the rulebook by levels and returns a plan: new rules with Gherkin, changed rules as diffs, deprecations, conflicts with active rules, test skeletons and open questions. Called again with the approved plan, it writes new rules as `proposed` through `rulebookguard new`, applies the approved diffs, and finishes when `lint` has no errors of its own. Tests and code come after, as the `rules` skill says.
+
+</details>
+
+### Kiro
+
+Keep `rulebookguard.config.yaml` at the Kiro workspace root: Kiro reads `.kiro/` from there, and steering patterns are relative to the rulebook root.
+
+| Piece                        | What it gives Kiro                                       | How to get it                      |
+| ---------------------------- | -------------------------------------------------------- | ---------------------------------- |
+| [Steering files](#export)    | the active rules of the files it works on                | `rulebookguard export kiro`        |
+| Power in [`plugin/`](plugin) | the `rules` and `rule-writing` skills and the MCP server | import the `plugin` folder         |
+| [Custom agents](#export)     | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
+
+To install the power: Powers panel → **Add Custom Power** → **Import power from a folder**, with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.13.1 mcp` from the directory Kiro starts it in (needs Node.js and network the first time). There is no Kiro hook: steering files already deliver the rules.
 
 > [!NOTE]
-> Kiro limits what these pieces reach. Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically, so `rulebookguard export agents-md` is the way to reach them, and powers are listed for CLI V3. A custom agent does not read steering files unless its `resources` include `file://.kiro/steering/**/*.md`.
+> Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically; use `rulebookguard export agents-md` there. Powers are listed for CLI V3. A custom agent reads steering files only if its `resources` include `file://.kiro/steering/**/*.md`.
 
-## Use cases
+<details>
+<summary>Example prompts</summary>
 
-The [Claude Code plugin](#claude-code-plugin) and the [Kiro](#kiro) agents handle the requests below. The prompts are examples to adapt: they work in any language, and naming the agent (`rule-miner`, `rule-author`) is what hands the task to it.
+Prompts work in any language. Naming the agent (`rule-miner`, `rule-author`) hands the task to it.
 
-### Survey: adopting rulebookguard in an existing project
-
-Start with the map, then lift the rules one context at a time, so each batch is small enough to review.
+**Adopting rulebookguard in an existing project** — map first, then one context at a time:
 
 - "Map this repository into rulebookguard contexts: list the business domains under `src/`, propose a context name and id prefix for each, and run `rulebookguard init` for the first one. Do not write rules yet."
 - "Use rule-miner on the clients context."
 - "Use rule-miner on the billing context, and mark the code that enforces each rule with `@implements`."
 
-`rule-miner` writes `proposed` rules with their evidence and questions for the business. Review its diff, answer the questions, and set `status: active` on what holds.
+Then review the diff, answer the questions, and set `status: active` on what holds.
 
-### Analysis: reading the rulebook before a change
+**Before a change:**
 
 - "Use rule-author for this feature: clients who register online can be created without a phone number."
 - "Which business rules apply to `src/billing/invoice.ts`, and which of them have no test?"
 - "List the rules my branch touches against origin/main, and tell me which ones changed without a change in their tests."
 - "List the open questions for the business in the proposed rules of the clients context, grouped by rule."
 
-### Remapping: keeping rules linked after the code moves
-
-Evidence and anchors point at code, so a refactor can leave them behind. `lint` reports it as `dead-evidence` and `unmatched-anchor`.
+**After the code moves** (`lint` reports `dead-evidence` and `unmatched-anchor`):
 
 - "Run `rulebookguard lint` and fix every `dead-evidence` warning: find where each symbol moved or what it was renamed to, and update the evidence entry. Do not change the rule text."
 - "We moved `src/clients` to `src/customers`. Update the anchors and the evidence of the clients rules, then run lint until no `unmatched-anchor` or `dead-evidence` is left."
 - "Rewrite every evidence entry written as `path:line` in the rulebook as `path symbol`, naming the function, method or test at that line."
 - "Replace the `@implements` markers in `src/` with evidence entries on their rules: for each region, add the enclosing symbol as `path symbol` to the rule's evidence, then remove both marker lines. Show me the diff before removing anything."
 
-### Version adjustments: upgrading the rulebook
+**Upgrading:**
 
 - "Read the Upgrading notes of rulebookguard between our version and the latest one, and tell me what they change for this repository before touching anything."
 - "Upgrade rulebookguard to the latest version following the Upgrading section of its README: bump every pinned version, apply the notes of each version in between, and run lint."
 
+</details>
+
 ## Upgrading
 
 1. **Read the notes** below for every version between yours and the new one.
-2. **Bump every pinned version** to the new one: the `rulebookguard@<version>` in `npx` commands in CI (`.github/workflows/rulebookguard.yml` when `init --ci` wrote it) and in scripts, and the `rulebookguard`, `@rulebookguard/site` and `@rulebookguard/symbols` dev dependencies, which must share the version:
+2. **Bump every pinned version**: `rulebookguard@<version>` in `npx` commands in CI (`.github/workflows/rulebookguard.yml` when `init --ci` wrote it) and scripts, and the `rulebookguard`, `@rulebookguard/site` and `@rulebookguard/symbols` dev dependencies, which must share the version:
 
    ```sh
    npm install --save-dev rulebookguard@<version> @rulebookguard/symbols@<version>
    ```
 
-3. **Update the agents.** Claude Code: `claude plugin marketplace update rulebookguard`, then `claude plugin update rulebookguard@rulebookguard`, and restart Claude Code. Kiro: update the clone of the `plugin` folder, import the power again, and run `rulebookguard export kiro-agents` again.
-4. **Regenerate the exported files** you keep in the repository (`export gherkin`, `export cursor|copilot|kiro`, `export agents-md`), so they match the new version.
+3. **Update the agents.** Claude Code: `claude plugin marketplace update rulebookguard`, then `claude plugin update rulebookguard@rulebookguard`, and restart. Kiro: update the `plugin` clone, import the power again, and rerun `rulebookguard export kiro-agents`.
+4. **Regenerate exported files** you commit (`export gherkin`, `export cursor|copilot|kiro`, `export agents-md`).
 5. **Run `rulebookguard lint`** and fix what it reports. New warnings never change the exit code.
 
-| Version | What changes                                                                                                                                                                                                                                                                                                                         | What to do                                                                                                                                                                                                                           |
-| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 0.13.1  | These Use cases and Upgrading sections. 0.13.0 was published by hand by mistake, without the release workflow's provenance and locked dependencies.                                                                                                                                                                                  | Skip 0.13.0: upgrade to 0.13.1.                                                                                                                                                                                                      |
-| 0.13    | [Evidence](#evidence) entries resolve to lines in `show`, `for`, the hook and the site; `lint` warns with `dead-evidence`; the optional [`@rulebookguard/symbols`](#exact-ranges-with-rulebookguardsymbols) package gives full ranges. `rule-miner` traces flows down to persistence and adds `@implements` markers only when asked. | Nothing required. Optionally install `@rulebookguard/symbols`, fix the `dead-evidence` warnings, and rewrite `path:line` entries as `path symbol` (of those, only the file is checked). Existing `@implements` markers keep working. |
-| 0.12    | Kiro support: a power and `export kiro-agents`.                                                                                                                                                                                                                                                                                      | Nothing.                                                                                                                                                                                                                             |
-| 0.11    | Each release locks its dependencies for npm and `npx`.                                                                                                                                                                                                                                                                               | Nothing.                                                                                                                                                                                                                             |
-| 0.10    | `for --changed <ref>`.                                                                                                                                                                                                                                                                                                               | Nothing.                                                                                                                                                                                                                             |
-| 0.9     | A `@rule` marker counts only on a line that starts with a comment.                                                                                                                                                                                                                                                                   | Move markers in test names, strings or after code to their own comment line: rules tagged only that way are reported as `untested-rule`.                                                                                             |
-| 0.7     | Every `@rule` needs its `@endrule`, and `lint --base` needs a change inside a region of each changed rule.                                                                                                                                                                                                                           | Close each `@rule <ID>` with `@endrule <ID>` after the test that proves it.                                                                                                                                                          |
-| 0.5     | The site commands moved to the `@rulebookguard/site` package.                                                                                                                                                                                                                                                                        | Install `@rulebookguard/site` next to `rulebookguard` to keep using `site:generate` and `site:run`.                                                                                                                                  |
+| Version | What to do                                                                                                                                                                                                                                              |
+| ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.13.1  | Skip 0.13.0 (published by hand by mistake, without provenance and locked dependencies): upgrade to 0.13.1.                                                                                                                                              |
+| 0.13    | Nothing required. [Evidence](#evidence) now resolves to lines and `lint` warns `dead-evidence`. Optionally install `@rulebookguard/symbols`, fix `dead-evidence`, and rewrite `path:line` entries as `path symbol`. `@implements` markers keep working. |
+| 0.9     | A `@rule` marker counts only on a line that starts with a comment. Move markers in test names, strings or after code to their own comment line, or those rules report `untested-rule`.                                                                  |
+| 0.7     | Close each `@rule <ID>` with `@endrule <ID>` after the test that proves it; `lint --base` needs a change inside a region of each changed rule.                                                                                                          |
+| 0.5     | Install `@rulebookguard/site` next to `rulebookguard` to keep using `site:generate` and `site:run`.                                                                                                                                                     |
+
+0.10, 0.11 and 0.12 need no action.
