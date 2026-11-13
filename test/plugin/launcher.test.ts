@@ -146,6 +146,16 @@ describe('plugin launcher', () => {
     expect(launch(['mcp'], project).call.args).toEqual(['mcp', '--project', project]);
   });
 
+  // @rule R-AGT-003
+  it('leaves mcp free to use the client roots outside Claude Code', async () => {
+    const project = await projectWithLocal(pluginVersion);
+
+    const { call } = launch(['mcp'], project, { CLAUDE_PROJECT_DIR: '' });
+
+    expect(call).toEqual({ args: ['mcp'], cwd: project, stdin: 'event' });
+  });
+  // @endrule R-AGT-003
+
   it('never exits 2, which would block the edit', async () => {
     const project = await projectWithLocal(pluginVersion);
 

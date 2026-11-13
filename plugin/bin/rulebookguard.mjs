@@ -9,10 +9,12 @@ const pluginRoot = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const { version } = JSON.parse(
   readFileSync(join(pluginRoot, '.claude-plugin/plugin.json'), 'utf8'),
 );
-const project = process.env.CLAUDE_PROJECT_DIR || process.cwd();
+const claudeProject = process.env.CLAUDE_PROJECT_DIR;
+const project = claudeProject || process.cwd();
 
 const args = process.argv.slice(2);
-if (args[0] === 'mcp' && !args.includes('--project')) {
+// Outside Claude Code the start directory may not be the project; without --project the server asks the client roots.
+if (claudeProject && args[0] === 'mcp' && !args.includes('--project')) {
   args.push('--project', project);
 }
 

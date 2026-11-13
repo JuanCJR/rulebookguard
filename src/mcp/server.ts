@@ -1,11 +1,23 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import pkg from '../../package.json' with { type: 'json' };
+import { fileURLToPath } from 'node:url';
+import { findRulebookRoot } from '../catalog/load.ts';
 import { runCli } from '../commands/run.ts';
 
+export interface RulesServerOptions {
+  /** Look for the rulebook in the client roots when projectDir has none; off for an explicit --project. */
+  clientRoots?: boolean;
+}
+
 // Each tool answers exactly what the matching `--json` command prints, so the CLI stays the only source of shapes and messages.
-export function createRulesServer(projectDir: string): McpServer {
+export function createRulesServer(
+  projectDir: string,
+  { clientRoots = true }: RulesServerOptions = {},
+): McpServer {
   const server = new McpServer({ name: 'rulebookguard', version: pkg.version });
+  const directory = () =>
+    clientRoots ? rulebookDirectory(server, projectDir) : Promise.resolve(projectDir);
 
   server.registerTool(
     'rules_for',
@@ -17,7 +29,7 @@ export function createRulesServer(projectDir: string): McpServer {
       }),
       annotations: { readOnlyHint: true },
     },
-    ({ path }) => cli(projectDir, ['for', path, '--json']),
+    ({ path }) => cli(directory(), ['for', path, '--json']),
   );
 
   server.registerTool(
@@ -28,7 +40,7 @@ export function createRulesServer(projectDir: string): McpServer {
       inputSchema: z.object({ id: z.string().describe('Rule id, for example R-CLI-001') }),
       annotations: { readOnlyHint: true },
     },
-    ({ id }) => cli(projectDir, ['show', id, '--json']),
+    ({ id }) => cli(directory(), ['show', id, '--json']),
   );
 
   server.registerTool(
@@ -39,7 +51,7 @@ export function createRulesServer(projectDir: string): McpServer {
       inputSchema: z.object({}),
       annotations: { readOnlyHint: true },
     },
-    () => cli(projectDir, ['contexts', '--json']),
+    () => cli(directory(), ['contexts', '--json']),
   );
 
   server.registerTool(
@@ -54,7 +66,7 @@ export function createRulesServer(projectDir: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     ({ context, status }) =>
-      cli(projectDir, [
+      cli(directory(), [
         'list',
         ...(context === undefined ? [] : ['--context', context]),
         ...(status === undefined ? [] : ['--status', status]),
@@ -74,7 +86,7 @@ export function createRulesServer(projectDir: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     ({ text, context }) =>
-      cli(projectDir, [
+      cli(directory(), [
         'search',
         text,
         ...(context === undefined ? [] : ['--context', context]),
@@ -93,7 +105,7 @@ export function createRulesServer(projectDir: string): McpServer {
       annotations: { readOnlyHint: true },
     },
     ({ base }) =>
-      cli(projectDir, ['lint', ...(base === undefined ? [] : ['--base', base]), '--json'], {
+      cli(directory(), ['lint', ...(base === undefined ? [] : ['--base', base]), '--json'], {
         findingsAreData: true,
       }),
   );
@@ -101,8 +113,37 @@ export function createRulesServer(projectDir: string): McpServer {
   return server;
 }
 
+// @implements R-AGT-003
+// Some clients start servers in their own install directory; their roots still name the workspace.
+async function rulebookDirectory(server: McpServer, projectDir: string): Promise<string> {
+  if ((await findRulebookRoot(projectDir)) !== undefined) {
+    return projectDir;
+  }
+  if (server.server.getClientCapabilities()?.roots === undefined) {
+    return projectDir;
+  }
+  let roots: { uri: string }[];
+  try {
+    ({ roots } = await server.server.listRoots());
+  } catch {
+    return projectDir;
+  }
+  for (const { uri } of roots) {
+    if (!uri.startsWith('file:')) {
+      continue;
+    }
+    const root = fileURLToPath(uri);
+    if ((await findRulebookRoot(root)) !== undefined) {
+      return root;
+    }
+  }
+  return projectDir;
+}
+// @endimplements R-AGT-003
+
 // lint exits 1 when it finds errors but still prints its JSON report; only an empty stdout means it could not run.
-async function cli(cwd: string, args: string[], { findingsAreData = false } = {}) {
+async function cli(directory: Promise<string>, args: string[], { findingsAreData = false } = {}) {
+  const cwd = await directory;
   let stdout = '';
   let stderr = '';
   const status = await runCli(args, {
