@@ -28,7 +28,7 @@ docs/rules/clients/R-CLI-001.md   ── anchors ──▶  src/clients/**/*.ts
 Requires Node.js 22 or later. Nothing in your code imports rulebookguard, so run it with `npx` and pin the version:
 
 ```sh
-npx rulebookguard@0.13.1 lint
+npx rulebookguard@0.14.0 lint
 ```
 
 Each release locks its dependencies for npm and `npx` (`pnpm dlx` and others ignore that lock). To keep the version in your lockfile instead:
@@ -39,10 +39,10 @@ npm install --save-dev rulebookguard
 
 ## Quick start
 
-1. `npx rulebookguard@0.13.1 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow. Adjust `testGlobs` in the [config](#configuration).
-2. `npx rulebookguard@0.13.1 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
+1. `npx rulebookguard@0.14.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow. Adjust `testGlobs` in the [config](#configuration).
+2. `npx rulebookguard@0.14.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
 3. Write the rule, add its `anchors`, and set `status: active`. Wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
-4. `npx rulebookguard@0.13.1 lint`. Then add it to CI with the [CI recipe](#ci-recipe).
+4. `npx rulebookguard@0.14.0 lint`. Then add it to CI with the [CI recipe](#ci-recipe).
 
 ## Writing rules
 
@@ -528,7 +528,7 @@ A failing command answers a tool error with the CLI's message, for example `Unkn
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
 >
-> Without it they exit 1 with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off: `npx -p rulebookguard@0.13.1 -p @rulebookguard/site@0.13.1 rulebookguard site:run`.
+> Without it they exit 1 with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off: `npx -p rulebookguard@0.14.0 -p @rulebookguard/site@0.14.0 rulebookguard site:run`.
 
 | Command                                                   | What it does                                                                                                               |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -620,7 +620,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx --yes rulebookguard@0.13.1 lint --base origin/${{ github.base_ref }}
+      - run: npx --yes rulebookguard@0.14.0 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
@@ -669,7 +669,7 @@ Keep `rulebookguard.config.yaml` at the Kiro workspace root: Kiro reads `.kiro/`
 | Power in [`plugin/`](plugin) | the `rules` and `rule-writing` skills and the MCP server | import the `plugin` folder         |
 | [Custom agents](#export)     | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
 
-To install the power: Powers panel → **Add Custom Power** → **Import power from a folder**, with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.13.1 mcp` (needs Node.js and network the first time) and finds the rulebook from the directory Kiro starts it in or, failing that, from the workspace roots Kiro offers. If the tools still answer `rulebookguard.config.yaml not found`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
+To install the power: Powers panel → **Add Custom Power** → **Import power from a folder**, with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.14.0 mcp` (needs Node.js and network the first time) and finds the rulebook from the directory Kiro starts it in or, failing that, from the workspace roots Kiro offers. If the tools still answer `rulebookguard.config.yaml not found`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
 
 > [!NOTE]
 > Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically; use `rulebookguard export agents-md` there. Powers are listed for CLI V3. A custom agent reads steering files only if its `resources` include `file://.kiro/steering/**/*.md`.
@@ -723,6 +723,7 @@ Then review the diff, answer the questions, and set `status: active` on what hol
 
 | Version | What to do                                                                                                                                                                                                                                              |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0.14    | Nothing required. Without `--project`, `mcp` also finds the rulebook in the client roots, so clients that start servers outside the workspace (Kiro) can drop a hardcoded `--project`.                                                                  |
 | 0.13.1  | Skip 0.13.0 (published by hand by mistake, without provenance and locked dependencies): upgrade to 0.13.1.                                                                                                                                              |
 | 0.13    | Nothing required. [Evidence](#evidence) now resolves to lines and `lint` warns `dead-evidence`. Optionally install `@rulebookguard/symbols`, fix `dead-evidence`, and rewrite `path:line` entries as `path symbol`. `@implements` markers keep working. |
 | 0.9     | A `@rule` marker counts only on a line that starts with a comment. Move markers in test names, strings or after code to their own comment line, or those rules report `untested-rule`.                                                                  |

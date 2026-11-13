@@ -4,7 +4,7 @@
     "rulebookguard": {
       "type": "stdio",
       "command": "npx",
-      "args": ["--yes", "rulebookguard@0.13.1", "mcp"]
+      "args": ["--yes", "rulebookguard@0.14.0", "mcp"]
     }
   }
 }

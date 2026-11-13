@@ -31,7 +31,7 @@ docs/rules/clients/R-CLI-001.md   ── anchors ──▶  src/clients/**/*.ts
 Requiere Node.js 22 o superior. Ningún archivo de tu código importa rulebookguard, así que ejecútalo con `npx` y fija la versión:
 
 ```sh
-npx rulebookguard@0.13.1 lint
+npx rulebookguard@0.14.0 lint
 ```
 
 Cada versión fija sus dependencias para npm y `npx` (`pnpm dlx` y otros ignoran ese bloqueo). Para mantener la versión en tu lockfile:
@@ -42,10 +42,10 @@ npm install --save-dev rulebookguard
 
 ## Inicio rápido
 
-1. `npx rulebookguard@0.13.1 init clients --ci` escribe `rulebookguard.config.yaml`, el contexto `clients` y un workflow de CI. Ajusta `testGlobs` en la [configuración](#configuración).
-2. `npx rulebookguard@0.13.1 new clients` crea `docs/rules/clients/R-CLI-001.md` como `proposed`.
+1. `npx rulebookguard@0.14.0 init clients --ci` escribe `rulebookguard.config.yaml`, el contexto `clients` y un workflow de CI. Ajusta `testGlobs` en la [configuración](#configuración).
+2. `npx rulebookguard@0.14.0 new clients` crea `docs/rules/clients/R-CLI-001.md` como `proposed`.
 3. Escribe la regla, agrega sus `anchors` y pon `status: active`. Envuelve el test que la prueba con `@rule R-CLI-001` y `@endrule R-CLI-001`.
-4. Ejecuta `npx rulebookguard@0.13.1 lint`. Luego agrégalo a la CI con la [receta de CI](#receta-de-ci).
+4. Ejecuta `npx rulebookguard@0.14.0 lint`. Luego agrégalo a la CI con la [receta de CI](#receta-de-ci).
 
 ## Escribir reglas
 
@@ -531,7 +531,7 @@ Un comando que falla responde con un error de herramienta que contiene el mensaj
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
 >
-> Sin él salen con 1 y el mensaje `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. Para una ejecución puntual: `npx -p rulebookguard@0.13.1 -p @rulebookguard/site@0.13.1 rulebookguard site:run`.
+> Sin él salen con 1 y el mensaje `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. Para una ejecución puntual: `npx -p rulebookguard@0.14.0 -p @rulebookguard/site@0.14.0 rulebookguard site:run`.
 
 | Comando                                                  | Qué hace                                                                                                                               |
 | -------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- |
@@ -623,7 +623,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx --yes rulebookguard@0.13.1 lint --base origin/${{ github.base_ref }}
+      - run: npx --yes rulebookguard@0.14.0 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
@@ -672,7 +672,7 @@ Mantén `rulebookguard.config.yaml` en la raíz del workspace de Kiro: Kiro lee 
 | Power en [`plugin/`](plugin)    | las skills `rules` y `rule-writing` y el servidor MCP  | importar la carpeta `plugin`       |
 | [Custom agents](#export)        | `rule-author` y `rule-miner`                           | `rulebookguard export kiro-agents` |
 
-Para instalar el power: panel Powers → **Add Custom Power** → **Import power from a folder**, con un clon de la carpeta `plugin` de este repositorio. Su servidor MCP ejecuta `npx --yes rulebookguard@0.13.1 mcp` (necesita Node.js y red la primera vez) y busca el rulebook desde el directorio en el que Kiro lo inicia o, si no lo encuentra ahí, desde los roots del workspace que ofrece Kiro. Si las herramientas siguen respondiendo `rulebookguard.config.yaml not found`, agrega la misma entrada, sin `--project`, al `.kiro/settings/mcp.json` del workspace: Kiro inicia los servidores del workspace en la primera carpeta del workspace. No hay hook para Kiro: los archivos de steering ya entregan las reglas.
+Para instalar el power: panel Powers → **Add Custom Power** → **Import power from a folder**, con un clon de la carpeta `plugin` de este repositorio. Su servidor MCP ejecuta `npx --yes rulebookguard@0.14.0 mcp` (necesita Node.js y red la primera vez) y busca el rulebook desde el directorio en el que Kiro lo inicia o, si no lo encuentra ahí, desde los roots del workspace que ofrece Kiro. Si las herramientas siguen respondiendo `rulebookguard.config.yaml not found`, agrega la misma entrada, sin `--project`, al `.kiro/settings/mcp.json` del workspace: Kiro inicia los servidores del workspace en la primera carpeta del workspace. No hay hook para Kiro: los archivos de steering ya entregan las reglas.
 
 > [!NOTE]
 > Kiro CLI V1 y V2 no cargan automáticamente los archivos de steering `fileMatch`; ahí usa `rulebookguard export agents-md`. Los powers aparecen en CLI V3. Un custom agent lee los archivos de steering solo si sus `resources` incluyen `file://.kiro/steering/**/*.md`.
@@ -726,6 +726,7 @@ Luego revisa el diff, responde las preguntas y pon `status: active` en lo que se
 
 | Versión | Qué hacer                                                                                                                                                                                                                                                                                        |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.14    | Nada obligatorio. Sin `--project`, `mcp` también busca el rulebook en los roots del cliente, así que los clientes que inician los servidores fuera del workspace (Kiro) pueden quitar un `--project` fijo.                                                                                       |
 | 0.13.1  | Evita la 0.13.0 (se publicó a mano por error, sin provenance ni dependencias fijadas): actualiza a la 0.13.1.                                                                                                                                                                                    |
 | 0.13    | Nada obligatorio. La [evidencia](#evidencia) ahora se resuelve a líneas y `lint` advierte `dead-evidence`. Opcionalmente instala `@rulebookguard/symbols`, corrige los `dead-evidence` y reescribe las entradas `path:line` como `path symbol`. Los marcadores `@implements` siguen funcionando. |
 | 0.9     | Un marcador `@rule` cuenta solo en una línea que empieza con un comentario. Mueve los marcadores que están en nombres de tests, en strings o después de código a su propia línea de comentario, o esas reglas reportarán `untested-rule`.                                                        |
