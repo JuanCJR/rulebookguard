@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "rulebookguard",
-  "version": "0.13.1",
+  "version": "0.14.0",
   "description": "Business rules as the source of truth: follow, look up and write the rules anchored to your code.",
   "author": {
     "name": "Juan Carlos Jimenez"
