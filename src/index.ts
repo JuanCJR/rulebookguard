@@ -19,7 +19,10 @@ export {
 } from './format/tag.ts';
 export type {
   ContextDoc,
+  ContextEntity,
   ContextFrontmatter,
+  ContextKind,
+  ContextRelation,
   ParseOptions,
   RuleDoc,
   RuleFrontmatter,

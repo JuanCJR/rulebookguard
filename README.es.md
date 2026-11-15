@@ -77,6 +77,37 @@ The clients context owns customer identity and contact data.
 
 `context` debe coincidir con el nombre del directorio. Todo id de regla del directorio debe empezar con `R-<prefix>-`.
 
+#### Modelo del contexto
+
+`_context.md` también puede describir de qué está hecho el contexto. El [sitio](#site) lo dibuja como un mapa de los dominios y como un diagrama en la página de cada contexto. Estos campos son opcionales y los mantienen al día los agentes `rule-miner` y `rule-author`:
+
+```yaml
+kind: domain
+entities:
+  - name: Client
+    description: A person or a company that hires the service.
+  - name: Contact
+    description: A person the company talks to.
+    origin: extracted
+    evidence:
+      - 'src/clients/contact.entity.ts Contact'
+relations:
+  - from: Client
+    to: Contact
+    label: Has one or more; exactly one is the main contact
+  - from: Client
+    to: Order
+    label: Requests orders
+```
+
+| Campo       | Significado                                                                                                                               |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `kind`      | `domain` (el valor por defecto) o `crosscutting`, para un contexto transversal que aplica a todos los demás, como la auditoría            |
+| `entities`  | los conceptos de negocio del contexto: un `name`, único en todo el rulebook, y una `description` de una línea                             |
+| `relations` | `from` una entidad de este contexto, `to` una entidad de cualquier contexto, con un `label` en lenguaje de negocio, cardinalidad incluida |
+
+Entidades y relaciones también aceptan `origin` y `evidence`, igual que las reglas: `origin: extracted` marca lo que un agente sacó del código y ninguna persona validó todavía, y el sitio lo muestra así. Una relación con una entidad de otro contexto es lo que une dos dominios en el mapa.
+
 ### Archivo de regla
 
 ````markdown
@@ -114,6 +145,7 @@ Scenario: Duplicate document in the same country
 | `supersedes`    | no          | id de la regla que esta reemplaza                                                 |
 | `dependsOn`     | no          | ids de las reglas que esta necesita vigentes; sin ciclos                          |
 | `conflictsWith` | no          | ids de las reglas que no pueden estar activas junto con esta                      |
+| `group`         | no          | sección de una línea bajo la que se muestra la regla en la página de su contexto  |
 | `origin`        | no          | `authored` (escrita a partir de la intención) o `extracted` (extraída del código) |
 | `evidence`      | no          | dónde se ve la regla en el código o los tests, ver [Evidencia](#evidencia)        |
 | `anchors`       | sí          | globs relativos al repositorio del código que implementa la regla                 |
@@ -255,7 +287,7 @@ R-CLI-001 [active] A client document number is unique per country.
 
 | Comando                                  | Notas                                                                                                                                                                                                                                                                                                                          |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `contexts`                               | Lo indica cuando el catálogo todavía no tiene contextos.                                                                                                                                                                                                                                                                       |
+| `contexts`                               | Lo indica cuando el catálogo todavía no tiene contextos. `--json` también trae el [modelo](#modelo-del-contexto) de cada contexto: `kind` (`domain` si no se define), `entities` y `relations` (o `[]`).                                                                                                                       |
 | `list [--context <c>] [--status <s>]`    | `No rules found.` cuando nada coincide. Sale con 1: contexto desconocido. Sale con 2: estado no válido.                                                                                                                                                                                                                        |
 | `search <text> [--context <c>] [--json]` | Reglas en cualquier estado cuyo id, resumen, entidades o texto contienen todas las palabras, sin distinguir mayúsculas. Búsqueda simple de subcadenas, sin índice. Salida y `--json` (`{ "rules": [...] }`) como `list`; `No rules found.` si no hay coincidencias. Sale con 2: texto vacío. Sale con 1: contexto desconocido. |
 | `show <id>`                              | La regla completa. Sale con 1: id desconocido.                                                                                                                                                                                                                                                                                 |
