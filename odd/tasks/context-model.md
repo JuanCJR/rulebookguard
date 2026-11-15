@@ -16,15 +16,20 @@ Objective: let agents describe each context's entities, relations and kind in `_
 
 | ID | Specs | Route | Status | Commit |
 |----|-------|-------|--------|--------|
-| T1 | S2, S4 | inline | pending | |
-| T2 | S5 | inline | pending | |
-| T3 | S3 | inline | pending | |
-| T4 | S1, S6 | inline | pending | |
-| T5 | S1, S7 | inline | pending | |
+| T1 | S2, S4 | inline | done | 4ef5133 |
+| T2 | S5 | inline | done | d553615 |
+| T3 | S3 | inline | done | d833f47 |
+| T4 | S1, S6 | inline | done | 0f12b32 |
+| T5 | S1, S7 | inline | done | 0f12b32 |
 
-Slices (stacked-to-main): PR 1 = T1+T2, PR 2 = T3, PR 3 = T4+T5.
+Slices (stacked-to-main): PR 1 = T1+T2 (`feat/context-model`, up to d553615), PR 2 = T3 (`feat/context-model-agents`, stacked on PR 1), PR 3 = T4+T5 (`feat/context-model-site`, stacked on PR 2).
 
 ## Log
 
 - **L1 (2026-11-15, user, verbatim):** "Mira este artefacto https://claude.ai/artifact/69MpaBfRzSFqW4U3oisDww#page-3a7652e60c3d y revisa como estoy documentando de manera mas visual las reglas para que la lectura sea mucho mejor, podriamos llegar a algo asi de manera automatica?" — then "las transversales tambien deberiamos poder identificarlas, en cuanto a hacerlo a mano, si bien se puede, la idea es que de esto se encarguen los agentes" — then "arranquemos y definamos todo lo necesario para que puedas ejecutar sin interrupciones".
 - **L2 (2026-11-15, user choices):** diagrams "SVG propio"; rule sections "Campo `group`"; delivery "stacked-to-main"; agent-proposed entities and relations carry "origin + evidence". Route inline for every task (one maintainer, no parallel units with a writer reason). Forecast ≈ 1,500 authored changed lines. Out of scope: ticket references (KAN-xxx), a "to review" status, the canvas's survey progress board. Risk expected: none (optional schema fields, additive JSON fields, new findings only for catalogs that define entities).
+- **L3 (2026-11-15, T1 evidence):** baseline 411/411 on `main` (7d6f41d). RED: 7 failing (`test/format/context.test.ts` 4, `rule.test.ts` 1, `test/cli/read.test.ts` 2). GREEN: 417/417, `vp check` pass. `contexts` text output unchanged (pinned by the existing test); `--json` adds `kind`, `entities`, `relations`. Assess (main..4ef5133): medium, `under_budget`.
+- **L4 (2026-11-15, T2 evidence):** rules R-LIN-012..015 added as `active` with tagged tests and `@implements` regions. RED: 5 failing in `test/cli/lint.test.ts` "lint context model". GREEN: 422/422, `vp check` pass, dogfood `lint` clean. Decision: the first definition of an entity (contexts in name order) owns the name; every later one points to it. Existing lint tests on catalogs without a model pass unchanged (no new findings for them). Assess (main..d553615): medium, `under_budget`.
+- **L5 (2026-11-15, T3 evidence):** prompt-only change, no runnable RED: structural checks only. `test/plugin` and `test/cli/export-kiro-agents.test.ts` 33/33 (the Kiro export swaps `LAUNCHER_NEW` verbatim; that string was left untouched). rule-miner gains step 9 "Model the context" (steps renumbered, the "(step 11)" reference updated) and a "Context model" report section; rule-author drafts context model changes in plan mode and applies them; the skill documents `group` and the model. README agent descriptions updated in both languages.
+- **L6 (2026-11-15, T4+T5 evidence):** one commit, since both pages share `src/site/pages.ts` and `src/site/diagram.ts`. RED: 5 in `test/site/diagram.test.ts` (module missing) + 5 in `test/site/pages.test.ts` "sitePages context model". GREEN: 434/434, `vp check` pass, dogfood `lint` clean. Real build on a sample rulebook shaped like the user's canvas (clients, orders, zones, organization, audit) with `site:generate` / `site:run`, checked in the browser. Two defects found there and fixed with a test first: (1) an arrow that skips a row was a straight line hidden behind the box in between; it now curves around the right side (RED: "routes an arrow that skips a row around the boxes in between"); (2) the SVG shrank to the content column and its text fell to about 6px; it now keeps its natural size and scrolls sideways. Changed output for catalogs without a model (requested by S6/S7): the home page shows a diagram of the contexts, and a context page lists its rules under `## Rules` in sections by first entity. Assess (main..0f12b32): medium, `under_budget`, no native review due.
+- **L7 (2026-11-15, close):** all tasks done. Not done, by scope: ticket references, a "to review" status, the canvas progress board; status words in the diagram badges stay as the raw values (`active`, `proposed`), like the tables. Next step (user's decision): push the three branches and open the stacked PRs.
