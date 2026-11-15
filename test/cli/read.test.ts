@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vite-plus/test';
 import { initRepo } from '../git.ts';
 import { scratchDir } from '../scratch.ts';
 import { fixtureRoot, runCli } from './run.ts';
+import type { ContextsJson } from '../../src/commands/read.ts';
 
 const repo = fixtureRoot('repo');
 
@@ -36,6 +37,9 @@ describe('contexts', () => {
           context: 'billing',
           prefix: 'BIL',
           summary: 'Invoices and taxes charged to clients.',
+          kind: 'domain',
+          entities: [],
+          relations: [],
           rules: 2,
           file: 'docs/rules/billing/_context.md',
         },
@@ -43,11 +47,53 @@ describe('contexts', () => {
           context: 'clients',
           prefix: 'CLI',
           summary: 'Customers that receive installation services.',
+          kind: 'domain',
+          entities: [],
+          relations: [],
           rules: 3,
           file: 'docs/rules/clients/_context.md',
         },
       ],
     });
+  });
+
+  it('prints the kind, entities and relations of a context in JSON', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    await writeFile(
+      join(dir, 'docs/rules/billing/_context.md'),
+      [
+        '---',
+        'context: billing',
+        'prefix: BIL',
+        'summary: Invoices and taxes charged to clients.',
+        'kind: crosscutting',
+        'entities:',
+        '  - name: Invoice',
+        '    description: A bill sent to a client.',
+        'relations:',
+        '  - from: Invoice',
+        '    to: Invoice',
+        '    label: Corrects another invoice',
+        '    origin: extracted',
+        '---',
+        '',
+      ].join('\n'),
+    );
+
+    const { contexts } = (await json(['contexts'], dir)) as ContextsJson;
+
+    expect(contexts[0]).toMatchObject({
+      context: 'billing',
+      kind: 'crosscutting',
+      entities: [{ name: 'Invoice', description: 'A bill sent to a client.' }],
+      relations: [
+        { from: 'Invoice', to: 'Invoice', label: 'Corrects another invoice', origin: 'extracted' },
+      ],
+    });
+    expect(await ok(['contexts'], dir)).toContain(
+      'billing (BIL, 2 rules): Invoices and taxes charged to clients.',
+    );
   });
 
   it('works from a subdirectory of the repo', async () => {

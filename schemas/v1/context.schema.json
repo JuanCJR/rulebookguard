@@ -3,10 +3,45 @@
   "$id": "urn:rulebookguard:schema:v1:context",
   "title": "_context.md frontmatter",
   "type": "object",
+  "$defs": {
+    "line": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]*$" },
+    "origin": { "enum": ["authored", "extracted"] },
+    "evidence": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  },
   "properties": {
     "context": { "type": "string", "minLength": 1 },
     "prefix": { "type": "string", "pattern": "^[A-Z][A-Z0-9]*$" },
-    "summary": { "type": "string", "minLength": 1, "pattern": "^[^\\r\\n]*$" }
+    "summary": { "$ref": "#/$defs/line" },
+    "kind": { "enum": ["domain", "crosscutting"] },
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": { "$ref": "#/$defs/line" },
+          "description": { "$ref": "#/$defs/line" },
+          "origin": { "$ref": "#/$defs/origin" },
+          "evidence": { "$ref": "#/$defs/evidence" }
+        },
+        "required": ["name", "description"],
+        "additionalProperties": false
+      }
+    },
+    "relations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "from": { "$ref": "#/$defs/line" },
+          "to": { "$ref": "#/$defs/line" },
+          "label": { "$ref": "#/$defs/line" },
+          "origin": { "$ref": "#/$defs/origin" },
+          "evidence": { "$ref": "#/$defs/evidence" }
+        },
+        "required": ["from", "to", "label"],
+        "additionalProperties": false
+      }
+    }
   },
   "required": ["context", "prefix", "summary"],
   "additionalProperties": false

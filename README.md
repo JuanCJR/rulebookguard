@@ -74,6 +74,37 @@ The clients context owns customer identity and contact data.
 
 `context` must match the directory name. Every rule id in the directory must start with `R-<prefix>-`.
 
+#### Context model
+
+`_context.md` can also describe what the context is made of. The [site](#site) draws it as a map of the domains and as a diagram on each context page. These fields are optional and the `rule-miner` and `rule-author` agents keep them up to date:
+
+```yaml
+kind: domain
+entities:
+  - name: Client
+    description: A person or a company that hires the service.
+  - name: Contact
+    description: A person the company talks to.
+    origin: extracted
+    evidence:
+      - 'src/clients/contact.entity.ts Contact'
+relations:
+  - from: Client
+    to: Contact
+    label: Has one or more; exactly one is the main contact
+  - from: Client
+    to: Order
+    label: Requests orders
+```
+
+| Field       | Meaning                                                                                                                 |
+| ----------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `kind`      | `domain` (the default) or `crosscutting`, for a context that applies to all the others, such as auditing                |
+| `entities`  | the business concepts the context owns: a `name`, unique in the whole rulebook, and a one-line `description`            |
+| `relations` | `from` an entity of this context, `to` an entity of any context, with a `label` in business words, cardinality included |
+
+Entities and relations also take `origin` and `evidence`, as rules do: `origin: extracted` marks what an agent lifted from the code and no person has validated yet, and the site shows it as such. A relation to an entity of another context is what links two domains on the map.
+
 ### Rule file
 
 ````markdown
@@ -111,6 +142,7 @@ Scenario: Duplicate document in the same country
 | `supersedes`    | no       | id of the rule this one replaces                                   |
 | `dependsOn`     | no       | ids of the rules this one needs in force; no cycles                |
 | `conflictsWith` | no       | ids of the rules that cannot be active together with this one      |
+| `group`         | no       | one-line section the rule shows under on its context page          |
 | `origin`        | no       | `authored` (written from intent) or `extracted` (lifted from code) |
 | `evidence`      | no       | where the rule shows in code or tests, see [Evidence](#evidence)   |
 | `anchors`       | yes      | repo-relative globs of the code that implements the rule           |
@@ -252,7 +284,7 @@ R-CLI-001 [active] A client document number is unique per country.
 
 | Command                                  | Notes                                                                                                                                                                                                                                                  |
 | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `contexts`                               | Says so when the catalog has no context yet.                                                                                                                                                                                                           |
+| `contexts`                               | Says so when the catalog has no context yet. `--json` also has each context's [model](#context-model): `kind` (`domain` when unset), `entities` and `relations` (or `[]`).                                                                             |
 | `list [--context <c>] [--status <s>]`    | `No rules found.` when nothing matches. Exit 1: unknown context. Exit 2: invalid status.                                                                                                                                                               |
 | `search <text> [--context <c>] [--json]` | Rules in any status whose id, summary, entities or text hold every word, ignoring case. Plain substring, no index. Output and `--json` (`{ "rules": [...] }`) like `list`; `No rules found.` on no match. Exit 2: empty text. Exit 1: unknown context. |
 | `show <id>`                              | The full rule. Exit 1: unknown id.                                                                                                                                                                                                                     |

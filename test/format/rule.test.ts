@@ -104,6 +104,15 @@ describe('parseRule', () => {
     ]);
   });
 
+  it('accepts an optional one-line group', () => {
+    expect(parseRule(rule(withField('group', 'group: Client lifecycle')), FILE).group).toBe(
+      'Client lifecycle',
+    );
+    expect(
+      captureIssues(() => parseRule(rule(withField('group', 'group: "a\\nb"')), FILE)),
+    ).toEqual([{ file: FILE, field: 'group', message: 'must be a single line' }]);
+  });
+
   it('requires a one-line summary', () => {
     const issues = captureIssues(() =>
       parseRule(rule(withField('summary', 'summary: |\n  line one\n  line two')), FILE),

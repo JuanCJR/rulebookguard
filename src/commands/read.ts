@@ -10,7 +10,14 @@ import {
   type TagRegion,
 } from '../catalog/tags.ts';
 import { parseEvidence } from '../format/evidence.ts';
-import type { RuleDoc, RuleOrigin, RuleStatus } from '../format/types.ts';
+import type {
+  ContextEntity,
+  ContextKind,
+  ContextRelation,
+  RuleDoc,
+  RuleOrigin,
+  RuleStatus,
+} from '../format/types.ts';
 import { messages } from '../messages.ts';
 import {
   CliError,
@@ -26,7 +33,16 @@ import { changedFiles } from './lint.ts';
 export const RULE_STATUSES: RuleStatus[] = ['proposed', 'active', 'deprecated'];
 
 export interface ContextsJson {
-  contexts: { context: string; prefix: string; summary: string; rules: number; file: string }[];
+  contexts: {
+    context: string;
+    prefix: string;
+    summary: string;
+    kind: ContextKind;
+    entities: ContextEntity[];
+    relations: ContextRelation[];
+    rules: number;
+    file: string;
+  }[];
 }
 
 export interface RuleSummaryJson {
@@ -97,10 +113,13 @@ export interface ImpactJson {
 export function contextsCommand(catalog: Catalog, io: CliIo, json: boolean): void {
   const contexts = [...catalog.contexts]
     .sort((a, b) => compare(a.context, b.context))
-    .map(({ context, prefix, summary, file }) => ({
+    .map(({ context, prefix, summary, kind, entities, relations, file }) => ({
       context,
       prefix,
       summary,
+      kind: kind ?? 'domain',
+      entities: entities ?? [],
+      relations: relations ?? [],
       rules: catalog.rules.filter((rule) => rule.context === context).length,
       file,
     }));
