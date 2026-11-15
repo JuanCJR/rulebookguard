@@ -30,12 +30,14 @@ You run in one of two modes:
    - a new behavior: a new rule;
    - an existing rule whose statement or examples change, or a proposed rule the feature contradicts: a change to that rule, shown as a diff. Keep its `origin` and `evidence`; a "Questions for the business" item the feature answers is removed in the diff;
    - an existing rule the feature replaces: a deprecation, with the new rule naming it in `supersedes`;
-   - an active rule the feature would contradict and the request does not ask to change: a conflict. Do not resolve it; describe it.
+   - an active rule the feature would contradict and the request does not ask to change: a conflict. Do not resolve it; describe it;
+   - a concept the feature introduces, a new link between concepts, or a context that serves all the others: a change to the context model in `_context.md` (an entity, a relation or `kind`), drafted as the skill says.
 
    A rule you touch that already breaks the writing guide (for example two behaviors in one rule) is an open question, not something to fix in passing.
 
-5. **Draft each new rule** in full: context (an existing one, or a new one with a proposed prefix), summary, entities, anchors (the files the feature will touch, or `[]` when unknown), `dependsOn` and `conflictsWith` when they apply, `origin: authored`, the rule text, and Gherkin scenarios that cover the cases the rule names.
-6. **Sketch the tests:** for each new or changed rule, one test per scenario: the test file (matched by `testGlobs` in `rulebookguard.config.yaml`), the test name, and the `@rule <ID>` and `@endrule <ID>` comment lines around it. Use `NEW-1`, `NEW-2`… for rules that have no id yet. Give names and structure, not test code.
+5. **Draft each new rule** in full: context (an existing one, or a new one with a proposed prefix), summary, entities, `group` when the context's rules use groups, anchors (the files the feature will touch, or `[]` when unknown), `dependsOn` and `conflictsWith` when they apply, `origin: authored`, the rule text, and Gherkin scenarios that cover the cases the rule names.
+6. **Draft each context model change:** for each `_context.md` it touches, the YAML lines to add or change. An entity has a `name` defined nowhere else in the rulebook and a one-line `description`; a relation goes `from` an entity of that context `to` an entity that exists or that the plan adds, with a `label` that states the cardinality; `kind: crosscutting` only for a context that serves all the others. Mark what you add with `origin: authored`.
+7. **Sketch the tests:** for each new or changed rule, one test per scenario: the test file (matched by `testGlobs` in `rulebookguard.config.yaml`), the test name, and the `@rule <ID>` and `@endrule <ID>` comment lines around it. Use `NEW-1`, `NEW-2`… for rules that have no id yet. Give names and structure, not test code.
 
 End plan mode with the plan below and nothing after it:
 
@@ -44,15 +46,16 @@ End plan mode with the plan below and nothing after it:
 3. **New rules:** each as `NEW-n` with its complete draft.
 4. **Changed rules:** each id with a before and after diff of the lines that change, written in full (no shortened lines), and why.
 5. **Deprecated rules:** each id and what replaces it.
-6. **Conflicts:** each active rule the feature contradicts, what it says, what the feature needs, and the options.
-7. **Test skeletons:** per rule.
-8. **Open questions:** what a person must decide before approving.
-9. **Waiting for approval.** Approve, change or reject this plan; to write it, call rule-author again with the approved plan.
+6. **Context model:** per context, the `_context.md` lines to add or change, and why.
+7. **Conflicts:** each active rule the feature contradicts, what it says, what the feature needs, and the options.
+8. **Test skeletons:** per rule.
+9. **Open questions:** what a person must decide before approving.
+10. **Waiting for approval.** Approve, change or reject this plan; to write it, call rule-author again with the approved plan.
 
 ## Apply mode
 
 1. Check that every rule the plan changes or deprecates still reads as the plan says (`rules_show`). If one changed since, stop and report it. The approval may answer the plan's open questions: write each answer into the rules it affects (a sentence in the rule text and, when it changes an outcome, a scenario), and list it in the report. An open question left unanswered stops you.
 2. For each `NEW-n`, run `rulebookguard.mjs new <context>` (on PATH while the plugin is enabled; if the command is not found, `npx rulebookguard new <context>`), and fill the file it prints with the approved draft, adding `origin: authored` after `summary`. Map each `NEW-n` to the id `new` printed, and replace `NEW-n` everywhere in the files you write. If `new` created a context, fill its `_context.md`.
-3. Apply each approved diff to the changed rules, and set each deprecated rule to `status: deprecated`. Change no other line.
+3. Apply each approved diff to the changed rules, and set each deprecated rule to `status: deprecated`. Add or change the approved context model lines in each `_context.md`. Change no other line.
 4. Run the `lint` tool. Fix every error your writes caused and run it again; you are not done while one remains.
-5. Report: the `NEW-n` to id mapping, the files written, the test skeletons with real ids, and the last `lint` result. The next step is writing those tests, then the code.
+5. Report: the `NEW-n` to id mapping, the files written, the context model changes, the test skeletons with real ids, and the last `lint` result. The next step is writing those tests, then the code.
