@@ -22,12 +22,12 @@ export interface DiagramEdge {
 }
 
 const WIDTH = 240;
-const GAP_X = 56;
+const GAP_X = 40;
 const GAP_Y = 104;
 const MARGIN = 24;
 const LOOP = 120;
 // Room on the right for arrows that skip a row and curve around the boxes in between.
-const SIDE = 180;
+const SIDE = 170;
 const BULGE = 110;
 const MAX_COLUMNS = 4;
 const LINE_CHARS = 32;
@@ -37,9 +37,12 @@ const LABEL_LINES = 3;
 const PARALLEL_OFFSET = 16;
 
 const STYLE = [
-  '.rbg-diagram{margin:1.5rem 0;overflow-x:auto}',
-  // Kept at its natural size so the text stays readable; a wide diagram scrolls instead.
-  '.rbg-diagram svg{display:block;max-width:none;height:auto;margin:0 auto;font-family:inherit}',
+  // A page with a diagram has no table of contents (see sitePages); Starlight then gives the
+  // content its wide width only when there is no sidebar either, so the width is set here.
+  'html:not([data-has-toc]){--sl-content-width:67.5rem}',
+  '.rbg-diagram{margin:1.5rem 0}',
+  // Shrinks to fit a narrow window, so the whole model stays in view without scrolling.
+  '.rbg-diagram svg{display:block;max-width:100%;height:auto;margin:0 auto;font-family:inherit}',
   '.rbg-node rect{fill:var(--sl-color-bg-nav);stroke:var(--sl-color-gray-4);stroke-width:1.5}',
   '.rbg-node.rbg-muted rect{fill:var(--sl-color-gray-6);stroke-dasharray:6 4}',
   '.rbg-node.rbg-unvalidated rect{stroke:var(--sl-color-accent);stroke-dasharray:6 4}',

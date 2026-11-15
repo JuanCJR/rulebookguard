@@ -295,6 +295,14 @@ describe('sitePages context model', () => {
 
     expect(page).not.toContain('## Model');
     expect(page).not.toContain('<figure');
+    expect(page).not.toContain('tableOfContents: false');
+  });
+
+  it('drops the table of contents of a page with a diagram, so the page is wide enough', async () => {
+    const files = await pages({ repo: await modelRepo() });
+
+    expect(files.get('src/content/docs/index.md')).toContain('tableOfContents: false');
+    expect(files.get('src/content/docs/clients/index.md')).toContain('tableOfContents: false');
   });
 
   it('writes the model texts in Spanish', async () => {

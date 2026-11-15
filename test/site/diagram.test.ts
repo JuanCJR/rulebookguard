@@ -29,6 +29,14 @@ describe('diagram', () => {
     expect(boxOf(svg, 'Order').y).toBeGreaterThan(boxOf(svg, 'Client').y);
   });
 
+  it('fits the page width and widens the page content, instead of scrolling', () => {
+    const svg = diagram([{ id: 'a', title: 'A', lines: [] }], [], 'Map');
+
+    expect(svg).toContain('.rbg-diagram svg{display:block;max-width:100%');
+    expect(svg).toContain('html:not([data-has-toc]){--sl-content-width:');
+    expect(svg).not.toContain('overflow-x');
+  });
+
   it('never holds a blank line, so Markdown keeps it as one HTML block', () => {
     const svg = diagram(
       [{ id: 'a', title: 'A', lines: ['one', 'two'] }],

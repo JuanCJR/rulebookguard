@@ -594,11 +594,14 @@ ${rows.join('\n')}
 `;
 }
 
+// A page with a diagram drops the table of contents so the content gets the wide width.
 function page(title: string, description: string, lines: string[]): string {
+  const wide = lines.some((line) => line.startsWith('<figure class="rbg-diagram">'));
   return [
     '---',
     `title: ${JSON.stringify(title)}`,
     `description: ${JSON.stringify(description)}`,
+    ...(wide ? ['tableOfContents: false'] : []),
     '---',
     '',
     ...lines,
