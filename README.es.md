@@ -218,7 +218,7 @@ func validateDocument(country, number string) error {
 | `test/clients/create.test.ts "rejects a duplicate document"` | el test con ese nombre                            |
 | `src/clients/create.ts`                                      | el archivo                                        |
 
-Las líneas se resuelven al leer la regla, así que el vínculo sigue al código. `lint` advierte `dead-evidence` cuando el archivo o el símbolo ya no existe; las reglas `deprecated` no se revisan. Una entrada antigua `path:line` o `path:line-endLine` sigue funcionando, pero solo se revisa su archivo.
+Las líneas se resuelven al leer la regla, así que el vínculo sigue al código. `lint` advierte `dead-evidence` cuando el archivo o el símbolo ya no existe; las reglas `deprecated` no se revisan. La evidencia de [entidades y relaciones](#modelo-del-contexto) se revisa igual. Una entrada antigua `path:line` o `path:line-endLine` sigue funcionando, pero solo se revisa su archivo.
 
 Por defecto, una heurística encuentra una línea. Para rangos completos, instala el paquete opcional (usa [tree-sitter](https://tree-sitter.github.io/); JavaScript, TypeScript/TSX, Python, Go, Java, C#, Rust; ~11 MB, sin compilación):
 
@@ -387,32 +387,35 @@ warning context-over-budget docs/rules/clients/_context.md context "clients" has
 
 Formato: `<severity> <code> <file>[:line] <message>`, una línea `hint:` y al final un conteo. `--json`: `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
-| Severidad | Código                        | Significado                                                                   |
-| --------- | ----------------------------- | ----------------------------------------------------------------------------- |
-| error     | `untested-rule`               | una regla activa no tiene ningún test que la marque                           |
-| error     | `unknown-rule-tag`            | un test marca un id de regla que no existe                                    |
-| error     | `deprecated-rule-tag`         | un test marca una regla `deprecated`                                          |
-| error     | `unclosed-rule-tag`           | un `@rule` no tiene su `@endrule`                                             |
-| error     | `unmatched-endrule-tag`       | un `@endrule` no tiene un `@rule` abierto del mismo id                        |
-| error     | `unclosed-implements-tag`     | un `@implements` no tiene su `@endimplements`                                 |
-| error     | `unmatched-endimplements-tag` | un `@endimplements` no tiene un `@implements` abierto del mismo id            |
-| error     | `unknown-implements-tag`      | hay código marcado como implementación de un id de regla que no existe        |
-| error     | `deprecated-implements-tag`   | hay código marcado como implementación de una regla `deprecated`              |
-| error     | `implements-outside-anchors`  | una región `@implements` está en un archivo que su regla no ancla             |
-| error     | `unmatched-anchor`            | un glob de anchor no coincide con ningún archivo                              |
-| error     | `schema`                      | un archivo de configuración, contexto o regla no cumple el JSON Schema        |
-| error     | `duplicate-id`                | dos archivos de regla comparten un id                                         |
-| error     | `file-name-mismatch`          | un archivo de regla no se llama `<id>.md`                                     |
-| error     | `id-prefix-mismatch`          | un id de regla no usa el prefijo de su contexto                               |
-| error     | `context-mismatch`            | un campo `context` no coincide con su directorio                              |
-| error     | `missing-context-file`        | un directorio de contexto no tiene `_context.md`                              |
-| error     | `missing-rules-dir`           | `rulesDir` no existe                                                          |
-| error     | `pending-implementation`      | con `--base`: cambió una regla activa, pero ninguna de sus regiones           |
-| error     | `invalid-rule-reference`      | `dependsOn` o `conflictsWith` nombra una regla desconocida o a sí misma       |
-| error     | `dependency-cycle`            | los vínculos `dependsOn` forman un ciclo (se reporta una vez, en su id menor) |
-| error     | `active-rule-conflict`        | dos reglas activas donde una lista a la otra en `conflictsWith`               |
-| warning   | `context-over-budget`         | un contexto tiene más reglas que `contextBudget`                              |
-| warning   | `dead-evidence`               | una entrada de `evidence` nombra un archivo o símbolo que ya no existe        |
+| Severidad | Código                        | Significado                                                                              |
+| --------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
+| error     | `untested-rule`               | una regla activa no tiene ningún test que la marque                                      |
+| error     | `unknown-rule-tag`            | un test marca un id de regla que no existe                                               |
+| error     | `deprecated-rule-tag`         | un test marca una regla `deprecated`                                                     |
+| error     | `unclosed-rule-tag`           | un `@rule` no tiene su `@endrule`                                                        |
+| error     | `unmatched-endrule-tag`       | un `@endrule` no tiene un `@rule` abierto del mismo id                                   |
+| error     | `unclosed-implements-tag`     | un `@implements` no tiene su `@endimplements`                                            |
+| error     | `unmatched-endimplements-tag` | un `@endimplements` no tiene un `@implements` abierto del mismo id                       |
+| error     | `unknown-implements-tag`      | hay código marcado como implementación de un id de regla que no existe                   |
+| error     | `deprecated-implements-tag`   | hay código marcado como implementación de una regla `deprecated`                         |
+| error     | `implements-outside-anchors`  | una región `@implements` está en un archivo que su regla no ancla                        |
+| error     | `unmatched-anchor`            | un glob de anchor no coincide con ningún archivo                                         |
+| error     | `schema`                      | un archivo de configuración, contexto o regla no cumple el JSON Schema                   |
+| error     | `duplicate-id`                | dos archivos de regla comparten un id                                                    |
+| error     | `file-name-mismatch`          | un archivo de regla no se llama `<id>.md`                                                |
+| error     | `id-prefix-mismatch`          | un id de regla no usa el prefijo de su contexto                                          |
+| error     | `context-mismatch`            | un campo `context` no coincide con su directorio                                         |
+| error     | `missing-context-file`        | un directorio de contexto no tiene `_context.md`                                         |
+| error     | `missing-rules-dir`           | `rulesDir` no existe                                                                     |
+| error     | `pending-implementation`      | con `--base`: cambió una regla activa, pero ninguna de sus regiones                      |
+| error     | `invalid-rule-reference`      | `dependsOn` o `conflictsWith` nombra una regla desconocida o a sí misma                  |
+| error     | `dependency-cycle`            | los vínculos `dependsOn` forman un ciclo (se reporta una vez, en su id menor)            |
+| error     | `active-rule-conflict`        | dos reglas activas donde una lista a la otra en `conflictsWith`                          |
+| error     | `duplicate-entity`            | dos `_context.md`, o uno dos veces, definen el mismo nombre de entidad                   |
+| error     | `unknown-relation-entity`     | una relación parte de fuera de su contexto o llega a una entidad no definida             |
+| warning   | `undefined-entity`            | una regla nombra una entidad que ningún contexto define, si su contexto define entidades |
+| warning   | `context-over-budget`         | un contexto tiene más reglas que `contextBudget`                                         |
+| warning   | `dead-evidence`               | una entrada de `evidence` nombra un archivo o símbolo que ya no existe                   |
 
 Una configuración no válida se reporta como hallazgos `schema`. Las marcas de un archivo de regla que no cumple el schema no se reportan de nuevo como `unknown-rule-tag`.
 
@@ -688,9 +691,9 @@ El plugin ejecuta el `node_modules/rulebookguard` propio del proyecto (en el dir
 <details>
 <summary>Qué hacen los agentes y qué nunca hacen</summary>
 
-**rule-miner** escribe reglas `proposed` con `origin: extracted`, evidencia como `path symbol` y preguntas para el negocio, mediante `rulebookguard new`. Primero recorre cada flujo del contexto, desde los puntos de entrada hasta la persistencia, y su informe empieza con esos flujos. Revisa las reglas existentes para evitar duplicados, respeta `contextBudget`, envuelve en `@rule` … `@endrule` los tests que ya verifican una regla, y termina solo cuando `lint` no tiene errores propios. Nunca activa ni edita reglas existentes, y no edita código de producción: sugiere las líneas que aplican cada regla y agrega marcadores `@implements` … `@endimplements` solo si se le pide. Una persona revisa el diff y activa lo que se sostiene.
+**rule-miner** escribe reglas `proposed` con `origin: extracted`, evidencia como `path symbol` y preguntas para el negocio, mediante `rulebookguard new`. Primero recorre cada flujo del contexto, desde los puntos de entrada hasta la persistencia, y su informe empieza con esos flujos. También describe el [modelo](#modelo-del-contexto) del contexto en `_context.md`: las entidades y relaciones que el código impone, con `origin: extracted` y evidencia, y `kind: crosscutting` para un contexto transversal que sirve a todos los demás. Revisa las reglas existentes para evitar duplicados, respeta `contextBudget`, envuelve en `@rule` … `@endrule` los tests que ya verifican una regla, y termina solo cuando `lint` no tiene errores propios. Nunca activa ni edita reglas existentes, y no edita código de producción: sugiere las líneas que aplican cada regla y agrega marcadores `@implements` … `@endimplements` solo si se le pide. Una persona revisa el diff y activa lo que se sostiene.
 
-**rule-author** no escribe nada por defecto. Lee el rulebook por niveles y devuelve un plan: reglas nuevas con Gherkin, reglas modificadas como diffs, reglas a deprecar, conflictos con reglas activas, esqueletos de tests y preguntas abiertas. Si se lo vuelve a llamar con el plan aprobado, escribe las reglas nuevas como `proposed` mediante `rulebookguard new`, aplica los diffs aprobados y termina cuando `lint` no tiene errores propios. Los tests y el código vienen después, como indica la skill `rules`.
+**rule-author** no escribe nada por defecto. Lee el rulebook por niveles y devuelve un plan: reglas nuevas con Gherkin, reglas modificadas como diffs, reglas a deprecar, los cambios al [modelo del contexto](#modelo-del-contexto), conflictos con reglas activas, esqueletos de tests y preguntas abiertas. Si se lo vuelve a llamar con el plan aprobado, escribe las reglas nuevas como `proposed` mediante `rulebookguard new`, aplica los diffs aprobados y termina cuando `lint` no tiene errores propios. Los tests y el código vienen después, como indica la skill `rules`.
 
 </details>
 

@@ -517,3 +517,206 @@ describe('lint dead evidence', () => {
     );
   });
 });
+
+async function addContextFields(repo: string, context: string, lines: string): Promise<void> {
+  const file = join(repo, 'docs/rules', context, '_context.md');
+  await writeFile(file, (await readFile(file, 'utf8')).replace(/^summary: .*$/m, `$&\n${lines}`));
+}
+
+describe('lint context model', () => {
+  // @rule R-LIN-012
+  it('reports an entity defined twice in the rulebook', async () => {
+    const repo = await cleanRepo();
+    await addContextFields(
+      repo,
+      'billing',
+      'entities:\n  - name: Invoice\n    description: A bill.\n  - name: Client\n    description: Who pays.',
+    );
+    await addContextFields(
+      repo,
+      'clients',
+      'entities:\n  - name: Client\n    description: A customer.\n  - name: Client\n    description: Again.',
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error duplicate-entity docs/rules/clients/_context.md entity "Client" is already defined in docs/rules/billing/_context.md',
+        '  hint: define each entity once, in the context that owns it, and rename or remove the other',
+        'error duplicate-entity docs/rules/clients/_context.md entity "Client" is already defined in docs/rules/billing/_context.md',
+        '  hint: define each entity once, in the context that owns it, and rename or remove the other',
+        '2 errors, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-012
+
+  // @rule R-LIN-013
+  it('reports a relation from an entity of another context or to an undefined entity', async () => {
+    const repo = await cleanRepo();
+    await addContextFields(
+      repo,
+      'billing',
+      'entities:\n  - name: Invoice\n    description: A bill.',
+    );
+    await addContextFields(
+      repo,
+      'clients',
+      [
+        'entities:',
+        '  - name: Client',
+        '    description: A customer.',
+        'relations:',
+        '  - from: Client',
+        '    to: Invoice',
+        '    label: Receives invoices',
+        '  - from: Invoice',
+        '    to: Client',
+        '    label: Is sent to a client',
+        '  - from: Client',
+        '    to: Payment',
+        '    label: Makes payments',
+      ].join('\n'),
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'error unknown-relation-entity docs/rules/clients/_context.md relation Invoice → Client: "Invoice" is not an entity of context "clients"',
+        '  hint: declare the relation in the context that owns its "from" entity, define the entities it names, or fix the names',
+        'error unknown-relation-entity docs/rules/clients/_context.md relation Client → Payment: no context defines "Payment"',
+        '  hint: declare the relation in the context that owns its "from" entity, define the entities it names, or fix the names',
+        '2 errors, 0 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-013
+
+  // @rule R-LIN-014
+  it('warns about a rule naming an undefined entity only when its context defines entities', async () => {
+    const repo = await cleanRepo();
+    await addContextFields(
+      repo,
+      'clients',
+      'entities:\n  - name: Client\n    description: A customer.',
+    );
+    await addFrontmatter(repo, 'R-CLI-002', 'entities: [Client, Contact]');
+    await writeFile(
+      join(repo, 'docs/rules/clients/R-CLI-002.md'),
+      (await readFile(join(repo, 'docs/rules/clients/R-CLI-002.md'), 'utf8')).replace(
+        'entities: [Client]\n',
+        '',
+      ),
+    );
+    await addFrontmatter(repo, 'R-CLI-003', 'entities: [Ghost]');
+    await writeFile(
+      join(repo, 'docs/rules/clients/R-CLI-003.md'),
+      (await readFile(join(repo, 'docs/rules/clients/R-CLI-003.md'), 'utf8')).replace(
+        'entities: [Client]\n',
+        '',
+      ),
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning undefined-entity docs/rules/clients/R-CLI-002.md rule R-CLI-002 names entity "Contact", which no context defines',
+        '  hint: add the entity to the _context.md of the context that owns it, or fix the name in entities',
+        '0 errors, 1 warning',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-014
+
+  // @rule R-LIN-015
+  it('warns about dead evidence of entities and relations', async () => {
+    const repo = await cleanRepo();
+    await addContextFields(
+      repo,
+      'billing',
+      [
+        'entities:',
+        '  - name: Invoice',
+        '    description: A bill.',
+        '    evidence: [src/billing/gone.go Invoice]',
+        '  - name: Tax',
+        '    description: A tax.',
+        '    evidence: [src/billing/tax.go]',
+        'relations:',
+        '  - from: Invoice',
+        '    to: Tax',
+        '    label: Charges taxes',
+        '    evidence: [src/billing/invoice.go Missing]',
+      ].join('\n'),
+    );
+    await addContextFields(
+      repo,
+      'clients',
+      'entities:\n  - name: Client\n    description: A customer.',
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning dead-evidence docs/rules/billing/_context.md evidence "src/billing/gone.go Invoice" of entity Invoice: src/billing/gone.go does not exist',
+        '  hint: point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
+        'warning dead-evidence docs/rules/billing/_context.md evidence "src/billing/invoice.go Missing" of relation Invoice → Tax: "Missing" is not found in src/billing/invoice.go',
+        '  hint: point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
+        '0 errors, 2 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-015
+
+  it('prints the context model findings in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await addContextFields(
+      repo,
+      'billing',
+      'entities:\n  - name: Invoice\n    description: A bill.\n    evidence: [src/billing/gone.go]',
+    );
+    await addContextFields(
+      repo,
+      'clients',
+      [
+        'entities:',
+        '  - name: Invoice',
+        '    description: Again.',
+        'relations:',
+        '  - from: Client',
+        '    to: Payment',
+        '    label: Pays',
+      ].join('\n'),
+    );
+
+    expect((await runCli(['lint'], repo)).stdout).toBe(
+      [
+        'warning undefined-entity docs/rules/billing/R-BIL-001.md la regla R-BIL-001 nombra la entidad "Client", que ningún contexto define',
+        '  sugerencia: agrega la entidad al _context.md del contexto dueño, o corrige el nombre en entities',
+        'warning dead-evidence docs/rules/billing/_context.md la evidencia "src/billing/gone.go" de la entidad Invoice: src/billing/gone.go no existe',
+        '  sugerencia: apunta la entrada al archivo y al símbolo que muestran la regla hoy ("ruta símbolo"), o quítala',
+        'warning undefined-entity docs/rules/clients/R-CLI-001.md la regla R-CLI-001 nombra la entidad "Client", que ningún contexto define',
+        '  sugerencia: agrega la entidad al _context.md del contexto dueño, o corrige el nombre en entities',
+        'warning undefined-entity docs/rules/clients/R-CLI-002.md la regla R-CLI-002 nombra la entidad "Client", que ningún contexto define',
+        '  sugerencia: agrega la entidad al _context.md del contexto dueño, o corrige el nombre en entities',
+        'error duplicate-entity docs/rules/clients/_context.md la entidad "Invoice" ya está definida en docs/rules/billing/_context.md',
+        '  sugerencia: define cada entidad una sola vez, en el contexto dueño, y renombra o quita la otra',
+        'error unknown-relation-entity docs/rules/clients/_context.md la relación Client → Payment: "Client" no es una entidad del contexto "clients"',
+        '  sugerencia: declara la relación en el contexto dueño de su entidad "from", define las entidades que nombra o corrige los nombres',
+        'error unknown-relation-entity docs/rules/clients/_context.md la relación Client → Payment: ningún contexto define "Payment"',
+        '  sugerencia: declara la relación en el contexto dueño de su entidad "from", define las entidades que nombra o corrige los nombres',
+        '3 errores, 4 avisos',
+        '',
+      ].join('\n'),
+    );
+  });
+});
