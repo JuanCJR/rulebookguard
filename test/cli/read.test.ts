@@ -518,7 +518,7 @@ describe('errors and usage', () => {
     expect(await runCli(['contexts'], dir)).toEqual({
       status: 1,
       stdout: '',
-      stderr: `rulebookguard.config.yaml not found in ${dir} or any parent directory.\n`,
+      stderr: `No rulebookguard.config.yaml in ${dir} or any parent directory.\n`,
     });
   });
 

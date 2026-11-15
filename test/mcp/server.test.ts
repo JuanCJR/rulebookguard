@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { Client, InMemoryTransport } from '@modelcontextprotocol/client';
 import { describe, expect, it } from 'vite-plus/test';
@@ -33,6 +34,8 @@ function text(result: Awaited<ReturnType<Client['callTool']>>): string {
 }
 
 const repo = fixtureRoot('repo');
+const HINT =
+  'If the server runs outside the project, call the tool again with project set to the absolute path of the workspace folder.';
 
 describe('mcp server', () => {
   it('identifies itself with the package version and lists its tools', async () => {
@@ -52,12 +55,12 @@ describe('mcp server', () => {
       'lint',
     ]);
     expect(tools.map((tool) => Object.keys(tool.inputSchema.properties ?? {}))).toEqual([
-      ['path'],
-      ['id'],
-      [],
-      ['context', 'status'],
-      ['text', 'context'],
-      ['base'],
+      ['path', 'project'],
+      ['id', 'project'],
+      ['project'],
+      ['context', 'status', 'project'],
+      ['text', 'context', 'project'],
+      ['base', 'project'],
     ]);
   });
 
@@ -129,7 +132,7 @@ describe('mcp server', () => {
 
     expect(result.isError).toBe(true);
     expect(text(result)).toBe(
-      `rulebookguard.config.yaml not found in ${project} or any parent directory.`,
+      `No rulebookguard.config.yaml in ${project} or any parent directory.\n${HINT}`,
     );
   });
   // @endrule R-AGT-002
@@ -156,7 +159,7 @@ describe('mcp server', () => {
 
     expect(result.isError).toBe(true);
     expect(text(result)).toBe(
-      `rulebookguard.config.yaml not found in ${project} or any parent directory.`,
+      `No rulebookguard.config.yaml in ${project} or any parent directory.\n${HINT}`,
     );
   });
   // @endrule R-AGT-002
@@ -200,7 +203,7 @@ describe('mcp server', () => {
 
     expect(result.isError).toBe(true);
     expect(text(result)).toBe(
-      `rulebookguard.config.yaml not found in ${project} or any parent directory.`,
+      `No rulebookguard.config.yaml in ${project} or any parent directory.`,
     );
   });
   // @endrule R-AGT-003
@@ -214,8 +217,55 @@ describe('mcp server', () => {
 
     expect(result.isError).toBe(true);
     expect(text(result)).toBe(
-      `rulebookguard.config.yaml not found in ${start} or any parent directory.`,
+      `No rulebookguard.config.yaml in ${start} or any parent directory.\n${HINT}`,
     );
   });
   // @endrule R-AGT-003
+
+  // @rule R-AGT-004
+  it('runs in the project argument of the call, whatever the start directory', async () => {
+    const start = await scratchDir();
+    const client = await connect(start);
+
+    const contexts = await client.callTool({ name: 'contexts', arguments: { project: repo } });
+    const rules = await client.callTool({
+      name: 'rules_for',
+      arguments: { path: 'src/clients/create.go', project: repo },
+    });
+
+    expect(contexts.isError).toBeFalsy();
+    expect(text(contexts)).toBe((await runCli(['contexts', '--json'], repo)).stdout);
+    expect(text(rules)).toBe(
+      (await runCli(['for', 'src/clients/create.go', '--json'], repo)).stdout,
+    );
+  });
+  // @endrule R-AGT-004
+
+  // @rule R-AGT-004
+  it('finds the rulebook of an absolute rules_for path when the start directory has none', async () => {
+    const start = await scratchDir();
+    const client = await connect(start);
+    const file = join(repo, 'src/clients/create.go');
+
+    const result = await client.callTool({ name: 'rules_for', arguments: { path: file } });
+
+    expect(result.isError).toBeFalsy();
+    expect(text(result)).toBe((await runCli(['for', file, '--json'], repo)).stdout);
+  });
+  // @endrule R-AGT-004
+
+  // @rule R-AGT-004
+  it('answers the error of the project argument without the hint', async () => {
+    const start = await scratchDir();
+    const project = await scratchDir();
+    const client = await connect(start);
+
+    const result = await client.callTool({ name: 'contexts', arguments: { project } });
+
+    expect(result.isError).toBe(true);
+    expect(text(result)).toBe(
+      `No rulebookguard.config.yaml in ${project} or any parent directory.`,
+    );
+  });
+  // @endrule R-AGT-004
 });

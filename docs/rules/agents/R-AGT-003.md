@@ -26,5 +26,5 @@ Scenario: Explicit project
   And the client offers the root "file:///repo" that holds rulebookguard.config.yaml
   When the tool "contexts" is called
   Then it answers a tool error
-  And its text is "rulebookguard.config.yaml not found in <project> or any parent directory."
+  And its text is "No rulebookguard.config.yaml in <project> or any parent directory."
 ```

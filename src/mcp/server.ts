@@ -1,13 +1,35 @@
 import { McpServer } from '@modelcontextprotocol/server';
 import * as z from 'zod/v4';
 import pkg from '../../package.json' with { type: 'json' };
+import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { findRulebookRoot } from '../catalog/load.ts';
+import { CONFIG_FILE_NAME } from '../format/config.ts';
 import { runCli } from '../commands/run.ts';
 
 export interface RulesServerOptions {
   /** Look for the rulebook in the client roots when projectDir has none; off for an explicit --project. */
   clientRoots?: boolean;
+}
+
+const MISSING_RULEBOOK_HINT =
+  'If the server runs outside the project, call the tool again with project set to the absolute path of the workspace folder.';
+
+// @implements R-AGT-004
+// Clients such as Kiro start a power's server in the power's own folder and offer no roots, so
+// every tool also takes the workspace folder.
+const project = z
+  .string()
+  .optional()
+  .describe(
+    'Absolute path of the workspace folder that holds rulebookguard.config.yaml. Pass it when the server may run outside the project, as in Kiro powers.',
+  );
+// @endimplements R-AGT-004
+
+interface Location {
+  cwd: string;
+  /** The rulebook was searched for in the start directory only, so the agent may pass project. */
+  hint: boolean;
 }
 
 // Each tool answers exactly what the matching `--json` command prints, so the CLI stays the only source of shapes and messages.
@@ -16,8 +38,8 @@ export function createRulesServer(
   { clientRoots = true }: RulesServerOptions = {},
 ): McpServer {
   const server = new McpServer({ name: 'rulebookguard', version: pkg.version });
-  const directory = () =>
-    clientRoots ? rulebookDirectory(server, projectDir) : Promise.resolve(projectDir);
+  const directory = (call: { project?: string | undefined; path?: string } = {}) =>
+    locate(server, projectDir, clientRoots, call);
 
   server.registerTool(
     'rules_for',
@@ -26,10 +48,11 @@ export function createRulesServer(
         'Active business rules anchored to a file (id, context, summary, rule file, and the lines of the file each rule names through @implements regions or evidence). Call it before changing a file; the rules are the source of truth for its behavior.',
       inputSchema: z.object({
         path: z.string().describe('File path, absolute or relative to the project directory'),
+        project,
       }),
       annotations: { readOnlyHint: true },
     },
-    ({ path }) => cli(directory(), ['for', path, '--json']),
+    ({ path, project }) => cli(directory({ project, path }), ['for', path, '--json']),
   );
 
   server.registerTool(
@@ -37,10 +60,13 @@ export function createRulesServer(
     {
       description:
         'Full text of one business rule: summary, anchors, entities, supersedes, evidence with the lines each entry resolves to, and the rule body with its examples.',
-      inputSchema: z.object({ id: z.string().describe('Rule id, for example R-CLI-001') }),
+      inputSchema: z.object({
+        id: z.string().describe('Rule id, for example R-CLI-001'),
+        project,
+      }),
       annotations: { readOnlyHint: true },
     },
-    ({ id }) => cli(directory(), ['show', id, '--json']),
+    ({ id, project }) => cli(directory({ project }), ['show', id, '--json']),
   );
 
   server.registerTool(
@@ -48,10 +74,10 @@ export function createRulesServer(
     {
       description:
         'L0 map of the rulebook: each context with its prefix, summary and number of rules. Start here to find the contexts a change touches.',
-      inputSchema: z.object({}),
+      inputSchema: z.object({ project }),
       annotations: { readOnlyHint: true },
     },
-    () => cli(directory(), ['contexts', '--json']),
+    ({ project }) => cli(directory({ project }), ['contexts', '--json']),
   );
 
   server.registerTool(
@@ -62,11 +88,12 @@ export function createRulesServer(
       inputSchema: z.object({
         context: z.string().optional().describe('Context name, for example clients'),
         status: z.enum(['proposed', 'active', 'deprecated']).optional(),
+        project,
       }),
       annotations: { readOnlyHint: true },
     },
-    ({ context, status }) =>
-      cli(directory(), [
+    ({ context, status, project }) =>
+      cli(directory({ project }), [
         'list',
         ...(context === undefined ? [] : ['--context', context]),
         ...(status === undefined ? [] : ['--status', status]),
@@ -82,11 +109,12 @@ export function createRulesServer(
       inputSchema: z.object({
         text: z.string().describe('Words to look for, for example "invoice number"'),
         context: z.string().optional().describe('Context name to search in'),
+        project,
       }),
       annotations: { readOnlyHint: true },
     },
-    ({ text, context }) =>
-      cli(directory(), [
+    ({ text, context, project }) =>
+      cli(directory({ project }), [
         'search',
         text,
         ...(context === undefined ? [] : ['--context', context]),
@@ -101,32 +129,62 @@ export function createRulesServer(
         'Checks the whole rulebook (schema, anchors, test tags, relations between rules) and answers the findings with a hint each; with base, rules changed since that git ref also need a changed test. Findings are data: the tool fails only when lint cannot run.',
       inputSchema: z.object({
         base: z.string().optional().describe('Git ref to compare with, for example origin/main'),
+        project,
       }),
       annotations: { readOnlyHint: true },
     },
-    ({ base }) =>
-      cli(directory(), ['lint', ...(base === undefined ? [] : ['--base', base]), '--json'], {
-        findingsAreData: true,
-      }),
+    ({ base, project }) =>
+      cli(
+        directory({ project }),
+        ['lint', ...(base === undefined ? [] : ['--base', base]), '--json'],
+        {
+          findingsAreData: true,
+        },
+      ),
   );
 
   return server;
 }
 
+// The project of the call wins; then the start directory, an absolute rules_for path and, without
+// an explicit --project, the client roots.
+async function locate(
+  server: McpServer,
+  projectDir: string,
+  clientRoots: boolean,
+  call: { project?: string | undefined; path?: string },
+): Promise<Location> {
+  // @implements R-AGT-004
+  if (call.project !== undefined) {
+    return { cwd: resolve(projectDir, call.project), hint: false };
+  }
+  // @endimplements R-AGT-004
+  if (!clientRoots || (await findRulebookRoot(projectDir)) !== undefined) {
+    return { cwd: projectDir, hint: false };
+  }
+  // @implements R-AGT-004
+  if (call.path !== undefined && isAbsolute(call.path)) {
+    const root = await findRulebookRoot(dirname(call.path));
+    if (root !== undefined) {
+      return { cwd: root, hint: false };
+    }
+  }
+  // @endimplements R-AGT-004
+  const root = await rootWithRulebook(server);
+  return root === undefined ? { cwd: projectDir, hint: true } : { cwd: root, hint: false };
+}
+
 // @implements R-AGT-003
 // Some clients start servers in their own install directory; their roots still name the workspace.
-async function rulebookDirectory(server: McpServer, projectDir: string): Promise<string> {
-  if ((await findRulebookRoot(projectDir)) !== undefined) {
-    return projectDir;
-  }
+async function rootWithRulebook(server: McpServer): Promise<string | undefined> {
   if (server.server.getClientCapabilities()?.roots === undefined) {
-    return projectDir;
+    return undefined;
   }
   let roots: { uri: string }[];
   try {
     ({ roots } = await server.server.listRoots());
   } catch {
-    return projectDir;
+    return undefined;
   }
   for (const { uri } of roots) {
     if (!uri.startsWith('file:')) {
@@ -137,13 +195,13 @@ async function rulebookDirectory(server: McpServer, projectDir: string): Promise
       return root;
     }
   }
-  return projectDir;
+  return undefined;
 }
 // @endimplements R-AGT-003
 
 // lint exits 1 when it finds errors but still prints its JSON report; only an empty stdout means it could not run.
-async function cli(directory: Promise<string>, args: string[], { findingsAreData = false } = {}) {
-  const cwd = await directory;
+async function cli(location: Promise<Location>, args: string[], { findingsAreData = false } = {}) {
+  const { cwd, hint } = await location;
   let stdout = '';
   let stderr = '';
   const status = await runCli(args, {
@@ -158,5 +216,12 @@ async function cli(directory: Promise<string>, args: string[], { findingsAreData
   if (status === 0 || (findingsAreData && stdout !== '')) {
     return { content: [{ type: 'text' as const, text: stdout }] };
   }
-  return { content: [{ type: 'text' as const, text: stderr.trim() }], isError: true };
+  const message = stderr.trim();
+  // @implements R-AGT-004
+  const text =
+    hint && message.startsWith(`No ${CONFIG_FILE_NAME} in `)
+      ? `${message}\n${MISSING_RULEBOOK_HINT}`
+      : message;
+  // @endimplements R-AGT-004
+  return { content: [{ type: 'text' as const, text }], isError: true };
 }
