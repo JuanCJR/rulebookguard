@@ -59,6 +59,12 @@ export interface Messages {
   contextOverBudget: (context: string, count: number, budget: number) => string;
   deadEvidenceFile: (id: string, entry: string, file: string) => string;
   deadEvidenceSymbol: (id: string, entry: string, symbol: string, file: string) => string;
+  entityOwner: (name: string) => string;
+  relationOwner: (from: string, to: string) => string;
+  duplicateEntity: (name: string, file: string) => string;
+  relationFromOutside: (from: string, to: string, context: string) => string;
+  relationToUnknown: (from: string, to: string) => string;
+  undefinedEntity: (id: string, name: string) => string;
   pendingImplementation: (id: string, base: string) => string;
   unknownRuleReference: (field: string, id: string) => string;
   selfRuleReference: (field: string) => string;
@@ -99,6 +105,9 @@ export interface Messages {
   implementsOutsideAnchorsHint: (id: string) => string;
   contextOverBudgetHint: string;
   deadEvidenceHint: string;
+  duplicateEntityHint: string;
+  unknownRelationEntityHint: string;
+  undefinedEntityHint: string;
   pendingImplementationHint: (id: string) => string;
   lintSummary: (errors: number, warnings: number) => string;
   needsWorkTree: (command: string, root: string) => string;
@@ -176,6 +185,13 @@ const EN: Messages = {
   deadEvidenceFile: (id, entry, file) => `evidence "${entry}" of ${id}: ${file} does not exist`,
   deadEvidenceSymbol: (id, entry, symbol, file) =>
     `evidence "${entry}" of ${id}: "${symbol}" is not found in ${file}`,
+  entityOwner: (name) => `entity ${name}`,
+  relationOwner: (from, to) => `relation ${from} → ${to}`,
+  duplicateEntity: (name, file) => `entity "${name}" is already defined in ${file}`,
+  relationFromOutside: (from, to, context) =>
+    `relation ${from} → ${to}: "${from}" is not an entity of context "${context}"`,
+  relationToUnknown: (from, to) => `relation ${from} → ${to}: no context defines "${to}"`,
+  undefinedEntity: (id, name) => `rule ${id} names entity "${name}", which no context defines`,
   pendingImplementation: (id, base) =>
     `rule ${id} changed since ${base} but none of the tests tagging it changed`,
   unknownRuleReference: (field, id) => `${field} names ${id}, which does not exist`,
@@ -249,6 +265,12 @@ const EN: Messages = {
     'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
   deadEvidenceHint:
     'point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
+  duplicateEntityHint:
+    'define each entity once, in the context that owns it, and rename or remove the other',
+  unknownRelationEntityHint:
+    'declare the relation in the context that owns its "from" entity, define the entities it names, or fix the names',
+  undefinedEntityHint:
+    'add the entity to the _context.md of the context that owns it, or fix the name in entities',
   pendingImplementationHint: (id) =>
     `update or add a test inside an "@rule ${id}" … "@endrule ${id}" region that covers the changed rule`,
   lintSummary: (errors, warnings) =>
@@ -333,6 +355,14 @@ const ES: Messages = {
   deadEvidenceFile: (id, entry, file) => `la evidencia "${entry}" de ${id}: ${file} no existe`,
   deadEvidenceSymbol: (id, entry, symbol, file) =>
     `la evidencia "${entry}" de ${id}: "${symbol}" no aparece en ${file}`,
+  entityOwner: (name) => `la entidad ${name}`,
+  relationOwner: (from, to) => `la relación ${from} → ${to}`,
+  duplicateEntity: (name, file) => `la entidad "${name}" ya está definida en ${file}`,
+  relationFromOutside: (from, to, context) =>
+    `la relación ${from} → ${to}: "${from}" no es una entidad del contexto "${context}"`,
+  relationToUnknown: (from, to) => `la relación ${from} → ${to}: ningún contexto define "${to}"`,
+  undefinedEntity: (id, name) =>
+    `la regla ${id} nombra la entidad "${name}", que ningún contexto define`,
   pendingImplementation: (id, base) =>
     `la regla ${id} cambió desde ${base} pero no cambió ninguno de los tests que la etiquetan`,
   unknownRuleReference: (field, id) => `${field} nombra a ${id}, que no existe`,
@@ -407,6 +437,12 @@ const ES: Messages = {
     'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
   deadEvidenceHint:
     'apunta la entrada al archivo y al símbolo que muestran la regla hoy ("ruta símbolo"), o quítala',
+  duplicateEntityHint:
+    'define cada entidad una sola vez, en el contexto dueño, y renombra o quita la otra',
+  unknownRelationEntityHint:
+    'declara la relación en el contexto dueño de su entidad "from", define las entidades que nombra o corrige los nombres',
+  undefinedEntityHint:
+    'agrega la entidad al _context.md del contexto dueño, o corrige el nombre en entities',
   pendingImplementationHint: (id) =>
     `actualiza o agrega un test dentro de una región "@rule ${id}" … "@endrule ${id}" que cubra el cambio de la regla`,
   lintSummary: (errors, warnings) =>

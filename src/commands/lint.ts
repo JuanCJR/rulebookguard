@@ -227,22 +227,105 @@ export async function lintCatalog(
     }
   }
   // @endimplements R-LIN-009
+  findings.push(...contextModel(catalog, text));
   findings.push(...(await deadEvidence(catalog, text)));
+  return findings;
+}
+
+// Entity names are global: a relation or a rule names an entity without saying which context
+// owns it, so a second definition would make that name ambiguous.
+function contextModel(catalog: Catalog, text: Messages): LintFinding[] {
+  const findings: LintFinding[] = [];
+  const owners = new Map<string, string>();
+  const contexts = [...catalog.contexts].sort((a, b) => compare(a.context, b.context));
+  // @implements R-LIN-012
+  for (const context of contexts) {
+    for (const { name } of context.entities ?? []) {
+      const owner = owners.get(name);
+      if (owner === undefined) {
+        owners.set(name, context.file);
+        continue;
+      }
+      findings.push(
+        error(
+          'duplicate-entity',
+          context.file,
+          text.duplicateEntity(name, owner),
+          text.duplicateEntityHint,
+        ),
+      );
+    }
+  }
+  // @endimplements R-LIN-012
+  // @implements R-LIN-013
+  for (const context of contexts) {
+    const own = new Set((context.entities ?? []).map((entity) => entity.name));
+    for (const { from, to } of context.relations ?? []) {
+      const problems = [
+        own.has(from) ? undefined : text.relationFromOutside(from, to, context.context),
+        owners.has(to) ? undefined : text.relationToUnknown(from, to),
+      ];
+      for (const message of problems.filter((item) => item !== undefined)) {
+        findings.push(
+          error('unknown-relation-entity', context.file, message, text.unknownRelationEntityHint),
+        );
+      }
+    }
+  }
+  // @endimplements R-LIN-013
+  // @implements R-LIN-014
+  // Catalogs that describe no entities in a context keep their free-form rule entities.
+  const modeled = new Set(
+    contexts
+      .filter((context) => (context.entities?.length ?? 0) > 0)
+      .map((context) => context.context),
+  );
+  for (const rule of catalog.rules) {
+    if (rule.status === 'deprecated' || !modeled.has(rule.context)) {
+      continue;
+    }
+    for (const name of rule.entities.filter((entity) => !owners.has(entity))) {
+      findings.push({
+        severity: 'warning',
+        code: 'undefined-entity',
+        file: rule.file,
+        message: text.undefinedEntity(rule.id, name),
+        hint: text.undefinedEntityHint,
+      });
+    }
+  }
+  // @endimplements R-LIN-014
   return findings;
 }
 
 // Deprecated rules keep the evidence of the code they once described, so only live rules count.
 async function deadEvidence(catalog: Catalog, text: Messages): Promise<LintFinding[]> {
-  const rules = catalog.rules.filter(
-    (rule) => rule.status !== 'deprecated' && (rule.evidence?.length ?? 0) > 0,
-  );
-  if (rules.length === 0) {
+  const owners: { owner: string; file: string; evidence: string[] }[] = [
+    ...catalog.rules
+      .filter((rule) => rule.status !== 'deprecated')
+      .map((rule) => ({ owner: rule.id, file: rule.file, evidence: rule.evidence ?? [] })),
+    // @implements R-LIN-015
+    ...catalog.contexts.flatMap((context) => [
+      ...(context.entities ?? []).map((entity) => ({
+        owner: text.entityOwner(entity.name),
+        file: context.file,
+        evidence: entity.evidence ?? [],
+      })),
+      ...(context.relations ?? []).map((relation) => ({
+        owner: text.relationOwner(relation.from, relation.to),
+        file: context.file,
+        evidence: relation.evidence ?? [],
+      })),
+    ]),
+    // @endimplements R-LIN-015
+  ].filter((item) => item.evidence.length > 0);
+  if (owners.length === 0) {
     return [];
   }
   const resolve = await createEvidenceResolver(catalog.root);
   const findings: LintFinding[] = [];
-  for (const rule of rules) {
-    for (const entry of rule.evidence ?? []) {
+  for (const { owner, file, evidence } of owners) {
+    for (const entry of evidence) {
       const link = await resolve(entry);
       if (link.problem === undefined) {
         continue;
@@ -250,11 +333,11 @@ async function deadEvidence(catalog: Catalog, text: Messages): Promise<LintFindi
       findings.push({
         severity: 'warning',
         code: 'dead-evidence',
-        file: rule.file,
+        file,
         message:
           link.problem === 'missing-file'
-            ? text.deadEvidenceFile(rule.id, entry, link.file)
-            : text.deadEvidenceSymbol(rule.id, entry, link.symbol ?? '', link.file),
+            ? text.deadEvidenceFile(owner, entry, link.file)
+            : text.deadEvidenceSymbol(owner, entry, link.symbol ?? '', link.file),
         hint: text.deadEvidenceHint,
       });
     }

@@ -215,7 +215,7 @@ func validateDocument(country, number string) error {
 | `test/clients/create.test.ts "rejects a duplicate document"` | the test with that name                           |
 | `src/clients/create.ts`                                      | the file                                          |
 
-Lines are resolved when the rule is read, so the link follows the code. `lint` warns `dead-evidence` when the file or symbol is gone; deprecated rules are not checked. A legacy `path:line` or `path:line-endLine` entry still works, but only its file is checked.
+Lines are resolved when the rule is read, so the link follows the code. `lint` warns `dead-evidence` when the file or symbol is gone; deprecated rules are not checked. The evidence of [entities and relations](#context-model) is checked the same way. A legacy `path:line` or `path:line-endLine` entry still works, but only its file is checked.
 
 By default a heuristic finds one line. For full ranges, install the optional package (uses [tree-sitter](https://tree-sitter.github.io/); JavaScript, TypeScript/TSX, Python, Go, Java, C#, Rust; ~11 MB, nothing to build):
 
@@ -384,32 +384,35 @@ warning context-over-budget docs/rules/clients/_context.md context "clients" has
 
 Format: `<severity> <code> <file>[:line] <message>`, a `hint:` line, then a count. `--json`: `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
-| Severity | Code                          | Meaning                                                            |
-| -------- | ----------------------------- | ------------------------------------------------------------------ |
-| error    | `untested-rule`               | an active rule has no test tagging it                              |
-| error    | `unknown-rule-tag`            | a test tags a rule id that does not exist                          |
-| error    | `deprecated-rule-tag`         | a test tags a deprecated rule                                      |
-| error    | `unclosed-rule-tag`           | a `@rule` has no matching `@endrule`                               |
-| error    | `unmatched-endrule-tag`       | an `@endrule` has no open `@rule` of the same id                   |
-| error    | `unclosed-implements-tag`     | an `@implements` has no matching `@endimplements`                  |
-| error    | `unmatched-endimplements-tag` | an `@endimplements` has no open `@implements` of the same id       |
-| error    | `unknown-implements-tag`      | code is marked as implementing a rule id that does not exist       |
-| error    | `deprecated-implements-tag`   | code is marked as implementing a deprecated rule                   |
-| error    | `implements-outside-anchors`  | an `@implements` region sits in a file its rule does not anchor    |
-| error    | `unmatched-anchor`            | an anchor glob matches no file                                     |
-| error    | `schema`                      | a config, context or rule file breaks the JSON Schema              |
-| error    | `duplicate-id`                | two rule files share an id                                         |
-| error    | `file-name-mismatch`          | a rule file is not named `<id>.md`                                 |
-| error    | `id-prefix-mismatch`          | a rule id does not use its context prefix                          |
-| error    | `context-mismatch`            | a `context` field does not match its directory                     |
-| error    | `missing-context-file`        | a context directory has no `_context.md`                           |
-| error    | `missing-rules-dir`           | `rulesDir` does not exist                                          |
-| error    | `pending-implementation`      | with `--base`: an active rule changed, but none of its regions did |
-| error    | `invalid-rule-reference`      | `dependsOn` or `conflictsWith` names an unknown rule or itself     |
-| error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)   |
-| error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`      |
-| warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                    |
-| warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists |
+| Severity | Code                          | Meaning                                                                          |
+| -------- | ----------------------------- | -------------------------------------------------------------------------------- |
+| error    | `untested-rule`               | an active rule has no test tagging it                                            |
+| error    | `unknown-rule-tag`            | a test tags a rule id that does not exist                                        |
+| error    | `deprecated-rule-tag`         | a test tags a deprecated rule                                                    |
+| error    | `unclosed-rule-tag`           | a `@rule` has no matching `@endrule`                                             |
+| error    | `unmatched-endrule-tag`       | an `@endrule` has no open `@rule` of the same id                                 |
+| error    | `unclosed-implements-tag`     | an `@implements` has no matching `@endimplements`                                |
+| error    | `unmatched-endimplements-tag` | an `@endimplements` has no open `@implements` of the same id                     |
+| error    | `unknown-implements-tag`      | code is marked as implementing a rule id that does not exist                     |
+| error    | `deprecated-implements-tag`   | code is marked as implementing a deprecated rule                                 |
+| error    | `implements-outside-anchors`  | an `@implements` region sits in a file its rule does not anchor                  |
+| error    | `unmatched-anchor`            | an anchor glob matches no file                                                   |
+| error    | `schema`                      | a config, context or rule file breaks the JSON Schema                            |
+| error    | `duplicate-id`                | two rule files share an id                                                       |
+| error    | `file-name-mismatch`          | a rule file is not named `<id>.md`                                               |
+| error    | `id-prefix-mismatch`          | a rule id does not use its context prefix                                        |
+| error    | `context-mismatch`            | a `context` field does not match its directory                                   |
+| error    | `missing-context-file`        | a context directory has no `_context.md`                                         |
+| error    | `missing-rules-dir`           | `rulesDir` does not exist                                                        |
+| error    | `pending-implementation`      | with `--base`: an active rule changed, but none of its regions did               |
+| error    | `invalid-rule-reference`      | `dependsOn` or `conflictsWith` names an unknown rule or itself                   |
+| error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)                 |
+| error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`                    |
+| error    | `duplicate-entity`            | two `_context.md` files, or one twice, define the same entity name               |
+| error    | `unknown-relation-entity`     | a relation starts outside its context or ends at an undefined entity             |
+| warning  | `undefined-entity`            | a rule names an entity no context defines, when its own context defines entities |
+| warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                                  |
+| warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists               |
 
 An invalid config is reported as `schema` findings. Tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
 
