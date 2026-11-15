@@ -29,7 +29,8 @@ export class CliError extends Error {
 export async function requireRulebookRoot(io: CliIo): Promise<string> {
   const root = await findRulebookRoot(io.cwd);
   if (root === undefined) {
-    throw new CliError(`${CONFIG_FILE_NAME} not found in ${io.cwd} or any parent directory.`);
+    // Kiro shows an MCP tool error that says "not found" as "tool does not exist", so avoid those words.
+    throw new CliError(`No ${CONFIG_FILE_NAME} in ${io.cwd} or any parent directory.`);
   }
   return root;
 }

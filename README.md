@@ -541,7 +541,7 @@ $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_
 
 ### `mcp`
 
-`mcp [--project <dir>]`: an [MCP](https://modelcontextprotocol.io) server over stdio with read-only tools. The rulebook is found from `--project` (default: the current directory). Without `--project`, when no `rulebookguard.config.yaml` is found from the current directory up, each tool call uses the first [root](https://modelcontextprotocol.io/specification/2025-06-18/client/roots) the client offers that has one, so a single global entry works for every project of a client that starts servers outside the workspace.
+`mcp [--project <dir>]`: an [MCP](https://modelcontextprotocol.io) server over stdio with read-only tools. The rulebook is found from `--project` (default: the current directory). Without `--project`, when no `rulebookguard.config.yaml` is found from the current directory up, each tool call uses the first [root](https://modelcontextprotocol.io/specification/2025-06-18/client/roots) the client offers that has one, so a single global entry works for every project of a client that starts servers outside the workspace. Every tool also takes an optional `project`, the workspace folder, which wins over all of that: Kiro starts a power's server in the power's folder and offers no roots, so there the agent passes it. Without `project`, `rules_for` given an absolute path uses the rulebook that holds the file. When no rulebook is found and neither `project` nor `--project` was given, the error adds a line asking for `project`.
 
 | Tool           | Input                                                  | Answers                                                       |
 | -------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
@@ -552,7 +552,7 @@ $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_
 | `rules_search` | `text`, `context`?                                     | what `rulebookguard search <text> --json` prints              |
 | `lint`         | `base`?: a git ref                                     | what `rulebookguard lint --json` prints, with `--base` if set |
 
-A failing command answers a tool error with the CLI's message, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.` Lint findings are data: `lint` fails only when lint cannot run.
+Every tool takes `project`? besides the input above. A failing command answers a tool error with the CLI's message, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.` Lint findings are data: `lint` fails only when lint cannot run.
 
 ### `site`
 
@@ -704,7 +704,7 @@ Keep `rulebookguard.config.yaml` at the Kiro workspace root: Kiro reads `.kiro/`
 | Power in [`plugin/`](plugin) | the `rules` and `rule-writing` skills and the MCP server | import the `plugin` folder         |
 | [Custom agents](#export)     | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
 
-To install the power: Powers panel → **Add Custom Power** → **Import power from a folder**, with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.15.0 mcp` (needs Node.js and network the first time) and finds the rulebook from the directory Kiro starts it in or, failing that, from the workspace roots Kiro offers. If the tools still answer `rulebookguard.config.yaml not found`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
+To install the power: Powers panel → **Add Custom Power** → **Import power from a folder**, with a clone of this repository's `plugin` folder. Its MCP server runs `npx --yes rulebookguard@0.15.0 mcp` (needs Node.js and network the first time) Kiro starts it in the power's own folder and offers it no workspace roots, so each tool takes a `project` argument with the workspace folder, which the `rules` skill tells the agent to pass, and `rules_for` finds the rulebook of an absolute file path by itself. If the tools still answer `No rulebookguard.config.yaml in ...`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
 
 > [!NOTE]
 > Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically; use `rulebookguard export agents-md` there. Powers are listed for CLI V3. A custom agent reads steering files only if its `resources` include `file://.kiro/steering/**/*.md`.
