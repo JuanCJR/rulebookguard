@@ -1,7 +1,8 @@
-import type { RuleLanguage, RuleStatus } from '../format/types.ts';
+import type { ContextDoc, RuleLanguage, RuleStatus } from '../format/types.ts';
 import type { EvidenceLink } from '../catalog/evidence.ts';
 import { parseEvidence } from '../format/evidence.ts';
 import type { SiteData, SiteRule } from './data.ts';
+import { diagram, type DiagramEdge, type DiagramNode } from './diagram.ts';
 
 export interface SiteOptions {
   language: RuleLanguage;
@@ -63,6 +64,18 @@ const TEXT = {
     counts: (errors: number, warnings: number) =>
       `${errors} ${errors === 1 ? 'error' : 'errors'}, ${warnings} ${warnings === 1 ? 'warning' : 'warnings'}`,
     healthIntro: 'Findings of `rulebookguard lint` when the site was built.',
+    crosscutting: 'Crosscutting contexts',
+    crosscuttingIntro: 'Contexts that apply to every domain.',
+    model: 'Model',
+    rules: 'Rules',
+    entity: 'Entity',
+    description: 'Description',
+    noRules: 'no rules',
+    ofContext: (context: string) => `context ${context}`,
+    notValidatedShort: 'not validated',
+    otherRules: 'Other rules',
+    legend:
+      'Dashed: extracted from the code and not validated by the business yet. Grey: entities of other contexts.',
   },
   es: {
     title: 'Reglas de negocio',
@@ -107,6 +120,18 @@ const TEXT = {
     counts: (errors: number, warnings: number) =>
       `${errors} ${errors === 1 ? 'error' : 'errores'}, ${warnings} ${warnings === 1 ? 'advertencia' : 'advertencias'}`,
     healthIntro: 'Hallazgos de `rulebookguard lint` al momento de generar el sitio.',
+    crosscutting: 'Contextos transversales',
+    crosscuttingIntro: 'Contextos que aplican a todos los dominios.',
+    model: 'Modelo',
+    rules: 'Reglas',
+    entity: 'Entidad',
+    description: 'Descripción',
+    noRules: 'sin reglas',
+    ofContext: (context: string) => `contexto ${context}`,
+    notValidatedShort: 'sin validar',
+    otherRules: 'Otras reglas',
+    legend:
+      'Punteado: extraído del código y sin validar todavía por el negocio. Gris: entidades de otros contextos.',
   },
 } satisfies Record<RuleLanguage, unknown>;
 
@@ -155,6 +180,7 @@ export const collections = { docs: defineCollection({ loader: docsLoader(), sche
       '',
       `## ${text.contexts}`,
       '',
+      ...domainMap(data, text, base),
       `| ${text.context} | ${text.prefix} | ${text.summary} | ${STATUSES.join(' | ')} |`,
       `| --- | --- | --- | ${STATUSES.map(() => '---:').join(' | ')} |`,
       ...data.contexts.map((context) => {
@@ -164,6 +190,7 @@ export const collections = { docs: defineCollection({ loader: docsLoader(), sche
         );
         return `| [${context.context}](${base}${context.context}/) | ${context.prefix} | ${cell(context.summary)} | ${counts.join(' | ')} |`;
       }),
+      ...crosscuttingMap(data, text, base),
     ]),
   );
 
@@ -176,11 +203,19 @@ export const collections = { docs: defineCollection({ loader: docsLoader(), sche
         '',
         demote(context.body.trim()),
         '',
-        `| ${text.rule} | ${text.status} | ${text.summary} |`,
-        '| --- | --- | --- |',
-        ...rules.map(
-          ({ rule }) => `| ${ruleLink(rule.id)} | ${rule.status} | ${cell(rule.summary)} |`,
-        ),
+        ...contextModel(data, context, text, base),
+        `## ${text.rules}`,
+        '',
+        ...ruleSections(rules, text).flatMap(([title, members]) => [
+          `### ${cell(title)}`,
+          '',
+          `| ${text.rule} | ${text.status} | ${text.summary} |`,
+          '| --- | --- | --- |',
+          ...members.map(
+            ({ rule }) => `| ${ruleLink(rule.id)} | ${rule.status} | ${cell(rule.summary)} |`,
+          ),
+          '',
+        ]),
       ]),
     );
   }
@@ -296,6 +331,177 @@ function rulePage(
           ),
         ]),
   ]);
+}
+
+// Entity names are unique in the rulebook (lint); on a duplicate the first context by name wins.
+function entityOwners(contexts: ContextDoc[]): Map<string, string> {
+  const owners = new Map<string, string>();
+  for (const context of [...contexts].sort((a, b) => compare(a.context, b.context))) {
+    for (const { name } of context.entities ?? []) {
+      if (!owners.has(name)) {
+        owners.set(name, context.context);
+      }
+    }
+  }
+  return owners;
+}
+
+function isCrosscutting(context: ContextDoc): boolean {
+  return context.kind === 'crosscutting';
+}
+
+function contextNode(data: SiteData, context: ContextDoc, text: Text, base: string): DiagramNode {
+  const rules = data.rules.filter(({ rule }) => rule.context === context.context);
+  const counts = STATUSES.map(
+    (status) => [status, rules.filter(({ rule }) => rule.status === status).length] as const,
+  )
+    .filter(([, count]) => count > 0)
+    .map(([status, count]) => `${count} ${status}`);
+  return {
+    id: context.context,
+    title: `${context.context} · ${context.prefix}`,
+    lines: [context.summary],
+    badge: counts.length === 0 ? text.noRules : counts.join(' · '),
+    href: `${base}${context.context}/`,
+  };
+}
+
+// Level 1: the domain contexts, linked by the relations that cross from one domain to another.
+function domainMap(data: SiteData, text: Text, base: string): string[] {
+  const domains = data.contexts.filter((context) => !isCrosscutting(context));
+  if (domains.length === 0) {
+    return [];
+  }
+  const domainNames = new Set(domains.map((context) => context.context));
+  const owners = entityOwners(data.contexts);
+  const links = new Map<string, DiagramEdge>();
+  for (const context of domains) {
+    for (const relation of context.relations ?? []) {
+      const target = owners.get(relation.to);
+      if (target === undefined || target === context.context || !domainNames.has(target)) {
+        continue;
+      }
+      const key = `${context.context}\u0000${target}`;
+      const link = links.get(key);
+      const unvalidated = relation.origin === 'extracted';
+      links.set(
+        key,
+        link === undefined
+          ? { from: context.context, to: target, label: relation.label, unvalidated }
+          : {
+              ...link,
+              label: `${link.label}; ${relation.label}`,
+              unvalidated: link.unvalidated === true || unvalidated,
+            },
+      );
+    }
+  }
+  const edges = [...links.values()];
+  return [
+    diagram(
+      domains.map((context) => contextNode(data, context, text, base)),
+      edges,
+      text.contexts,
+    ),
+    '',
+    ...(edges.some((edge) => edge.unvalidated === true) ? [`*${text.legend}*`, ''] : []),
+  ];
+}
+
+function crosscuttingMap(data: SiteData, text: Text, base: string): string[] {
+  const contexts = data.contexts.filter(isCrosscutting);
+  if (contexts.length === 0) {
+    return [];
+  }
+  return [
+    '',
+    `## ${text.crosscutting}`,
+    '',
+    text.crosscuttingIntro,
+    '',
+    diagram(
+      contexts.map((context) => contextNode(data, context, text, base)),
+      [],
+      text.crosscutting,
+    ),
+  ];
+}
+
+// Level 2: the context's entities, the entities of other contexts its relations touch, and every
+// relation from or to its entities.
+function contextModel(data: SiteData, context: ContextDoc, text: Text, base: string): string[] {
+  const owners = entityOwners(data.contexts);
+  const own = (context.entities ?? []).filter(
+    (entity) => owners.get(entity.name) === context.context,
+  );
+  const ownNames = new Set(own.map((entity) => entity.name));
+  const relations = data.contexts.flatMap((source) =>
+    (source.relations ?? [])
+      .filter((relation) => owners.get(relation.from) === source.context)
+      .filter((relation) => owners.has(relation.to))
+      .filter((relation) => source.context === context.context || ownNames.has(relation.to)),
+  );
+  if (own.length === 0 && relations.length === 0) {
+    return [];
+  }
+  const nodes: DiagramNode[] = own.map((entity) => ({
+    id: entity.name,
+    title: entity.name,
+    lines: [entity.description],
+    ...(entity.origin === 'extracted' ? { badge: text.notValidatedShort, unvalidated: true } : {}),
+  }));
+  for (const name of relations.flatMap((relation) => [relation.from, relation.to])) {
+    const owner = owners.get(name) as string;
+    if (!nodes.some((node) => node.id === name)) {
+      nodes.push({
+        id: name,
+        title: name,
+        lines: [],
+        badge: text.ofContext(owner),
+        href: `${base}${owner}/`,
+        muted: true,
+      });
+    }
+  }
+  const edges: DiagramEdge[] = relations.map((relation) => ({
+    from: relation.from,
+    to: relation.to,
+    label: relation.label,
+    unvalidated: relation.origin === 'extracted',
+  }));
+  return [
+    `## ${text.model}`,
+    '',
+    diagram(nodes, edges, `${text.model}: ${context.context}`),
+    '',
+    `*${text.legend}*`,
+    '',
+    ...(own.length === 0
+      ? []
+      : [
+          `| ${text.entity} | ${text.description} |`,
+          '| --- | --- |',
+          ...own.map(
+            (entity) =>
+              `| ${cell(entity.name)} | ${cell(entity.description)}${entity.origin === 'extracted' ? ` (${text.notValidatedShort})` : ''} |`,
+          ),
+          '',
+        ]),
+  ];
+}
+
+// Sections by group, else by the rule's first entity, in the order their first rule appears.
+function ruleSections(rules: SiteRule[], text: Text): [string, SiteRule[]][] {
+  const sections = new Map<string, SiteRule[]>();
+  for (const entry of rules) {
+    const title = entry.rule.group ?? entry.rule.entities[0] ?? text.otherRules;
+    sections.set(title, [...(sections.get(title) ?? []), entry]);
+  }
+  return [...sections.entries()];
+}
+
+function compare(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
 }
 
 function rulesPage(data: SiteData, text: Text, rulePath: Map<string, string>): string {
