@@ -588,8 +588,8 @@ Serving site at http://127.0.0.1:4321/ (Ctrl+C to stop)
 <details>
 <summary>What the site shows</summary>
 
-- **Home:** the contexts map, with rule counts per status.
-- **A page per context** with its description and rules.
+- **Home:** a diagram of the domain contexts, each with its summary and rule counts per status, linked by the [relations](#context-model) that cross from one domain to another; the crosscutting contexts in their own section; and the contexts table.
+- **A page per context** with its description; a diagram of its entities, the entities of other contexts its relations touch (grey) and every relation from or to them, with an entity table; and its rules in sections by `group`, or by their first entity. What is `origin: extracted` is drawn dashed, as not validated yet. A page with a diagram has no table of contents, so the diagram gets the full width; in a narrow window it shrinks to fit, never scrolls.
 - **All rules:** one table filterable by text, context and status.
 - **A page per rule:** summary, status, entities, rule file, supersedes chain both ways, origin (an `extracted` rule still `proposed` is flagged as not validated by the business yet), evidence with `file:line-endLine`, text, anchors and matched files, tagging tests, and the rule file's git history.
 - **Health:** the `lint` findings at build time.

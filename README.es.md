@@ -591,8 +591,8 @@ Serving site at http://127.0.0.1:4321/ (Ctrl+C to stop)
 <details>
 <summary>Qué muestra el sitio</summary>
 
-- **Inicio:** el mapa de contextos, con la cantidad de reglas por estado.
-- **Una página por contexto** con su descripción y sus reglas.
+- **Inicio:** un diagrama de los contextos de dominio, cada uno con su resumen y la cantidad de reglas por estado, unidos por las [relaciones](#modelo-del-contexto) que cruzan de un dominio a otro; los contextos transversales en su propia sección; y la tabla de contextos.
+- **Una página por contexto** con su descripción; un diagrama de sus entidades, las entidades de otros contextos que tocan sus relaciones (en gris) y cada relación desde o hacia ellas, con una tabla de entidades; y sus reglas en secciones por `group`, o por su primera entidad. Lo que tiene `origin: extracted` se dibuja punteado, como todavía no validado. Una página con diagrama no tiene tabla de contenidos, así el diagrama usa todo el ancho; en una ventana angosta se achica para entrar, sin scroll.
 - **Todas las reglas:** una tabla filtrable por texto, contexto y estado.
 - **Una página por regla:** resumen, estado, entidades, archivo de regla, cadena de `supersedes` en ambos sentidos, origen (una regla `extracted` que sigue `proposed` se marca como todavía no validada por el negocio), evidencia con `file:line-endLine`, texto, anchors y archivos que coinciden, tests que la marcan e historial de git del archivo de regla.
 - **Salud:** los hallazgos de `lint` al momento de generar.

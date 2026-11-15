@@ -1,4 +1,4 @@
-import { cp, writeFile } from 'node:fs/promises';
+import { cp, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { loadCatalog } from '../../src/catalog/load.ts';
@@ -192,5 +192,125 @@ describe('sitePages', () => {
 
     expect(files.get('src/content/docs/index.md')).toContain('[billing](/docs/rules/billing/)');
     expect(files.get('src/pages/rules.astro')).toContain('href="/docs/rules/billing/r-bil-001/"');
+  });
+});
+
+async function modelRepo(): Promise<string> {
+  const repo = await scratchDir();
+  await cp(fixtureRoot('repo'), repo, { recursive: true });
+  await writeFile(
+    join(repo, 'docs/rules/clients/_context.md'),
+    [
+      '---',
+      'context: clients',
+      'prefix: CLI',
+      'summary: Customers that receive installation services.',
+      'entities:',
+      '  - name: Client',
+      '    description: A person or a company.',
+      '  - name: Contact',
+      '    description: A person the company talks to.',
+      '    origin: extracted',
+      'relations:',
+      '  - from: Client',
+      '    to: Contact',
+      '    label: Has one or more',
+      '  - from: Client',
+      '    to: Invoice',
+      '    label: Receives invoices',
+      '    origin: extracted',
+      '---',
+      '',
+    ].join('\n'),
+  );
+  await writeFile(
+    join(repo, 'docs/rules/billing/_context.md'),
+    '---\ncontext: billing\nprefix: BIL\nsummary: Invoices and taxes charged to clients.\nentities:\n  - name: Invoice\n    description: A bill.\n---\n',
+  );
+  await mkdir(join(repo, 'docs/rules/audit'));
+  await writeFile(
+    join(repo, 'docs/rules/audit/_context.md'),
+    '---\ncontext: audit\nprefix: AUD\nsummary: Who changed what.\nkind: crosscutting\n---\n',
+  );
+  return repo;
+}
+
+describe('sitePages context model', () => {
+  it('draws the domain map on the home page with the relations between domains', async () => {
+    const home = (await pages({ repo: await modelRepo() })).get('src/content/docs/index.md') ?? '';
+
+    expect(home).toContain('<figure class="rbg-diagram">');
+    expect(home).toContain('<a href="/clients/">');
+    expect(home).toContain('>1 active · 1 proposed · 1 deprecated<');
+    expect(home).toContain('class="rbg-edge rbg-unvalidated"');
+    expect(home).toContain('>Receives invoices<');
+    expect(home).toContain('| [clients](/clients/) | CLI | ');
+  });
+
+  it('draws crosscutting contexts in their own section, outside the domain map', async () => {
+    const home = (await pages({ repo: await modelRepo() })).get('src/content/docs/index.md') ?? '';
+    const [map = '', crosscutting = ''] = home.split('## Crosscutting contexts');
+
+    expect(crosscutting).toContain('<a href="/audit/">');
+    expect(crosscutting).toContain('>no rules<');
+    expect(map).not.toContain('<a href="/audit/">');
+  });
+
+  it('draws the entities of a context, the ones of other contexts it touches and their relations', async () => {
+    const page =
+      (await pages({ repo: await modelRepo() })).get('src/content/docs/clients/index.md') ?? '';
+
+    expect(page).toContain('## Model');
+    expect(page).toContain('>A person or a company.<');
+    expect(page).toContain('class="rbg-node rbg-unvalidated"');
+    expect(page).toContain('class="rbg-node rbg-muted"');
+    expect(page).toContain('>context billing<');
+    expect(page).toContain('>Has one or more<');
+    expect(page).toContain('| Client | A person or a company. |');
+    expect(page).toContain('| Contact | A person the company talks to. (not validated) |');
+
+    const billing =
+      (await pages({ repo: await modelRepo() })).get('src/content/docs/billing/index.md') ?? '';
+    expect(billing).toContain('>Receives invoices<');
+    expect(billing).toContain('>context clients<');
+  });
+
+  it('groups the rules of a context by group, then by their first entity', async () => {
+    const repo = await modelRepo();
+    const file = join(repo, 'docs/rules/clients/R-CLI-002.md');
+    await writeFile(
+      file,
+      (await readFile(file, 'utf8')).replace(/^id: .*$/m, '$&\ngroup: Client lifecycle'),
+    );
+
+    const page = (await pages({ repo })).get('src/content/docs/clients/index.md') ?? '';
+
+    expect(page).toMatch(
+      /## Rules\n\n### Client\n\n\| Rule \| Status \| Summary \|\n\| --- \| --- \| --- \|\n\| \[R-CLI-001\]\(\/clients\/r-cli-001\/\) [^\n]*\n\| \[R-CLI-003\][^\n]*\n\n### Client lifecycle\n\n[^\n]*\n[^\n]*\n\| \[R-CLI-002\]/,
+    );
+  });
+
+  it('keeps a context without a model free of a diagram', async () => {
+    const page = (await pages()).get('src/content/docs/billing/index.md') ?? '';
+
+    expect(page).not.toContain('## Model');
+    expect(page).not.toContain('<figure');
+    expect(page).not.toContain('tableOfContents: false');
+  });
+
+  it('drops the table of contents of a page with a diagram, so the page is wide enough', async () => {
+    const files = await pages({ repo: await modelRepo() });
+
+    expect(files.get('src/content/docs/index.md')).toContain('tableOfContents: false');
+    expect(files.get('src/content/docs/clients/index.md')).toContain('tableOfContents: false');
+  });
+
+  it('writes the model texts in Spanish', async () => {
+    const files = await pages({ repo: await modelRepo(), language: 'es' });
+
+    expect(files.get('src/content/docs/index.md')).toContain('## Contextos transversales');
+    expect(files.get('src/content/docs/index.md')).toContain('>sin reglas<');
+    expect(files.get('src/content/docs/clients/index.md')).toContain('## Modelo');
+    expect(files.get('src/content/docs/clients/index.md')).toContain('>contexto billing<');
   });
 });
