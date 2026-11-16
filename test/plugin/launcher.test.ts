@@ -5,13 +5,16 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vite-plus/test';
 import { scratchDir } from '../scratch.ts';
 
-const launcher = fileURLToPath(new URL('../../plugin/bin/rulebookguard.mjs', import.meta.url));
+const launcher = fileURLToPath(
+  new URL('../../rulebookguard/bin/rulebookguard.mjs', import.meta.url),
+);
 
 async function readJson(relativePath: string): Promise<Record<string, unknown>> {
   return JSON.parse(await readFile(new URL(`../../${relativePath}`, import.meta.url), 'utf8'));
 }
 
-const pluginVersion = (await readJson('plugin/.claude-plugin/plugin.json')).version as string;
+const pluginVersion = (await readJson('rulebookguard/.claude-plugin/plugin.json'))
+  .version as string;
 
 // A stand-in for rulebookguard that reports how it was called.
 const ECHO = `let stdin = '';
@@ -74,7 +77,7 @@ describe('plugin launcher', () => {
 
     expect(pluginVersion).toBe(pkg.version);
     expect(marketplace.plugins).toEqual([
-      expect.objectContaining({ name: 'rulebookguard', source: './plugin' }),
+      expect.objectContaining({ name: 'rulebookguard', source: './rulebookguard' }),
     ]);
   });
 

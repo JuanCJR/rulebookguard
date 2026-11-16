@@ -9,6 +9,8 @@ import { scratchDir } from '../scratch.ts';
 
 const root = new URL('../../', import.meta.url);
 const repo = fileURLToPath(root);
+// Kiro names a power after its folder, the last segment of the GitHub URL it is imported from.
+const POWER = 'rulebookguard';
 
 // npm and npx are .cmd scripts on Windows, which need a shell and quoted paths.
 function run(command: string, args: string[], cwd: string): string {
@@ -29,10 +31,17 @@ async function readJson(path: string): Promise<Record<string, unknown>> {
 }
 
 describe('Kiro power', () => {
+  it('lives in a folder named after the power', async () => {
+    expect(await readJson(`${POWER}/plugin.json`)).toMatchObject({ name: POWER });
+    expect(await readJson('.claude-plugin/marketplace.json')).toMatchObject({
+      plugins: [expect.objectContaining({ name: POWER, source: `./${POWER}` })],
+    });
+  });
+
   it('has the manifest fields Kiro requires, at the version of the package', async () => {
     const pkg = await readJson('package.json');
 
-    expect(await readJson('plugin/plugin.json')).toMatchObject({
+    expect(await readJson(`${POWER}/plugin.json`)).toMatchObject({
       $schema: 'https://agent-plugins.org/schemas/1.0.0/plugin.schema.json',
       name: 'rulebookguard',
       version: pkg.version,
@@ -45,7 +54,7 @@ describe('Kiro power', () => {
   it('runs the MCP server of the version of the package', async () => {
     const pkg = await readJson('package.json');
 
-    expect(await readJson('plugin/mcp.json')).toEqual({
+    expect(await readJson(`${POWER}/mcp.json`)).toEqual({
       $schema: 'https://agent-plugins.org/schemas/1.0.0/mcp.schema.json',
       mcpServers: {
         rulebookguard: {
@@ -58,11 +67,11 @@ describe('Kiro power', () => {
   });
 
   it('ships skills whose frontmatter meets the rules of Kiro', async () => {
-    const folders = await readdir(new URL('plugin/skills/', root));
+    const folders = await readdir(new URL(`${POWER}/skills/`, root));
 
     expect(folders.sort()).toEqual(['rule-writing', 'rules']);
     for (const folder of folders) {
-      const file = `plugin/skills/${folder}/SKILL.md`;
+      const file = `${POWER}/skills/${folder}/SKILL.md`;
       const { data } = splitFrontmatter(await readFile(new URL(file, root), 'utf8'), file);
       const { name, description } = data as { name: string; description: string };
 

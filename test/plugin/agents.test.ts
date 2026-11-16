@@ -5,7 +5,7 @@ import { splitFrontmatter } from '../../src/format/frontmatter.ts';
 import { createRulesServer } from '../../src/mcp/server.ts';
 import { fixtureRoot } from '../cli/run.ts';
 
-const pluginDir = new URL('../../plugin/', import.meta.url);
+const pluginDir = new URL('../../rulebookguard/', import.meta.url);
 const MCP_PREFIX = 'mcp__plugin_rulebookguard_rulebookguard__';
 const BUILTIN_TOOLS = new Set(['Read', 'Grep', 'Glob', 'Bash', 'Edit', 'Write']);
 

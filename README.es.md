@@ -675,7 +675,7 @@ claude plugin install rulebookguard@rulebookguard
 
 O, en Claude Code 2.1.275 o superior: `/plugin install rulebookguard --marketplace JuanCJR/rulebookguard`.
 
-El plugin de [`plugin/`](plugin) incluye:
+El plugin de [`rulebookguard/`](rulebookguard) incluye:
 
 | Pieza                              | Qué hace                                                                                                                                                                                      |
 | ---------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -701,13 +701,13 @@ El plugin ejecuta el `node_modules/rulebookguard` propio del proyecto (en el dir
 
 Mantén `rulebookguard.config.yaml` en la raíz del workspace de Kiro: Kiro lee `.kiro/` desde ahí, y los patrones de steering son relativos a la raíz del rulebook.
 
-| Pieza                           | Qué le da a Kiro                                       | Cómo obtenerla                     |
-| ------------------------------- | ------------------------------------------------------ | ---------------------------------- |
-| [Archivos de steering](#export) | las reglas activas de los archivos con los que trabaja | `rulebookguard export kiro`        |
-| Power en [`plugin/`](plugin)    | las skills `rules` y `rule-writing` y el servidor MCP  | importar la carpeta `plugin`       |
-| [Custom agents](#export)        | `rule-author` y `rule-miner`                           | `rulebookguard export kiro-agents` |
+| Pieza                                      | Qué le da a Kiro                                       | Cómo obtenerla                     |
+| ------------------------------------------ | ------------------------------------------------------ | ---------------------------------- |
+| [Archivos de steering](#export)            | las reglas activas de los archivos con los que trabaja | `rulebookguard export kiro`        |
+| Power en [`rulebookguard/`](rulebookguard) | las skills `rules` y `rule-writing` y el servidor MCP  | importarlo desde GitHub            |
+| [Custom agents](#export)                   | `rule-author` y `rule-miner`                           | `rulebookguard export kiro-agents` |
 
-Para instalar el power: panel Powers → **Add Custom Power** → **Import power from a folder**, con un clon de la carpeta `plugin` de este repositorio. Su servidor MCP ejecuta `npx --yes rulebookguard@0.15.1 mcp` (necesita Node.js y red la primera vez) Kiro lo inicia en la carpeta del propio power y no le ofrece los roots del workspace, así que cada herramienta acepta un argumento `project` con la carpeta del workspace, que la skill `rules` le indica pasar al agente, y `rules_for` encuentra por sí sola el rulebook de una ruta de archivo absoluta. Si las herramientas siguen respondiendo `No rulebookguard.config.yaml in ...`, agrega la misma entrada, sin `--project`, al `.kiro/settings/mcp.json` del workspace: Kiro inicia los servidores del workspace en la primera carpeta del workspace. No hay hook para Kiro: los archivos de steering ya entregan las reglas.
+Para instalar el power: panel Powers → **Add Custom Power** → **Import power from GitHub**, con `https://github.com/JuanCJR/rulebookguard/tree/v0.15.1/rulebookguard`. Kiro le pone al power el nombre del último segmento de esa URL, `rulebookguard`; también sirve **Import power from a folder** con un clon de la carpeta `rulebookguard`. Su servidor MCP ejecuta `npx --yes rulebookguard@0.15.1 mcp` (necesita Node.js y red la primera vez). Kiro lo inicia en la carpeta del propio power y no le ofrece los roots del workspace, así que cada herramienta acepta un argumento `project` con la carpeta del workspace, que la skill `rules` le indica pasar al agente, y `rules_for` encuentra por sí sola el rulebook de una ruta de archivo absoluta. Si las herramientas siguen respondiendo `No rulebookguard.config.yaml in ...`, agrega la misma entrada, sin `--project`, al `.kiro/settings/mcp.json` del workspace: Kiro inicia los servidores del workspace en la primera carpeta del workspace. No hay hook para Kiro: los archivos de steering ya entregan las reglas.
 
 > [!NOTE]
 > Kiro CLI V1 y V2 no cargan automáticamente los archivos de steering `fileMatch`; ahí usa `rulebookguard export agents-md`. Los powers aparecen en CLI V3. Un custom agent lee los archivos de steering solo si sus `resources` incluyen `file://.kiro/steering/**/*.md`.
@@ -755,7 +755,7 @@ Luego revisa el diff, responde las preguntas y pon `status: active` en lo que se
    npm install --save-dev rulebookguard@<version> @rulebookguard/symbols@<version>
    ```
 
-3. **Actualiza los agentes.** Claude Code: `claude plugin marketplace update rulebookguard`, luego `claude plugin update rulebookguard@rulebookguard`, y reinicia. Kiro: actualiza el clon de `plugin`, vuelve a importar el power y ejecuta de nuevo `rulebookguard export kiro-agents`.
+3. **Actualiza los agentes.** Claude Code: `claude plugin marketplace update rulebookguard`, luego `claude plugin update rulebookguard@rulebookguard`, y reinicia. Kiro: quita el power y vuelve a importarlo desde la URL del tag nuevo, y ejecuta de nuevo `rulebookguard export kiro-agents`.
 4. **Regenera los archivos exportados** que commiteas (`export gherkin`, `export cursor|copilot|kiro`, `export agents-md`).
 5. **Ejecuta `rulebookguard lint`** y corrige lo que reporte. Las advertencias nuevas nunca cambian el código de salida.
 

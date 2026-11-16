@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "rulebookguard",
-      "source": "./plugin",
+      "source": "./rulebookguard",
       "description": "Injects the business rules anchored to a file before Claude edits it, and serves them over MCP."
     }
   ]
