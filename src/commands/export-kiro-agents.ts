@@ -93,14 +93,14 @@ function normalized(text: string): string {
   return text.replaceAll('\r\n', '\n').trim();
 }
 
-// The plugin sits next to dist in the published package, and two levels up from this source file.
+// The plugin folder sits next to dist in the published package, and two levels up from this source file.
 async function readPluginFile(path: string): Promise<string> {
   try {
-    return await readFile(new URL(`../plugin/${path}`, import.meta.url), 'utf8');
+    return await readFile(new URL(`../rulebookguard/${path}`, import.meta.url), 'utf8');
   } catch (error) {
     if ((error as { code?: unknown }).code !== 'ENOENT') {
       throw error;
     }
-    return readFile(new URL(`../../plugin/${path}`, import.meta.url), 'utf8');
+    return readFile(new URL(`../../rulebookguard/${path}`, import.meta.url), 'utf8');
   }
 }

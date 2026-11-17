@@ -7,7 +7,7 @@
 
 ## Publicar una release
 
-Las releases se publican en npm desde GitHub Actions con [trusted publishing](https://docs.npmjs.com/trusted-publishers), así que no se guarda ningún token de npm y cada versión lleva una attestation de procedencia. Para publicar una release, sube `version` en `package.json` (y sus rangos de peer `@rulebookguard/site` y `@rulebookguard/symbols`), en `packages/site/package.json`, en `packages/symbols/package.json`, en `plugin/.claude-plugin/plugin.json`, en `plugin/plugin.json`, en `plugin/mcp.json` y en los comandos fijados de `README.md` y `README.es.md` (los tests los mantienen iguales), haz merge a `main` y luego sube un tag que coincida:
+Las releases se publican en npm desde GitHub Actions con [trusted publishing](https://docs.npmjs.com/trusted-publishers), así que no se guarda ningún token de npm y cada versión lleva una attestation de procedencia. Para publicar una release, sube `version` en `package.json` (y sus rangos de peer `@rulebookguard/site` y `@rulebookguard/symbols`), en `packages/site/package.json`, en `packages/symbols/package.json`, en `rulebookguard/.claude-plugin/plugin.json`, en `rulebookguard/plugin.json`, en `rulebookguard/mcp.json` y en los comandos fijados de `README.md` y `README.es.md` (los tests los mantienen iguales), haz merge a `main` y luego sube un tag que coincida:
 
 ```sh
 git tag v0.1.0
