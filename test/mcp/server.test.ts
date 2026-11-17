@@ -52,6 +52,7 @@ describe('mcp server', () => {
       'contexts',
       'rules_list',
       'rules_search',
+      'rules_affected',
       'lint',
     ]);
     expect(tools.map((tool) => Object.keys(tool.inputSchema.properties ?? {}))).toEqual([
@@ -60,6 +61,7 @@ describe('mcp server', () => {
       ['project'],
       ['context', 'status', 'project'],
       ['text', 'context', 'project'],
+      ['paths', 'searches', 'project'],
       ['base', 'project'],
     ]);
   });
@@ -111,6 +113,70 @@ describe('mcp server', () => {
       expect(text(result)).toBe((await runCli([...cli, '--json'], repo)).stdout);
     }
   });
+
+  // @rule R-AGT-006
+  it('sends the rule impact protocol as its instructions', async () => {
+    const client = await connect(repo);
+
+    const instructions = client.getInstructions() ?? '';
+
+    expect(instructions.split('\n')[0]).toBe(
+      'When the workspace has a rulebookguard.config.yaml, it keeps its business rules in a rulebookguard rulebook. On every task, small or large, run a rule impact analysis before you plan or change behavior:',
+    );
+    for (const step of [
+      '1. Explore:',
+      '2. Classify',
+      '3. Never change an active rule',
+      '6. Before a pull request',
+    ]) {
+      expect(instructions).toContain(step);
+    }
+  });
+  // @endrule R-AGT-006
+
+  // @rule R-AGT-007
+  it('rules_affected answers what affected --json answers', async () => {
+    const client = await connect(repo);
+
+    const result = await client.callTool({
+      name: 'rules_affected',
+      arguments: {
+        paths: ['src/clients/create.go', 'README.md'],
+        searches: ['invoice', 'loyalty points'],
+      },
+    });
+
+    expect(result.isError).toBeFalsy();
+    expect(text(result)).toBe(
+      (
+        await runCli(
+          [
+            'affected',
+            '--path',
+            'src/clients/create.go',
+            '--path',
+            'README.md',
+            '--search',
+            'invoice',
+            '--search',
+            'loyalty points',
+            '--json',
+          ],
+          repo,
+        )
+      ).stdout,
+    );
+  });
+
+  it('rules_affected with nothing to look for is a tool error with the CLI message', async () => {
+    const client = await connect(repo);
+
+    const result = await client.callTool({ name: 'rules_affected', arguments: {} });
+
+    expect(result.isError).toBe(true);
+    expect(text(result)).toBe((await runCli(['affected'], repo)).stderr.trim());
+  });
+  // @endrule R-AGT-007
 
   it('lint answers the lint JSON as data even when lint finds errors', async () => {
     const client = await connect(repo);

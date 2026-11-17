@@ -467,6 +467,115 @@ describe('impact', () => {
   });
 });
 
+// @rule R-AGT-007
+describe('affected', () => {
+  it('prints the rules of each path and each text, then their contexts', async () => {
+    expect(
+      await ok(['affected', '--path', 'src/clients/create.go', '--search', 'loyalty points']),
+    ).toBe(
+      [
+        'src/clients/create.go',
+        '  R-BIL-001 (billing): Every new client gets a zero-balance account.',
+        '  R-CLI-001 (clients): A client document number is unique per country.',
+        '"loyalty points"',
+        '  (none)',
+        'Contexts: billing, clients',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('finds rules of any status by text, and says when a path has none', async () => {
+    expect(await ok(['affected', '--path', 'README.md', '--search', 'email'])).toBe(
+      [
+        'README.md',
+        '  (none)',
+        '"email"',
+        '  R-CLI-002 [proposed] A client email is verified before the first installation.',
+        'Contexts: clients',
+        '',
+      ].join('\n'),
+    );
+  });
+
+  it('says when no rule is involved at all, in the configured language', async () => {
+    const dir = await scratchDir();
+    await cp(repo, dir, { recursive: true });
+    const config = join(dir, 'rulebookguard.config.yaml');
+    await writeFile(config, `${await readFile(config, 'utf8')}language: es\n`);
+
+    expect(await ok(['affected', '--path', 'README.md'], dir)).toBe(
+      ['README.md', '  (ninguno)', 'Contextos: (ninguno)', ''].join('\n'),
+    );
+  });
+
+  it('prints JSON', async () => {
+    expect(await json(['affected', '--path', 'src/clients/create.go', '--search', 'gaps'])).toEqual(
+      {
+        paths: [
+          {
+            path: 'src/clients/create.go',
+            rules: [
+              {
+                id: 'R-BIL-001',
+                context: 'billing',
+                status: 'active',
+                summary: 'Every new client gets a zero-balance account.',
+                file: 'docs/rules/billing/R-BIL-001.md',
+              },
+              {
+                id: 'R-CLI-001',
+                context: 'clients',
+                status: 'active',
+                summary: 'A client document number is unique per country.',
+                file: 'docs/rules/clients/R-CLI-001.md',
+              },
+            ],
+          },
+        ],
+        searches: [
+          {
+            text: 'gaps',
+            rules: [
+              {
+                id: 'R-BIL-002',
+                context: 'billing',
+                status: 'active',
+                summary: 'Invoices are numbered without gaps.',
+              },
+            ],
+          },
+        ],
+        contexts: ['billing', 'clients'],
+      },
+    );
+  });
+
+  it('prints empty JSON lists when nothing is found', async () => {
+    expect(await json(['affected', '--path', 'README.md'])).toEqual({
+      paths: [{ path: 'README.md', rules: [] }],
+      searches: [],
+      contexts: [],
+    });
+  });
+
+  it('is a usage error without --path or --search', async () => {
+    const result = await runCli(['affected'], repo);
+
+    expect(result.status).toBe(2);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe(
+      'Nothing to look for: pass --path or --search. Usage: rulebookguard affected [--path <p>]... [--search <text>]... [--json]\n',
+    );
+  });
+
+  it('rejects an empty search text and a path outside the repo', async () => {
+    expect((await runCli(['affected', '--search', ' '], repo)).status).toBe(2);
+    expect((await runCli(['affected', '--path', '../outside.go'], repo)).status).toBe(1);
+  });
+});
+// @endrule R-AGT-007
+
 describe('read commands in a fresh git work tree', () => {
   it('print the same output as in the fixture, without warnings', async () => {
     const copy = await scratchDir();

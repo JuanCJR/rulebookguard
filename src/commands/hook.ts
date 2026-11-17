@@ -1,4 +1,5 @@
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
+import { sessionProtocol } from '../agents/protocol.ts';
 import { rulesForPath } from '../catalog/anchors.ts';
 import { findRulebookRoot, loadCatalog } from '../catalog/load.ts';
 import type { RuleDoc, RuleLanguage } from '../format/types.ts';
@@ -31,7 +32,12 @@ const TEXT: Record<
 export async function hookCommand(io: CliIo): Promise<void> {
   try {
     const event = parseEvent(await (io.stdin?.() ?? Promise.resolve('')));
-    const context = event === undefined ? undefined : await hookContext(event, io.cwd);
+    const context =
+      event === undefined
+        ? undefined
+        : event.name === SESSION_START
+          ? await sessionContext(event.cwd ?? io.cwd)
+          : await hookContext(event, io.cwd);
     if (event !== undefined && context !== undefined) {
       io.stdout(
         `${JSON.stringify({ hookSpecificOutput: { hookEventName: event.name, additionalContext: context } })}\n`,
@@ -43,12 +49,31 @@ export async function hookCommand(io: CliIo): Promise<void> {
 }
 
 const TOOL_EVENTS = ['PreToolUse', 'PostToolUse'] as const;
+const SESSION_START = 'SessionStart';
 
 interface ToolEvent {
   name: (typeof TOOL_EVENTS)[number];
   filePath: string;
   cwd?: string;
 }
+
+interface SessionEvent {
+  name: typeof SESSION_START;
+  cwd?: string;
+}
+
+// @implements R-AGT-005
+// Every source (startup, resume, clear, compact) gets the protocol, so it survives a compaction.
+async function sessionContext(cwd: string): Promise<string | undefined> {
+  const root = await findRulebookRoot(cwd);
+  if (root === undefined) {
+    return undefined;
+  }
+  // Loading the catalog rejects an invalid config, which then yields no output like any failure.
+  const catalog = await loadCatalog(root);
+  return sessionProtocol(catalog.config.language ?? 'en');
+}
+// @endimplements R-AGT-005
 
 async function hookContext(event: ToolEvent, cwd: string): Promise<string | undefined> {
   const file = resolve(event.cwd ?? cwd, event.filePath);
@@ -77,7 +102,7 @@ async function hookContext(event: ToolEvent, cwd: string): Promise<string | unde
   );
 }
 
-function parseEvent(input: string): ToolEvent | undefined {
+function parseEvent(input: string): ToolEvent | SessionEvent | undefined {
   let event: unknown;
   try {
     event = JSON.parse(input);
@@ -92,6 +117,9 @@ function parseEvent(input: string): ToolEvent | undefined {
     tool_input: toolInput,
     cwd,
   } = event as { hook_event_name?: unknown; tool_input?: unknown; cwd?: unknown };
+  if (name === SESSION_START) {
+    return typeof cwd === 'string' ? { name, cwd } : { name };
+  }
   const filePath = (toolInput as { file_path?: unknown } | undefined)?.file_path;
   const toolEvent = TOOL_EVENTS.find((candidate) => candidate === name);
   if (toolEvent === undefined || typeof filePath !== 'string' || filePath === '') {

@@ -1,7 +1,7 @@
 ---
 name: rule-miner
 description: Lifts the business rules that existing code already enforces into proposed rulebookguard rules, one context at a time, each with evidence and questions for the business. Use when adopting rulebookguard in an existing project, or when asked to extract, mine or document the rules of a module.
-tools: Read, Grep, Glob, Bash, Edit, Write, mcp__plugin_rulebookguard_rulebookguard__contexts, mcp__plugin_rulebookguard_rulebookguard__rules_list, mcp__plugin_rulebookguard_rulebookguard__rules_search, mcp__plugin_rulebookguard_rulebookguard__rules_show, mcp__plugin_rulebookguard_rulebookguard__rules_for, mcp__plugin_rulebookguard_rulebookguard__lint
+tools: Read, Grep, Glob, Bash, Edit, Write, mcp__plugin_rulebookguard_rulebookguard__contexts, mcp__plugin_rulebookguard_rulebookguard__rules_list, mcp__plugin_rulebookguard_rulebookguard__rules_search, mcp__plugin_rulebookguard_rulebookguard__rules_show, mcp__plugin_rulebookguard_rulebookguard__rules_for, mcp__plugin_rulebookguard_rulebookguard__rules_affected, mcp__plugin_rulebookguard_rulebookguard__lint
 skills:
   - rulebookguard:rule-writing
 ---
