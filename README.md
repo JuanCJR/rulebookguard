@@ -229,28 +229,29 @@ Other languages, and files it fails to read, fall back to the heuristic.
 
 `rulebookguard --help` lists them. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
 
-| Command                                       | What it does                                                 |
-| --------------------------------------------- | ------------------------------------------------------------ |
-| [`init <context>`](#init)                     | sets up the config, a first context and optionally CI        |
-| [`contexts`](#contexts-list-show-search)      | the contexts map (L0)                                        |
-| [`list`](#contexts-list-show-search)          | rule ids and summaries (L1)                                  |
-| [`show <id>`](#contexts-list-show-search)     | the full rule (L2)                                           |
-| [`search <text>`](#contexts-list-show-search) | rules holding every word of a text                           |
-| [`for <path>`](#for)                          | the active rules anchored to a file                          |
-| [`for --changed <ref>`](#for)                 | the active rules anchored to the files changed since a ref   |
-| [`impact <id>`](#impact)                      | the files and tests a rule touches                           |
-| [`new <context>`](#new)                       | scaffolds the next rule of a context                         |
-| [`lint`](#lint)                               | checks the whole catalog, and optionally changes since a ref |
-| [`export gherkin`](#export)                   | writes the rules' scenarios as Cucumber `.feature` files     |
-| [`export cursor\|copilot\|kiro`](#export)     | writes the active rules as rule files of other AI tools      |
-| [`export agents-md`](#export)                 | keeps an index of the active rules in `AGENTS.md`            |
-| [`export kiro-agents`](#export)               | writes the `rule-author` and `rule-miner` agents for Kiro    |
-| [`hook`](#hook)                               | Claude Code hook that injects the rules of a file            |
-| [`mcp`](#mcp)                                 | MCP server for AI agents                                     |
-| [`site:generate`](#site)                      | builds a static site of the rulebook                         |
-| [`site:run`](#site)                           | builds the site and serves it locally                        |
+| Command                                       | What it does                                                       |
+| --------------------------------------------- | ------------------------------------------------------------------ |
+| [`init <context>`](#init)                     | sets up the config, a first context and optionally CI              |
+| [`contexts`](#contexts-list-show-search)      | the contexts map (L0)                                              |
+| [`list`](#contexts-list-show-search)          | rule ids and summaries (L1)                                        |
+| [`show <id>`](#contexts-list-show-search)     | the full rule (L2)                                                 |
+| [`search <text>`](#contexts-list-show-search) | rules holding every word of a text                                 |
+| [`for <path>`](#for)                          | the active rules anchored to a file                                |
+| [`for --changed <ref>`](#for)                 | the active rules anchored to the files changed since a ref         |
+| [`impact <id>`](#impact)                      | the files and tests a rule touches                                 |
+| [`affected`](#affected)                       | the rules a change touches, by file and by key word                |
+| [`new <context>`](#new)                       | scaffolds the next rule of a context                               |
+| [`lint`](#lint)                               | checks the whole catalog, and optionally changes since a ref       |
+| [`export gherkin`](#export)                   | writes the rules' scenarios as Cucumber `.feature` files           |
+| [`export cursor\|copilot\|kiro`](#export)     | writes the active rules as rule files of other AI tools            |
+| [`export agents-md`](#export)                 | keeps an index of the active rules in `AGENTS.md`                  |
+| [`export kiro-agents`](#export)               | writes the `rule-author` and `rule-miner` agents for Kiro          |
+| [`hook`](#hook)                               | Claude Code hook that injects the rules of a file and the protocol |
+| [`mcp`](#mcp)                                 | MCP server for AI agents                                           |
+| [`site:generate`](#site)                      | builds a static site of the rulebook                               |
+| [`site:run`](#site)                           | builds the site and serves it locally                              |
 
-The read commands (`contexts`, `list`, `show`, `search`, `for`, `impact`) accept `--json`. With catalog problems they still run and print one warning on stderr pointing at `lint`.
+The read commands (`contexts`, `list`, `show`, `search`, `for`, `impact`, `affected`) accept `--json`. With catalog problems they still run and print one warning on stderr pointing at `lint`.
 
 ### `init`
 
@@ -353,6 +354,20 @@ Files matched by anchors (2):
   src/clients/update.ts
 Tests tagging R-CLI-001 (1):
   src/clients/create.test.ts:12
+```
+
+### `affected`
+
+`affected [--path <p>]... [--search <text>]...`: the rules a change touches, in one call. For each `--path`, the active rules anchored to it (as `for`); for each `--search`, the rules in any status holding every word of it (as `search`); then the contexts of all of them. A path, a text or the context list with no rules prints `(none)`, so an empty answer is explicit. It needs at least one `--path` or `--search` (exit 2). Exit 1: a path outside the rulebook root.
+
+```sh
+$ rulebookguard affected --path src/clients/create.go --search "loyalty points"
+src/clients/create.go
+  R-BIL-001 (billing): Every new client gets a zero-balance account.
+  R-CLI-001 (clients): A client document number is unique per country.
+"loyalty points"
+  (none)
+Contexts: billing, clients
 ```
 
 ### `new`
@@ -519,12 +534,14 @@ fileMatchPattern: "src/clients/**/*.go"
 
 ### `hook`
 
-A Claude Code hook for `PreToolUse` and `PostToolUse` events of tools that take a `file_path`. The [Claude Code plugin](#claude-code-plugin) wires it up. It prints the active rules anchored to the file as additional context, under the same `hookEventName`:
+A Claude Code hook for `PreToolUse` and `PostToolUse` events of tools that take a `file_path`, and for `SessionStart`. The [Claude Code plugin](#claude-code-plugin) wires it up. For a tool event it prints the active rules anchored to the file as additional context, under the same `hookEventName`:
 
 ```sh
 $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_path":"/repo/src/billing/invoice.go"}}' | rulebookguard hook
 {"hookSpecificOutput":{"hookEventName":"PostToolUse","additionalContext":"Business rules anchored to src/billing/invoice.go (rulebookguard). …"}}
 ```
+
+On `SessionStart`, in a project with a valid `rulebookguard.config.yaml` (found from the event's `cwd` up), it prints the rule impact protocol: the steps the agent follows on every task, small or large, before it plans or changes behavior (explore the rules involved, classify each behavior, never change an active rule alone, implement rule → tests → code → `lint`, close with `lint --base`). It answers for every source (`startup`, `resume`, `clear`, `compact`), so the protocol survives a compaction.
 
 > [!NOTE]
 > The hook never blocks a tool and never answers the permission prompt: with no config, a path outside the rulebook root, no active rule, another event, unreadable input or any error, it prints nothing and exits 0.
@@ -543,14 +560,17 @@ $ echo '{"hook_event_name":"PostToolUse","tool_name":"Read","tool_input":{"file_
 
 `mcp [--project <dir>]`: an [MCP](https://modelcontextprotocol.io) server over stdio with read-only tools. The rulebook is found from `--project` (default: the current directory). Without `--project`, when no `rulebookguard.config.yaml` is found from the current directory up, each tool call uses the first [root](https://modelcontextprotocol.io/specification/2025-06-18/client/roots) the client offers that has one, so a single global entry works for every project of a client that starts servers outside the workspace. Every tool also takes an optional `project`, the workspace folder, which wins over all of that: Kiro starts a power's server in the power's folder and offers no roots, so there the agent passes it. Without `project`, `rules_for` given an absolute path uses the rulebook that holds the file. When no rulebook is found and neither `project` nor `--project` was given, the error adds a line asking for `project`.
 
-| Tool           | Input                                                  | Answers                                                       |
-| -------------- | ------------------------------------------------------ | ------------------------------------------------------------- |
-| `rules_for`    | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints                 |
-| `rules_show`   | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints                  |
-| `contexts`     | none                                                   | what `rulebookguard contexts --json` prints                   |
-| `rules_list`   | `context`?, `status`?                                  | what `rulebookguard list --json` prints with those options    |
-| `rules_search` | `text`, `context`?                                     | what `rulebookguard search <text> --json` prints              |
-| `lint`         | `base`?: a git ref                                     | what `rulebookguard lint --json` prints, with `--base` if set |
+| Tool             | Input                                                  | Answers                                                        |
+| ---------------- | ------------------------------------------------------ | -------------------------------------------------------------- |
+| `rules_for`      | `path`: absolute, or relative to the project directory | what `rulebookguard for <path> --json` prints                  |
+| `rules_show`     | `id`: a rule id                                        | what `rulebookguard show <id> --json` prints                   |
+| `contexts`       | none                                                   | what `rulebookguard contexts --json` prints                    |
+| `rules_list`     | `context`?, `status`?                                  | what `rulebookguard list --json` prints with those options     |
+| `rules_search`   | `text`, `context`?                                     | what `rulebookguard search <text> --json` prints               |
+| `rules_affected` | `paths`?, `searches`?: lists of files and texts        | what `rulebookguard affected --json` prints with those options |
+| `lint`           | `base`?: a git ref                                     | what `rulebookguard lint --json` prints, with `--base` if set  |
+
+The server's `instructions` carry the same rule impact protocol as the `SessionStart` hook, for clients without hooks; they apply when the workspace has a `rulebookguard.config.yaml`.
 
 Every tool takes `project`? besides the input above. A failing command answers a tool error with the CLI's message, for example `Unknown rule id "R-NOPE-001". Run "rulebookguard list" to list them.` Lint findings are data: `lint` fails only when lint cannot run.
 
@@ -674,14 +694,14 @@ Or, in Claude Code 2.1.275 or later: `/plugin install rulebookguard --marketplac
 
 The plugin in [`rulebookguard/`](rulebookguard) provides:
 
-| Piece                              | What it does                                                                                                                                                 |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Hooks                              | run `rulebookguard hook` after every `Read` and before every `Write` (a `Write` of a new file gets the rules right after creation)                           |
-| MCP server                         | the [`mcp`](#mcp) tools, for files Claude has not opened and for working on the rulebook                                                                     |
-| Skill `rulebookguard:rules`        | the protocol: follow the rules; change a rule (then tests, then code, inside its `@implements` regions; new regions only on request) only when the user asks |
-| Skill `rulebookguard:rule-writing` | the shared writing guide: one verifiable behavior, a one-line business summary, Gherkin, `origin` and `evidence` for extracted rules                         |
-| Agent `rulebookguard:rule-miner`   | lifts rules existing code enforces into `proposed` rules, one context at a time. Ask: "use rule-miner on the clients context"                                |
-| Agent `rulebookguard:rule-author`  | plans the rule changes a feature needs, stops for approval, then writes them. Ask: "use rule-author for this feature: …"                                     |
+| Piece                              | What it does                                                                                                                                                                                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hooks                              | run `rulebookguard hook` at every session start (the rule impact protocol), after every `Read` and before every `Write` (a `Write` of a new file gets the rules right after creation)                                                                             |
+| MCP server                         | the [`mcp`](#mcp) tools, for files Claude has not opened and for working on the rulebook                                                                                                                                                                          |
+| Skill `rulebookguard:rules`        | the rule impact protocol on every task: explore the rules involved, classify each behavior (covered, new `proposed` rule, not a rule), ask before changing an active rule, implement rule → tests → code → `lint`, close with `lint --base` and the rules touched |
+| Skill `rulebookguard:rule-writing` | the shared writing guide: one verifiable behavior, a one-line business summary, Gherkin, `origin` and `evidence` for extracted rules                                                                                                                              |
+| Agent `rulebookguard:rule-miner`   | lifts rules existing code enforces into `proposed` rules, one context at a time. Ask: "use rule-miner on the clients context"                                                                                                                                     |
+| Agent `rulebookguard:rule-author`  | plans the rule changes a feature needs, stops for approval, then writes them. Ask: "use rule-author for this feature: …"                                                                                                                                          |
 
 The plugin runs the project's own `node_modules/rulebookguard` (in the project directory or a parent) when its version is at least the plugin's; otherwise `npx rulebookguard@<plugin version>`, which needs Node.js and network the first time. In a rulebookguard checkout it runs the built `dist/cli.mjs` (from `vp pack`). Any hook failure, including a timeout, lets the tool go ahead without rules.
 

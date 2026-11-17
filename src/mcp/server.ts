@@ -3,6 +3,7 @@ import * as z from 'zod/v4';
 import pkg from '../../package.json' with { type: 'json' };
 import { dirname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { serverInstructions } from '../agents/protocol.ts';
 import { findRulebookRoot } from '../catalog/load.ts';
 import { CONFIG_FILE_NAME } from '../format/config.ts';
 import { runCli } from '../commands/run.ts';
@@ -37,7 +38,12 @@ export function createRulesServer(
   projectDir: string,
   { clientRoots = true }: RulesServerOptions = {},
 ): McpServer {
-  const server = new McpServer({ name: 'rulebookguard', version: pkg.version });
+  // @implements R-AGT-006
+  const server = new McpServer(
+    { name: 'rulebookguard', version: pkg.version },
+    { instructions: serverInstructions() },
+  );
+  // @endimplements R-AGT-006
   const directory = (call: { project?: string | undefined; path?: string } = {}) =>
     locate(server, projectDir, clientRoots, call);
 
@@ -121,6 +127,35 @@ export function createRulesServer(
         '--json',
       ]),
   );
+
+  // @implements R-AGT-007
+  server.registerTool(
+    'rules_affected',
+    {
+      description:
+        'The rules a change touches, in one call: the active rules anchored to each file, the rules in any status that hold every word of each text, and the contexts of all of them. An empty list means none, and the agent must say so. Pass at least one path or one search text.',
+      inputSchema: z.object({
+        paths: z
+          .array(z.string())
+          .optional()
+          .describe('Files the change touches, absolute or relative to the project directory'),
+        searches: z
+          .array(z.string())
+          .optional()
+          .describe('Key words of the change, one text per entry, for example "invoice number"'),
+        project,
+      }),
+      annotations: { readOnlyHint: true },
+    },
+    ({ paths = [], searches = [], project }) =>
+      cli(directory({ project }), [
+        'affected',
+        ...paths.flatMap((path) => ['--path', path]),
+        ...searches.flatMap((search) => ['--search', search]),
+        '--json',
+      ]),
+  );
+  // @endimplements R-AGT-007
 
   server.registerTool(
     'lint',

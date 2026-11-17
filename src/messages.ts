@@ -37,6 +37,7 @@ export interface Messages {
   filesMatched: (count: number) => string;
   testsTagging: (id: string, count: number) => string;
   none: string;
+  contextsInvolved: (contexts: string) => string;
   noFreeId: (context: string, lastId: string) => string;
   alreadyExists: (file: string) => string;
   invalidContextName: (name: string) => string;
@@ -155,6 +156,7 @@ const EN: Messages = {
   filesMatched: (count) => `Files matched by anchors (${count}):`,
   testsTagging: (id, count) => `Tests tagging ${id} (${count}):`,
   none: '(none)',
+  contextsInvolved: (contexts) => `Contexts: ${contexts}`,
   noFreeId: (context, lastId) =>
     `No free rule id left in context "${context}" (${lastId} is taken).`,
   alreadyExists: (file) => `${file} already exists; nothing was written.`,
@@ -324,6 +326,7 @@ const ES: Messages = {
   filesMatched: (count) => `Archivos que cubren los anchors (${count}):`,
   testsTagging: (id, count) => `Tests que etiquetan ${id} (${count}):`,
   none: '(ninguno)',
+  contextsInvolved: (contexts) => `Contextos: ${contexts}`,
   noFreeId: (context, lastId) =>
     `No quedan ids libres en el contexto "${context}" (${lastId} ya existe).`,
   alreadyExists: (file) => `${file} ya existe; no se escribió nada.`,

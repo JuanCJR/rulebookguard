@@ -12,6 +12,7 @@ import {
   contextsCommand,
   forChangedCommand,
   forCommand,
+  affectedCommand,
   impactCommand,
   listCommand,
   searchCommand,
@@ -37,6 +38,9 @@ Commands:
   for --changed <ref> [--json]                       active rules anchored to the files changed since <ref>,
                                                      each with those files
   impact <id> [--json]                               files matched by a rule's anchors and tests tagging it
+  affected [--path <p>]... [--search <text>]... [--json]
+                                                     the rules a change touches: active rules anchored to each
+                                                     path, rules holding each text, and their contexts
   new <context> [--prefix <P>]                       scaffold the next free rule id as a proposed rule;
                                                      creates the context first when it does not exist,
                                                      --prefix: its id prefix (default: first 3 letters)
@@ -55,9 +59,10 @@ Commands:
                                                      .kiro/agents; --out: output directory
   hook                                               Claude Code hook for PreToolUse and PostToolUse: reads
                                                      the event on stdin and prints the rules anchored to
-                                                     the file of the tool (Read, Edit, Write...)
+                                                     the file of the tool (Read, Edit, Write...); on
+                                                     SessionStart, prints the rule impact protocol
   mcp [--project <dir>]                              MCP server over stdio with rules_for, rules_show, contexts,
-                                                     rules_list, rules_search and lint;
+                                                     rules_list, rules_search, rules_affected and lint;
                                                      --project: directory to find the rulebook from (default: cwd)
   site:generate [--out <dir>] [--base <path>]        build the read-only static site of the rulebook (alias: site);
                                                      --out: output directory (default: site), --base: URL path
@@ -78,6 +83,8 @@ interface CommandSpec {
 }
 
 const JSON_OPTION: ParseArgsOptionsConfig = { json: { type: 'boolean' } };
+
+const AFFECTED_USAGE = 'rulebookguard affected [--path <p>]... [--search <text>]... [--json]';
 
 const SITE_OPTIONS: ParseArgsOptionsConfig = { out: { type: 'string' }, base: { type: 'string' } };
 
@@ -105,6 +112,14 @@ const COMMANDS: Record<string, CommandSpec> = {
     options: { ...JSON_OPTION, changed: { type: 'string' } },
   },
   impact: { usage: 'rulebookguard impact <id> [--json]', argument: 'id', options: JSON_OPTION },
+  affected: {
+    usage: AFFECTED_USAGE,
+    options: {
+      ...JSON_OPTION,
+      path: { type: 'string', multiple: true },
+      search: { type: 'string', multiple: true },
+    },
+  },
   new: {
     usage: 'rulebookguard new <context> [--prefix <P>]',
     argument: 'context',
@@ -191,6 +206,19 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
   if (name === 'search' && argument.trim() === '') {
     throw new CliError(`Search text is empty. Usage: ${spec.usage}`, EXIT_USAGE);
   }
+  const paths = (values.path as string[] | undefined) ?? [];
+  const searches = (values.search as string[] | undefined) ?? [];
+  if (name === 'affected') {
+    if (paths.length === 0 && searches.length === 0) {
+      throw new CliError(
+        `Nothing to look for: pass --path or --search. Usage: ${spec.usage}`,
+        EXIT_USAGE,
+      );
+    }
+    if (searches.some((search) => search.trim() === '')) {
+      throw new CliError(`Search text is empty. Usage: ${spec.usage}`, EXIT_USAGE);
+    }
+  }
   const catalog = await openCatalog(io);
   switch (name) {
     case 'contexts':
@@ -221,6 +249,9 @@ async function dispatch(argv: string[], io: CliIo): Promise<number> {
       break;
     case 'impact':
       await impactCommand(catalog, io, argument, json);
+      break;
+    case 'affected':
+      affectedCommand(catalog, io, { paths, searches, json });
       break;
     case 'new':
       await newCommand(catalog, io, argument, values.prefix as string | undefined);

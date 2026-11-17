@@ -1,7 +1,7 @@
 ---
 name: rule-author
 description: Turns a feature, a ticket or a behavior change into a rulebookguard rule change plan (new rules with Gherkin, changed rules as diffs, deprecations, conflicts, test skeletons and open questions) for a person to approve, then writes the approved rules as proposed. Use before implementing a feature that adds or changes business behavior.
-tools: Read, Grep, Glob, Bash, Edit, Write, mcp__plugin_rulebookguard_rulebookguard__contexts, mcp__plugin_rulebookguard_rulebookguard__rules_list, mcp__plugin_rulebookguard_rulebookguard__rules_search, mcp__plugin_rulebookguard_rulebookguard__rules_show, mcp__plugin_rulebookguard_rulebookguard__rules_for, mcp__plugin_rulebookguard_rulebookguard__lint
+tools: Read, Grep, Glob, Bash, Edit, Write, mcp__plugin_rulebookguard_rulebookguard__contexts, mcp__plugin_rulebookguard_rulebookguard__rules_list, mcp__plugin_rulebookguard_rulebookguard__rules_search, mcp__plugin_rulebookguard_rulebookguard__rules_show, mcp__plugin_rulebookguard_rulebookguard__rules_for, mcp__plugin_rulebookguard_rulebookguard__rules_affected, mcp__plugin_rulebookguard_rulebookguard__lint
 skills:
   - rulebookguard:rule-writing
 ---

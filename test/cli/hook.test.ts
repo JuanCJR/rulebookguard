@@ -36,6 +36,10 @@ function event(filePath: string, extra: Record<string, unknown> = {}): string {
   });
 }
 
+function sessionStart(cwd: string, source = 'startup'): string {
+  return JSON.stringify({ hook_event_name: 'SessionStart', session_id: 's', source, cwd });
+}
+
 function context(stdout: string, eventName = 'PreToolUse'): string {
   const output = JSON.parse(stdout) as {
     hookSpecificOutput: { hookEventName: string; additionalContext: string };
@@ -228,11 +232,73 @@ describe('hook', () => {
   });
   // @endrule R-AGT-001
 
+  // @rule R-AGT-005
+  it.each(['startup', 'resume', 'clear', 'compact'])(
+    'hands over the rule impact protocol on a SessionStart from %s, found from the cwd of the event',
+    async (source) => {
+      const repo = await scratchRepo();
+      const elsewhere = await scratchDir();
+
+      const result = await hook(sessionStart(join(repo, 'src/clients'), source), elsewhere);
+
+      expect(result.status).toBe(0);
+      expect(result.stderr).toBe('');
+      const text = context(result.stdout, 'SessionStart');
+      expect(text.split('\n')[0]).toBe(
+        'This project keeps its business rules in a rulebookguard rulebook. On every task, small or large, run a rule impact analysis before you plan or change behavior:',
+      );
+      for (const step of [
+        '1. Explore:',
+        '2. Classify',
+        '3. Never change an active rule on your own',
+        '4. In a plan or spec',
+        '5. Implement in this order: rule file, then tests tagged `@rule <ID>`, then code, then `lint`.',
+        '6. Before a pull request, run `rulebookguard lint --base <the branch the pull request targets>`',
+      ]) {
+        expect(text).toContain(step);
+      }
+    },
+  );
+  // @endrule R-AGT-005
+
+  // @rule R-AGT-005
+  it('hands over the protocol in the configured language', async () => {
+    const repo = await scratchRepo();
+    const config = join(repo, 'rulebookguard.config.yaml');
+    await writeFile(config, `${await readFile(config, 'utf8')}language: es\n`);
+
+    const result = await hook(sessionStart(repo), repo);
+
+    expect(context(result.stdout, 'SessionStart').split('\n')[0]).toBe(
+      'Este proyecto guarda sus reglas de negocio en un rulebook de rulebookguard. En cada tarea, pequeña o grande, haz un análisis de impacto sobre las reglas antes de planificar o cambiar comportamiento:',
+    );
+  });
+  // @endrule R-AGT-005
+
+  // @rule R-AGT-005
+  it.each([
+    ['a folder without a rulebook', async () => await scratchDir()],
+    [
+      'an invalid config',
+      async () => {
+        const repo = await scratchRepo();
+        await writeFile(join(repo, 'rulebookguard.config.yaml'), 'schema: 2\n');
+        return repo;
+      },
+    ],
+  ])('prints nothing and exits 0 on a SessionStart in %s', async (_name, folder) => {
+    const cwd = await folder();
+
+    expect(await hook(sessionStart(cwd), cwd)).toEqual({ status: 0, stdout: '', stderr: '' });
+  });
+  // @endrule R-AGT-005
+
   it('is listed in the usage', async () => {
     let usage = '';
     await run(['--help'], { cwd: '/', stdout: (t) => (usage += t), stderr: () => {} });
     expect(usage).toContain('  hook  ');
     expect(usage).toMatch(/hook .*PreToolUse and PostToolUse/);
+    expect(usage).toContain('SessionStart');
   });
 });
 

@@ -110,6 +110,12 @@ export interface ImpactJson {
   tests: TagLocation[];
 }
 
+export interface AffectedJson {
+  paths: { path: string; rules: (RuleSummaryJson & { file: string })[] }[];
+  searches: { text: string; rules: RuleSummaryJson[] }[];
+  contexts: string[];
+}
+
 export function contextsCommand(catalog: Catalog, io: CliIo, json: boolean): void {
   const contexts = [...catalog.contexts]
     .sort((a, b) => compare(a.context, b.context))
@@ -182,15 +188,8 @@ export function searchCommand(
   if (context !== undefined && !catalog.contexts.some((item) => item.context === context)) {
     throw new CliError(text.unknownContext(context));
   }
-  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
-  const rules = sortById(catalog.rules)
+  const rules = matching(catalog.rules, query)
     .filter((rule) => context === undefined || rule.context === context)
-    .filter((rule) => {
-      const haystack = [rule.id, rule.summary, ...rule.entities, rule.body]
-        .join('\n')
-        .toLowerCase();
-      return terms.every((term) => haystack.includes(term));
-    })
     .map(toSummary);
   if (options.json) {
     writeJson(io, { rules } satisfies ListJson);
@@ -278,6 +277,62 @@ export async function showCommand(
   ];
   io.stdout(`${header.join('\n')}\n\n${rule.body}`);
 }
+
+// Case-insensitive: every word of the query appears in the id, summary, entities or body.
+function matching(rules: RuleDoc[], query: string): RuleDoc[] {
+  const terms = query.toLowerCase().split(/\s+/).filter(Boolean);
+  return sortById(rules).filter((rule) => {
+    const haystack = [rule.id, rule.summary, ...rule.entities, rule.body].join('\n').toLowerCase();
+    return terms.every((term) => haystack.includes(term));
+  });
+}
+
+// @implements R-AGT-007
+// One call for the exploration step of the rule impact protocol: an empty section says "none"
+// instead of disappearing, so an agent cannot mistake it for nothing to check.
+export function affectedCommand(
+  catalog: Catalog,
+  io: CliIo,
+  options: { paths: string[]; searches: string[]; json: boolean },
+): void {
+  const text = messages(catalog.config.language);
+  const paths = options.paths.map((input) => {
+    const path = toRootPath(catalog, resolve(io.cwd, input), input);
+    const rules = rulesForPath(catalog.rules, path)
+      .filter((rule) => rule.status === 'active')
+      .map((rule) => ({ ...toSummary(rule), file: rule.file }));
+    return { path, rules };
+  });
+  const searches = options.searches.map((query) => ({
+    text: query,
+    rules: matching(catalog.rules, query).map(toSummary),
+  }));
+  const contexts = [
+    ...new Set([...paths, ...searches].flatMap(({ rules }) => rules.map((rule) => rule.context))),
+  ].sort(compare);
+  if (options.json) {
+    writeJson(io, { paths, searches, contexts } satisfies AffectedJson);
+    return;
+  }
+  writeLines(io, [
+    ...paths.flatMap(({ path, rules }) => [
+      path,
+      ...indent(
+        rules.map((rule) => `${rule.id} (${rule.context}): ${rule.summary}`),
+        text.none,
+      ),
+    ]),
+    ...searches.flatMap(({ text: query, rules }) => [
+      JSON.stringify(query),
+      ...indent(
+        rules.map((rule) => `${rule.id} [${rule.status}] ${rule.summary}`),
+        text.none,
+      ),
+    ]),
+    text.contextsInvolved(contexts.length === 0 ? text.none : contexts.join(', ')),
+  ]);
+}
+// @endimplements R-AGT-007
 
 export async function forCommand(
   catalog: Catalog,
