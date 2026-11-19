@@ -228,6 +228,22 @@ npm install --save-dev rulebookguard @rulebookguard/symbols
 
 Los demás lenguajes, y los archivos que no logra leer, usan la heurística.
 
+### Revisar las reglas antes de activarlas
+
+Una regla `proposed` es una afirmación sobre el negocio; pasa a `active` solo después de que el usuario la confirma. Las reglas que extrae `rule-miner` terminan con una lista `## Questions for the business`. La skill `rule-review` la recorre con el usuario:
+
+1. Primero, una a la vez, las preguntas cuya respuesta cambia la regla o el código: qué decide, dónde lo ve el usuario, un ejemplo con nombres y números, y opciones descritas por su efecto práctico, la recomendada primero.
+2. Después, las confirmaciones ("queda como hoy", "es un valor técnico"), en un solo paquete numerado separado en "Quedan como hoy" y "Cambian".
+3. Cada respuesta queda en la regla, en `## Decisions`: las palabras del usuario textuales, la fecha y lo que se decidió. La pregunta sale de la lista; una regla que cambia se reescribe y queda marcada "Pending implementation." hasta que el código la cumple. Una corrección posterior es una decisión nueva que nombra a la que corrige.
+
+```markdown
+## Decisions
+
+- **D1 (2026-03-03)** Is the limit of 3 attempts a business rule or a technical value? "It is business, but make it 5." Decided: a client gets 5 attempts. Pending implementation.
+```
+
+Una regla está lista para activarse cuando no le quedan preguntas abiertas, el código ya hace lo que dice y un test la etiqueta. El agente pide una sola vez la lista de ids listos. `lint` avisa `open-questions` en una regla activa que todavía lista preguntas; nunca falla por eso.
+
 ## Comandos
 
 `rulebookguard --help` los lista. Códigos de salida: `0` éxito, `1` fallo (id o contexto desconocido, falta la configuración, errores de lint, errores de git), `2` error de uso (comando u opción desconocidos, argumento faltante o sobrante).
@@ -402,35 +418,36 @@ warning context-over-budget docs/rules/clients/_context.md context "clients" has
 
 Formato: `<severity> <code> <file>[:line] <message>`, una línea `hint:` y al final un conteo. `--json`: `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
-| Severidad | Código                        | Significado                                                                              |
-| --------- | ----------------------------- | ---------------------------------------------------------------------------------------- |
-| error     | `untested-rule`               | una regla activa no tiene ningún test que la marque                                      |
-| error     | `unknown-rule-tag`            | un test marca un id de regla que no existe                                               |
-| error     | `deprecated-rule-tag`         | un test marca una regla `deprecated`                                                     |
-| error     | `unclosed-rule-tag`           | un `@rule` no tiene su `@endrule`                                                        |
-| error     | `unmatched-endrule-tag`       | un `@endrule` no tiene un `@rule` abierto del mismo id                                   |
-| error     | `unclosed-implements-tag`     | un `@implements` no tiene su `@endimplements`                                            |
-| error     | `unmatched-endimplements-tag` | un `@endimplements` no tiene un `@implements` abierto del mismo id                       |
-| error     | `unknown-implements-tag`      | hay código marcado como implementación de un id de regla que no existe                   |
-| error     | `deprecated-implements-tag`   | hay código marcado como implementación de una regla `deprecated`                         |
-| error     | `implements-outside-anchors`  | una región `@implements` está en un archivo que su regla no ancla                        |
-| error     | `unmatched-anchor`            | un glob de anchor no coincide con ningún archivo                                         |
-| error     | `schema`                      | un archivo de configuración, contexto o regla no cumple el JSON Schema                   |
-| error     | `duplicate-id`                | dos archivos de regla comparten un id                                                    |
-| error     | `file-name-mismatch`          | un archivo de regla no se llama `<id>.md`                                                |
-| error     | `id-prefix-mismatch`          | un id de regla no usa el prefijo de su contexto                                          |
-| error     | `context-mismatch`            | un campo `context` no coincide con su directorio                                         |
-| error     | `missing-context-file`        | un directorio de contexto no tiene `_context.md`                                         |
-| error     | `missing-rules-dir`           | `rulesDir` no existe                                                                     |
-| error     | `pending-implementation`      | con `--base`: cambió una regla activa, pero ninguna de sus regiones                      |
-| error     | `invalid-rule-reference`      | `dependsOn` o `conflictsWith` nombra una regla desconocida o a sí misma                  |
-| error     | `dependency-cycle`            | los vínculos `dependsOn` forman un ciclo (se reporta una vez, en su id menor)            |
-| error     | `active-rule-conflict`        | dos reglas activas donde una lista a la otra en `conflictsWith`                          |
-| error     | `duplicate-entity`            | dos `_context.md`, o uno dos veces, definen el mismo nombre de entidad                   |
-| error     | `unknown-relation-entity`     | una relación parte de fuera de su contexto o llega a una entidad no definida             |
-| warning   | `undefined-entity`            | una regla nombra una entidad que ningún contexto define, si su contexto define entidades |
-| warning   | `context-over-budget`         | un contexto tiene más reglas que `contextBudget`                                         |
-| warning   | `dead-evidence`               | una entrada de `evidence` nombra un archivo o símbolo que ya no existe                   |
+| Severidad | Código                        | Significado                                                                                         |
+| --------- | ----------------------------- | --------------------------------------------------------------------------------------------------- |
+| error     | `untested-rule`               | una regla activa no tiene ningún test que la marque                                                 |
+| error     | `unknown-rule-tag`            | un test marca un id de regla que no existe                                                          |
+| error     | `deprecated-rule-tag`         | un test marca una regla `deprecated`                                                                |
+| error     | `unclosed-rule-tag`           | un `@rule` no tiene su `@endrule`                                                                   |
+| error     | `unmatched-endrule-tag`       | un `@endrule` no tiene un `@rule` abierto del mismo id                                              |
+| error     | `unclosed-implements-tag`     | un `@implements` no tiene su `@endimplements`                                                       |
+| error     | `unmatched-endimplements-tag` | un `@endimplements` no tiene un `@implements` abierto del mismo id                                  |
+| error     | `unknown-implements-tag`      | hay código marcado como implementación de un id de regla que no existe                              |
+| error     | `deprecated-implements-tag`   | hay código marcado como implementación de una regla `deprecated`                                    |
+| error     | `implements-outside-anchors`  | una región `@implements` está en un archivo que su regla no ancla                                   |
+| error     | `unmatched-anchor`            | un glob de anchor no coincide con ningún archivo                                                    |
+| error     | `schema`                      | un archivo de configuración, contexto o regla no cumple el JSON Schema                              |
+| error     | `duplicate-id`                | dos archivos de regla comparten un id                                                               |
+| error     | `file-name-mismatch`          | un archivo de regla no se llama `<id>.md`                                                           |
+| error     | `id-prefix-mismatch`          | un id de regla no usa el prefijo de su contexto                                                     |
+| error     | `context-mismatch`            | un campo `context` no coincide con su directorio                                                    |
+| error     | `missing-context-file`        | un directorio de contexto no tiene `_context.md`                                                    |
+| error     | `missing-rules-dir`           | `rulesDir` no existe                                                                                |
+| error     | `pending-implementation`      | con `--base`: cambió una regla activa, pero ninguna de sus regiones                                 |
+| error     | `invalid-rule-reference`      | `dependsOn` o `conflictsWith` nombra una regla desconocida o a sí misma                             |
+| error     | `dependency-cycle`            | los vínculos `dependsOn` forman un ciclo (se reporta una vez, en su id menor)                       |
+| error     | `active-rule-conflict`        | dos reglas activas donde una lista a la otra en `conflictsWith`                                     |
+| error     | `duplicate-entity`            | dos `_context.md`, o uno dos veces, definen el mismo nombre de entidad                              |
+| error     | `unknown-relation-entity`     | una relación parte de fuera de su contexto o llega a una entidad no definida                        |
+| warning   | `undefined-entity`            | una regla nombra una entidad que ningún contexto define, si su contexto define entidades            |
+| warning   | `context-over-budget`         | un contexto tiene más reglas que `contextBudget`                                                    |
+| warning   | `dead-evidence`               | una entrada de `evidence` nombra un archivo o símbolo que ya no existe                              |
+| warning   | `open-questions`              | una regla activa todavía lista [preguntas para el negocio](#revisar-las-reglas-antes-de-activarlas) |
 
 Una configuración no válida se reporta como hallazgos `schema`. Las marcas de un archivo de regla que no cumple el schema no se reportan de nuevo como `unknown-rule-tag`.
 
@@ -702,7 +719,8 @@ El plugin de [`rulebookguard/`](rulebookguard) incluye:
 | Hooks                              | ejecutan `rulebookguard hook` al iniciar cada sesión (el protocolo de impacto), después de cada `Read` y antes de cada `Write` (un `Write` de un archivo nuevo recibe las reglas justo después de crearlo)                                                                                       |
 | Servidor MCP                       | las herramientas de [`mcp`](#mcp), para archivos que Claude no abrió y para trabajar sobre el rulebook                                                                                                                                                                                           |
 | Skill `rulebookguard:rules`        | el protocolo de impacto en cada tarea: explorar las reglas involucradas, clasificar cada comportamiento (cubierto, regla nueva `proposed`, no es regla), preguntar antes de cambiar una regla activa, implementar regla → tests → código → `lint`, cerrar con `lint --base` y las reglas tocadas |
-| Skill `rulebookguard:rule-writing` | la guía de redacción compartida: un comportamiento verificable, un resumen de negocio en una línea, Gherkin, `origin` y `evidence` para reglas extraídas                                                                                                                                         |
+| Skill `rulebookguard:rule-writing` | la guía de redacción compartida: un comportamiento verificable, un resumen de negocio en una línea, Gherkin, `origin` y `evidence` para reglas extraídas, `## Decisions`                                                                                                                         |
+| Skill `rulebookguard:rule-review`  | [revisa con el usuario las reglas propuestas](#revisar-las-reglas-antes-de-activarlas) antes de activarlas: una pregunta a la vez, las confirmaciones en un paquete, cada respuesta textual en `## Decisions`                                                                                    |
 | Agente `rulebookguard:rule-miner`  | extrae como reglas `proposed` las reglas que el código existente ya aplica, un contexto a la vez. Pídelo así: "use rule-miner on the clients context"                                                                                                                                            |
 | Agente `rulebookguard:rule-author` | planifica los cambios de reglas que necesita una funcionalidad, se detiene para que se apruebe y luego los escribe. Pídelo así: "use rule-author for this feature: …"                                                                                                                            |
 
@@ -721,11 +739,11 @@ El plugin ejecuta el `node_modules/rulebookguard` propio del proyecto (en el dir
 
 Mantén `rulebookguard.config.yaml` en la raíz del workspace de Kiro: Kiro lee `.kiro/` desde ahí, y los patrones de steering son relativos a la raíz del rulebook.
 
-| Pieza                                      | Qué le da a Kiro                                       | Cómo obtenerla                     |
-| ------------------------------------------ | ------------------------------------------------------ | ---------------------------------- |
-| [Archivos de steering](#export)            | las reglas activas de los archivos con los que trabaja | `rulebookguard export kiro`        |
-| Power en [`rulebookguard/`](rulebookguard) | las skills `rules` y `rule-writing` y el servidor MCP  | importarlo desde GitHub            |
-| [Custom agents](#export)                   | `rule-author` y `rule-miner`                           | `rulebookguard export kiro-agents` |
+| Pieza                                      | Qué le da a Kiro                                                     | Cómo obtenerla                     |
+| ------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------- |
+| [Archivos de steering](#export)            | las reglas activas de los archivos con los que trabaja               | `rulebookguard export kiro`        |
+| Power en [`rulebookguard/`](rulebookguard) | las skills `rules`, `rule-writing` y `rule-review` y el servidor MCP | importarlo desde GitHub            |
+| [Custom agents](#export)                   | `rule-author` y `rule-miner`                                         | `rulebookguard export kiro-agents` |
 
 Para instalar el power: panel Powers → **Add Custom Power** → **Import power from GitHub**, con `https://github.com/JuanCJR/rulebookguard/tree/v0.16.0/rulebookguard`. Kiro le pone al power el nombre del último segmento de esa URL, `rulebookguard`; también sirve **Import power from a folder** con un clon de la carpeta `rulebookguard`. Su servidor MCP ejecuta `npx --yes rulebookguard@0.16.0 mcp` (necesita Node.js y red la primera vez). Kiro lo inicia en la carpeta del propio power y no le ofrece los roots del workspace, así que cada herramienta acepta un argumento `project` con la carpeta del workspace, que la skill `rules` le indica pasar al agente, y `rules_for` encuentra por sí sola el rulebook de una ruta de archivo absoluta. Si las herramientas siguen respondiendo `No rulebookguard.config.yaml in ...`, agrega la misma entrada, sin `--project`, al `.kiro/settings/mcp.json` del workspace: Kiro inicia los servidores del workspace en la primera carpeta del workspace. No hay hook para Kiro: los archivos de steering ya entregan las reglas.
 
@@ -743,7 +761,7 @@ Los prompts funcionan en cualquier idioma. Nombrar al agente (`rule-miner`, `rul
 - "Usa rule-miner en el contexto clients."
 - "Usa rule-miner en el contexto billing y marca con `@implements` el código que aplica cada regla."
 
-Luego revisa el diff, responde las preguntas y pon `status: active` en lo que se sostiene.
+Luego di "review the questions of the clients rules with me": el agente las hace [una a la vez](#revisar-las-reglas-antes-de-activarlas), registra cada respuesta en `## Decisions` y pregunta una sola vez qué reglas listas pasar a `active`.
 
 **Antes de un cambio:**
 
@@ -781,6 +799,7 @@ Luego revisa el diff, responde las preguntas y pon `status: active` en lo que se
 
 | Versión | Qué hacer                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.17    | Actualiza el plugin de Claude Code y el power de Kiro, y vuelve a ejecutar `rulebookguard export kiro-agents`. Nuevo: la skill `rule-review` [revisa con el usuario las reglas propuestas](#revisar-las-reglas-antes-de-activarlas) y guarda cada respuesta en `## Decisions`. `lint` agrega el aviso `open-questions` para reglas activas que todavía listan preguntas para el negocio; nunca hace fallar la ejecución.                                     |
 | 0.16    | Actualiza el plugin de Claude Code y el power de Kiro. Los agentes reciben ahora un protocolo de impacto sobre las reglas al iniciar cada sesión (un hook `SessionStart`) y en las instrucciones del servidor MCP, y la skill `rules` lo aplica en cada tarea. Nuevo: el comando `affected` y la herramienta MCP `rules_affected`.                                                                                                                           |
 | 0.15.2  | Reinstala el power de Kiro desde GitHub: panel Powers → **Add Custom Power** → **Import power from GitHub**, con `https://github.com/JuanCJR/rulebookguard/tree/v0.15.2/rulebookguard`, y quita el power llamado `plugin` si importaste la carpeta anterior. La carpeta `plugin/` del repositorio ahora es `rulebookguard/`, así que Kiro llama al power `rulebookguard`.                                                                                    |
 | 0.15.1  | Actualiza el power de Kiro. Sus herramientas ahora encuentran el rulebook: aceptan un argumento `project` con la carpeta del workspace, que la skill `rules` le indica pasar al agente. El error de configuración ausente ahora dice `No rulebookguard.config.yaml in <dir> or any parent directory.` en lugar de `... not found in ...`: actualiza lo que dependa del texto anterior.                                                                       |

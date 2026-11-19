@@ -225,6 +225,22 @@ npm install --save-dev rulebookguard @rulebookguard/symbols
 
 Other languages, and files it fails to read, fall back to the heuristic.
 
+### Reviewing rules before activation
+
+A `proposed` rule is a claim about the business; it becomes `active` only after the user confirms it. Rules that `rule-miner` extracts end with a `## Questions for the business` list. The `rule-review` skill walks the user through it:
+
+1. Questions whose answer changes the rule or the code come first, one at a time: what it decides, where the user sees it, an example with names and numbers, and options by their practical effect, the recommended one first.
+2. Confirmations ("stays as today", "a technical value") come next, as one numbered batch split into "Stay as today" and "Change".
+3. Each answer goes into the rule, under `## Decisions`: the user's words verbatim, the date, and what was decided. The question leaves the list; a rule that changes is rewritten and marked "Pending implementation." until the code does it. A later correction is a new decision that names the one it corrects.
+
+```markdown
+## Decisions
+
+- **D1 (2026-03-03)** Is the limit of 3 attempts a business rule or a technical value? "It is business, but make it 5." Decided: a client gets 5 attempts. Pending implementation.
+```
+
+A rule is ready to activate when it has no open questions, the code already does what it says, and a test tags it. The agent asks once for the list of ready ids. `lint` warns `open-questions` on an active rule that still lists questions; it never fails on it.
+
 ## Commands
 
 `rulebookguard --help` lists them. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
@@ -399,35 +415,36 @@ warning context-over-budget docs/rules/clients/_context.md context "clients" has
 
 Format: `<severity> <code> <file>[:line] <message>`, a `hint:` line, then a count. `--json`: `{ "findings": [{ "severity", "code", "file", "line"?, "message", "hint" }], "errors", "warnings" }`.
 
-| Severity | Code                          | Meaning                                                                          |
-| -------- | ----------------------------- | -------------------------------------------------------------------------------- |
-| error    | `untested-rule`               | an active rule has no test tagging it                                            |
-| error    | `unknown-rule-tag`            | a test tags a rule id that does not exist                                        |
-| error    | `deprecated-rule-tag`         | a test tags a deprecated rule                                                    |
-| error    | `unclosed-rule-tag`           | a `@rule` has no matching `@endrule`                                             |
-| error    | `unmatched-endrule-tag`       | an `@endrule` has no open `@rule` of the same id                                 |
-| error    | `unclosed-implements-tag`     | an `@implements` has no matching `@endimplements`                                |
-| error    | `unmatched-endimplements-tag` | an `@endimplements` has no open `@implements` of the same id                     |
-| error    | `unknown-implements-tag`      | code is marked as implementing a rule id that does not exist                     |
-| error    | `deprecated-implements-tag`   | code is marked as implementing a deprecated rule                                 |
-| error    | `implements-outside-anchors`  | an `@implements` region sits in a file its rule does not anchor                  |
-| error    | `unmatched-anchor`            | an anchor glob matches no file                                                   |
-| error    | `schema`                      | a config, context or rule file breaks the JSON Schema                            |
-| error    | `duplicate-id`                | two rule files share an id                                                       |
-| error    | `file-name-mismatch`          | a rule file is not named `<id>.md`                                               |
-| error    | `id-prefix-mismatch`          | a rule id does not use its context prefix                                        |
-| error    | `context-mismatch`            | a `context` field does not match its directory                                   |
-| error    | `missing-context-file`        | a context directory has no `_context.md`                                         |
-| error    | `missing-rules-dir`           | `rulesDir` does not exist                                                        |
-| error    | `pending-implementation`      | with `--base`: an active rule changed, but none of its regions did               |
-| error    | `invalid-rule-reference`      | `dependsOn` or `conflictsWith` names an unknown rule or itself                   |
-| error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)                 |
-| error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`                    |
-| error    | `duplicate-entity`            | two `_context.md` files, or one twice, define the same entity name               |
-| error    | `unknown-relation-entity`     | a relation starts outside its context or ends at an undefined entity             |
-| warning  | `undefined-entity`            | a rule names an entity no context defines, when its own context defines entities |
-| warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                                  |
-| warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists               |
+| Severity | Code                          | Meaning                                                                                     |
+| -------- | ----------------------------- | ------------------------------------------------------------------------------------------- |
+| error    | `untested-rule`               | an active rule has no test tagging it                                                       |
+| error    | `unknown-rule-tag`            | a test tags a rule id that does not exist                                                   |
+| error    | `deprecated-rule-tag`         | a test tags a deprecated rule                                                               |
+| error    | `unclosed-rule-tag`           | a `@rule` has no matching `@endrule`                                                        |
+| error    | `unmatched-endrule-tag`       | an `@endrule` has no open `@rule` of the same id                                            |
+| error    | `unclosed-implements-tag`     | an `@implements` has no matching `@endimplements`                                           |
+| error    | `unmatched-endimplements-tag` | an `@endimplements` has no open `@implements` of the same id                                |
+| error    | `unknown-implements-tag`      | code is marked as implementing a rule id that does not exist                                |
+| error    | `deprecated-implements-tag`   | code is marked as implementing a deprecated rule                                            |
+| error    | `implements-outside-anchors`  | an `@implements` region sits in a file its rule does not anchor                             |
+| error    | `unmatched-anchor`            | an anchor glob matches no file                                                              |
+| error    | `schema`                      | a config, context or rule file breaks the JSON Schema                                       |
+| error    | `duplicate-id`                | two rule files share an id                                                                  |
+| error    | `file-name-mismatch`          | a rule file is not named `<id>.md`                                                          |
+| error    | `id-prefix-mismatch`          | a rule id does not use its context prefix                                                   |
+| error    | `context-mismatch`            | a `context` field does not match its directory                                              |
+| error    | `missing-context-file`        | a context directory has no `_context.md`                                                    |
+| error    | `missing-rules-dir`           | `rulesDir` does not exist                                                                   |
+| error    | `pending-implementation`      | with `--base`: an active rule changed, but none of its regions did                          |
+| error    | `invalid-rule-reference`      | `dependsOn` or `conflictsWith` names an unknown rule or itself                              |
+| error    | `dependency-cycle`            | `dependsOn` links form a cycle (reported once, at its lowest id)                            |
+| error    | `active-rule-conflict`        | two active rules where one lists the other in `conflictsWith`                               |
+| error    | `duplicate-entity`            | two `_context.md` files, or one twice, define the same entity name                          |
+| error    | `unknown-relation-entity`     | a relation starts outside its context or ends at an undefined entity                        |
+| warning  | `undefined-entity`            | a rule names an entity no context defines, when its own context defines entities            |
+| warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                                             |
+| warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists                          |
+| warning  | `open-questions`              | an active rule still lists [questions for the business](#reviewing-rules-before-activation) |
 
 An invalid config is reported as `schema` findings. Tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
 
@@ -699,7 +716,8 @@ The plugin in [`rulebookguard/`](rulebookguard) provides:
 | Hooks                              | run `rulebookguard hook` at every session start (the rule impact protocol), after every `Read` and before every `Write` (a `Write` of a new file gets the rules right after creation)                                                                             |
 | MCP server                         | the [`mcp`](#mcp) tools, for files Claude has not opened and for working on the rulebook                                                                                                                                                                          |
 | Skill `rulebookguard:rules`        | the rule impact protocol on every task: explore the rules involved, classify each behavior (covered, new `proposed` rule, not a rule), ask before changing an active rule, implement rule → tests → code → `lint`, close with `lint --base` and the rules touched |
-| Skill `rulebookguard:rule-writing` | the shared writing guide: one verifiable behavior, a one-line business summary, Gherkin, `origin` and `evidence` for extracted rules                                                                                                                              |
+| Skill `rulebookguard:rule-writing` | the shared writing guide: one verifiable behavior, a one-line business summary, Gherkin, `origin` and `evidence` for extracted rules, `## Decisions`                                                                                                              |
+| Skill `rulebookguard:rule-review`  | [reviews proposed rules with the user](#reviewing-rules-before-activation) before activation: one question at a time, confirmations in a batch, each answer kept verbatim under `## Decisions`                                                                    |
 | Agent `rulebookguard:rule-miner`   | lifts rules existing code enforces into `proposed` rules, one context at a time. Ask: "use rule-miner on the clients context"                                                                                                                                     |
 | Agent `rulebookguard:rule-author`  | plans the rule changes a feature needs, stops for approval, then writes them. Ask: "use rule-author for this feature: …"                                                                                                                                          |
 
@@ -718,11 +736,11 @@ The plugin runs the project's own `node_modules/rulebookguard` (in the project d
 
 Keep `rulebookguard.config.yaml` at the Kiro workspace root: Kiro reads `.kiro/` from there, and steering patterns are relative to the rulebook root.
 
-| Piece                                      | What it gives Kiro                                       | How to get it                      |
-| ------------------------------------------ | -------------------------------------------------------- | ---------------------------------- |
-| [Steering files](#export)                  | the active rules of the files it works on                | `rulebookguard export kiro`        |
-| Power in [`rulebookguard/`](rulebookguard) | the `rules` and `rule-writing` skills and the MCP server | import it from GitHub              |
-| [Custom agents](#export)                   | `rule-author` and `rule-miner`                           | `rulebookguard export kiro-agents` |
+| Piece                                      | What it gives Kiro                                                      | How to get it                      |
+| ------------------------------------------ | ----------------------------------------------------------------------- | ---------------------------------- |
+| [Steering files](#export)                  | the active rules of the files it works on                               | `rulebookguard export kiro`        |
+| Power in [`rulebookguard/`](rulebookguard) | the `rules`, `rule-writing` and `rule-review` skills and the MCP server | import it from GitHub              |
+| [Custom agents](#export)                   | `rule-author` and `rule-miner`                                          | `rulebookguard export kiro-agents` |
 
 To install the power: Powers panel → **Add Custom Power** → **Import power from GitHub**, with `https://github.com/JuanCJR/rulebookguard/tree/v0.16.0/rulebookguard`. Kiro names the power after the last segment of that URL, `rulebookguard`; **Import power from a folder** with a clone of the `rulebookguard` folder works too. Its MCP server runs `npx --yes rulebookguard@0.16.0 mcp` (needs Node.js and network the first time). Kiro starts it in the power's own folder and offers it no workspace roots, so each tool takes a `project` argument with the workspace folder, which the `rules` skill tells the agent to pass, and `rules_for` finds the rulebook of an absolute file path by itself. If the tools still answer `No rulebookguard.config.yaml in ...`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
 
@@ -740,7 +758,7 @@ Prompts work in any language. Naming the agent (`rule-miner`, `rule-author`) han
 - "Use rule-miner on the clients context."
 - "Use rule-miner on the billing context, and mark the code that enforces each rule with `@implements`."
 
-Then review the diff, answer the questions, and set `status: active` on what holds.
+Then say "review the questions of the clients rules with me": the agent asks them [one at a time](#reviewing-rules-before-activation), records each answer under `## Decisions`, and asks once which ready rules to set `active`.
 
 **Before a change:**
 
@@ -778,6 +796,7 @@ Then review the diff, answer the questions, and set `status: active` on what hol
 
 | Version | What to do                                                                                                                                                                                                                                                                                                                                                                                                   |
 | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 0.17    | Update the Claude Code plugin and the Kiro power, and rerun `rulebookguard export kiro-agents`. New: the `rule-review` skill [reviews proposed rules with the user](#reviewing-rules-before-activation) and keeps each answer under `## Decisions`. `lint` adds the `open-questions` warning on active rules that still list questions for the business; it never fails a run.                               |
 | 0.16    | Update the Claude Code plugin and the Kiro power. Agents now get a rule impact protocol at the start of every session (a `SessionStart` hook) and in the MCP server instructions, and the `rules` skill runs it on every task. New: the `affected` command and the `rules_affected` MCP tool.                                                                                                                |
 | 0.15.2  | Reinstall the Kiro power from GitHub: Powers panel → **Add Custom Power** → **Import power from GitHub**, with `https://github.com/JuanCJR/rulebookguard/tree/v0.15.2/rulebookguard`, and remove the power named `plugin` if you imported the old folder. The repository folder `plugin/` is now `rulebookguard/`, so Kiro names the power `rulebookguard`.                                                  |
 | 0.15.1  | Update the Kiro power. Its tools now find the rulebook: they take a `project` argument with the workspace folder, which the `rules` skill tells the agent to pass. The missing config error now reads `No rulebookguard.config.yaml in <dir> or any parent directory.` instead of `... not found in ...`: update anything that matches the old text.                                                         |

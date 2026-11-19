@@ -69,7 +69,7 @@ describe('Kiro power', () => {
   it('ships skills whose frontmatter meets the rules of Kiro', async () => {
     const folders = await readdir(new URL(`${POWER}/skills/`, root));
 
-    expect(folders.sort()).toEqual(['rule-writing', 'rules']);
+    expect(folders.sort()).toEqual(['rule-review', 'rule-writing', 'rules']);
     for (const folder of folders) {
       const file = `${POWER}/skills/${folder}/SKILL.md`;
       const { data } = splitFrontmatter(await readFile(new URL(file, root), 'utf8'), file);

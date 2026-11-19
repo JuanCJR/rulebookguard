@@ -19,7 +19,7 @@ Follow these rules for every rule file, whether a person or an agent writes it, 
 - `summary`: one line, a full sentence, stating the behavior itself ("A client document number is unique per country."), not its topic ("Document numbers").
 - `entities`: the domain nouns the rule talks about, in singular (`Client`, `Invoice`).
 - `anchors`: globs of the files that implement the rule. Point at the narrowest files that decide the behavior, not whole directories by default.
-- `status`: always `proposed`. Only a person sets `active`, after confirming the rule and tagging a test.
+- `status`: always `proposed`. Only a person sets `active`, after reviewing the rule as the `rule-review` skill says: no open questions, the code already does it, and a test is tagged.
 - `supersedes`: the id of the rule this one replaces; set the old one to `deprecated`.
 - `dependsOn`: rules that must hold for this one to make sense. `conflictsWith`: rules that cannot be active together with this one.
 - `group`: optional, one line naming the theme the rule belongs to within its context ("Client lifecycle", "Contacts"). The site shows the context's rules in sections by `group`, falling back to the rule's first entity. Reuse a group the context's rules already use before inventing a new one.
@@ -31,7 +31,29 @@ Follow these rules for every rule file, whether a person or an agent writes it, 
 1. A `#` title of a few words.
 2. The full rule in plain sentences: the behavior, its limits and its exceptions. One idea per sentence, active voice, common words.
 3. At least one example as a ` ```gherkin ` scenario (`Given` / `When` / `Then`) with concrete values, or a table. Cover the edge the rule names (the limit, the duplicate, the expired case).
-4. For an extracted rule, a final "Questions for the business" list: what the code does that might be a bug or a technical detail rather than intent, for example "Is the limit of 3 attempts a business rule or a technical value?".
+4. For an extracted rule, a `## Questions for the business` list: what the code does that might be a bug or a technical detail rather than intent, for example "Is the limit of 3 attempts a business rule or a technical value?". Write the heading exactly so: `lint` warns with `open-questions` when an active rule still lists one.
+5. Once a question is answered, a final `## Decisions` section (below).
+
+The "about 20 lines" limit counts the rule itself, not its questions or decisions.
+
+## Decisions
+
+`## Decisions` keeps each answer of the business with its reason, so it is not lost when the question leaves the list. The `rule-review` skill says how to ask; record each answer as one list item, numbered within the rule:
+
+```markdown
+## Decisions
+
+- **D1 (2026-03-03)** Is the limit of 3 attempts a business rule or a technical value? "It is business, but make it 5." Decided: a client gets 5 attempts. Pending implementation.
+- **D2 (2026-03-03)** Must the reason be filled in? "Depends on each customer, leave it open." Kept open on purpose until a customer asks.
+- **D3 (2026-03-10), corrects D1** "Sorry, 4, not 5." Decided: a client gets 4 attempts. Pending implementation.
+```
+
+- Each item has its id (`D1`, `D2`…), the date, the question in one line, the user's answer **verbatim and in quotes**, and what was decided.
+- When the decision changes the rule, rewrite the rule text and its examples to match, and end the item with "Pending implementation." while the code does not do it yet.
+- Remove the answered question from "Questions for the business". A question kept open on purpose stays there, and its decision says so.
+- A correction is a new item that names the decision it corrects (`corrects D1`). Never rewrite or delete an earlier item.
+- A rule that waits for a decision another rule has not implemented yet gets an item naming that rule and decision and what will change here; it stays `proposed`.
+- When a feature or an approved plan answers a question, quote the words of the request or the approval that answer it.
 
 ## The context model
 
