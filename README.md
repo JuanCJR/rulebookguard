@@ -227,7 +227,7 @@ Other languages, and files it fails to read, fall back to the heuristic.
 
 ### Reviewing rules before activation
 
-A `proposed` rule is a claim about the business; it becomes `active` only after the user confirms it. Rules that `rule-miner` extracts end with a `## Questions for the business` list. The `rule-review` skill walks the user through it. Start it with no prompt: `/rulebookguard:rule-review clients` in Claude Code (without a context it asks which one), or `/rule-review` in Kiro. `rule-miner` points to it when it finishes, and the rule impact protocol asks for it before any activation.
+A `proposed` rule is a claim about the business; it becomes `active` only after the user confirms it. Rules that `rule-miner` extracts end with a `## Questions for the business` list. The `rule-review` skill walks the user through it. Start it with no prompt: `/rulebookguard:rule-review clients` in Claude Code (without a context it asks which one), or `/rule-review` in Kiro. For a context with no rules yet, it offers to run `rule-miner` first and, on a yes, goes on to the review when the mining ends. `rule-miner` points to it when it finishes, and the rule impact protocol asks for it before any activation.
 
 1. Questions whose answer changes the rule or the code come first, one at a time: what it decides, where the user sees it, an example with names and numbers, and options by their practical effect, the recommended one first.
 2. Confirmations ("stays as today", "a technical value") come next, as one numbered batch split into "Stay as today" and "Change".

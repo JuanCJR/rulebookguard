@@ -230,7 +230,7 @@ Los demás lenguajes, y los archivos que no logra leer, usan la heurística.
 
 ### Revisar las reglas antes de activarlas
 
-Una regla `proposed` es una afirmación sobre el negocio; pasa a `active` solo después de que el usuario la confirma. Las reglas que extrae `rule-miner` terminan con una lista `## Questions for the business`. La skill `rule-review` la recorre con el usuario. Se inicia sin escribir un prompt: `/rulebookguard:rule-review clients` en Claude Code (sin contexto, pregunta por cuál empezar), o `/rule-review` en Kiro. Se sugiere sola al terminar `rule-miner`, y el protocolo de impacto la pide antes de cualquier activación.
+Una regla `proposed` es una afirmación sobre el negocio; pasa a `active` solo después de que el usuario la confirma. Las reglas que extrae `rule-miner` terminan con una lista `## Questions for the business`. La skill `rule-review` la recorre con el usuario. Se inicia sin escribir un prompt: `/rulebookguard:rule-review clients` en Claude Code (sin contexto, pregunta por cuál empezar), o `/rule-review` en Kiro. Para un contexto que todavía no tiene reglas, ofrece ejecutar primero `rule-miner` y, si el usuario acepta, sigue con la revisión cuando termina el minado. Se sugiere sola al terminar `rule-miner`, y el protocolo de impacto la pide antes de cualquier activación.
 
 1. Primero, una a la vez, las preguntas cuya respuesta cambia la regla o el código: qué decide, dónde lo ve el usuario, un ejemplo con nombres y números, y opciones descritas por su efecto práctico, la recomendada primero.
 2. Después, las confirmaciones ("queda como hoy", "es un valor técnico"), en un solo paquete numerado separado en "Quedan como hoy" y "Cambian".
