@@ -252,6 +252,7 @@ describe('hook', () => {
         '2. Classify',
         '3. Never change an active rule on your own',
         '4. In a plan or spec',
+        'review its questions for the business with the user, one at a time, and record each answer under `## Decisions` (the `rule-review` skill)',
         '5. Implement in this order: rule file, then tests tagged `@rule <ID>`, then code, then `lint`.',
         '6. Before a pull request, run `rulebookguard lint --base <the branch the pull request targets>`',
       ]) {
@@ -271,6 +272,9 @@ describe('hook', () => {
 
     expect(context(result.stdout, 'SessionStart').split('\n')[0]).toBe(
       'Este proyecto guarda sus reglas de negocio en un rulebook de rulebookguard. En cada tarea, pequeña o grande, haz un análisis de impacto sobre las reglas antes de planificar o cambiar comportamiento:',
+    );
+    expect(context(result.stdout, 'SessionStart')).toContain(
+      'revisa con el usuario sus preguntas para el negocio, una a la vez, y registra cada respuesta en `## Decisions` (la skill `rule-review`)',
     );
   });
   // @endrule R-AGT-005
