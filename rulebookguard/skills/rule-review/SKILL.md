@@ -9,6 +9,8 @@ A proposed rule is a claim about the business. Before it becomes `active`, the u
 
 ## 1. Collect the questions
 
+The user may start this review with a shortcut (`/rulebookguard:rule-review clients` in Claude Code, `/rule-review` in Kiro) and nothing else. When they name a context or rule ids, review those; when they name nothing, list the contexts whose proposed rules still have questions, with how many each has, and ask which one to start with.
+
 Read the proposed rules of the context with `rules_list` and `rules_show`, and gather each item of their "Questions for the business" sections, with the rule id it belongs to. Sort them into:
 
 - **Decisions:** the answer changes what the rule says or what the code must do (a limit, a state, who may act, what happens on an edge).
