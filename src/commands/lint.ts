@@ -227,9 +227,47 @@ export async function lintCatalog(
     }
   }
   // @endimplements R-LIN-009
+  // @implements R-LIN-016
+  for (const rule of catalog.rules) {
+    const count = rule.status === 'active' ? openQuestions(rule.body) : 0;
+    if (count > 0) {
+      findings.push({
+        severity: 'warning',
+        code: 'open-questions',
+        file: rule.file,
+        message: text.openQuestions(rule.id, count),
+        hint: text.openQuestionsHint,
+      });
+    }
+  }
+  // @endimplements R-LIN-016
   findings.push(...contextModel(catalog, text));
   findings.push(...(await deadEvidence(catalog, text)));
   return findings;
+}
+
+const QUESTIONS_HEADING = /^#{1,6}\s+questions for the business:?\s*#*\s*$/i;
+const HEADING = /^#{1,6}\s/;
+const FENCE = /^\s*(?:```|~~~)/;
+const LIST_ITEM = /^\s*(?:[-*+]|\d+[.)])\s+\S/;
+
+// Counts the list items of the "Questions for the business" sections, ignoring fenced code.
+function openQuestions(body: string): number {
+  let inFence = false;
+  let inQuestions = false;
+  let count = 0;
+  for (const line of body.split(/\r?\n/)) {
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+    } else if (inFence) {
+      continue;
+    } else if (HEADING.test(line)) {
+      inQuestions = QUESTIONS_HEADING.test(line);
+    } else if (inQuestions && LIST_ITEM.test(line)) {
+      count += 1;
+    }
+  }
+  return count;
 }
 
 // Entity names are global: a relation or a rule names an entity without saying which context
