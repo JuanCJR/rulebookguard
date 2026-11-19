@@ -47,5 +47,6 @@ End with this report and nothing after it:
 3. **Context model:** the entities and relations you added, each with its evidence; the `kind` you set, if any, and why; the relations you suggest to entities no context defines yet; and the differences between the existing model and the code.
 4. **Skipped:** each candidate you did not write and why (technical detail, covered by R-…, no evidence, over budget).
 5. **Differences with existing rules:** rule id, what it says, what the code does, with `path:line`.
-6. **Questions for the business:** grouped by rule id.
+6. **Questions for the business:** grouped by rule id, each marked as a decision (the answer changes the rule or the code) or a confirmation (the likely answer is "it stays as today" or "it is a technical value").
 7. **Lint:** result of the last run.
+8. **Next step:** review these questions with the user in the main conversation, as the `rulebookguard:rule-review` skill says, before any rule becomes `active`. You cannot ask the user yourself: do not answer the questions, and do not record decisions.

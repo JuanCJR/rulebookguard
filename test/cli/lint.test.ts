@@ -720,3 +720,59 @@ describe('lint context model', () => {
     );
   });
 });
+
+async function appendBody(repo: string, rule: string, lines: string[]): Promise<void> {
+  const context = rule.startsWith('R-BIL') ? 'billing' : 'clients';
+  await appendFile(join(repo, 'docs/rules', context, `${rule}.md`), `\n${lines.join('\n')}\n`);
+}
+
+describe('lint open questions', () => {
+  // @rule R-LIN-016
+  it('warns about an active rule that still lists questions for the business', async () => {
+    const repo = await cleanRepo();
+    await appendBody(repo, 'R-CLI-001', [
+      '```gherkin',
+      '# Questions for the business',
+      '- not a question',
+      '```',
+      '',
+      '### questions for the business:',
+      '',
+      '- Is the country part of the key?',
+      '* Should deleted clients count?',
+      '',
+      '## Decisions',
+      '',
+      '- 2026-11-19: "Yes." The key stays per country.',
+    ]);
+    await appendBody(repo, 'R-BIL-001', ['## Questions for the business', '', 'None left.']);
+    await appendBody(repo, 'R-CLI-002', ['## Questions for the business', '', '- Open?']);
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning open-questions docs/rules/clients/R-CLI-001.md active rule R-CLI-001 still has 2 open questions for the business',
+        '  hint: review them with the user (the rule-review skill) and record each answer under "## Decisions", or set the rule\'s status to proposed',
+        '0 errors, 1 warning',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('names a single open question in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await appendBody(repo, 'R-BIL-002', ['## Questions for the business', '', '1. Open?']);
+
+    expect((await runCli(['lint'], repo)).stdout).toBe(
+      [
+        'warning open-questions docs/rules/billing/R-BIL-002.md la regla activa R-BIL-002 todavía tiene 1 pregunta abierta para el negocio',
+        '  sugerencia: revísalas con el usuario (la skill rule-review) y registra cada respuesta en "## Decisions", o pasa la regla a proposed',
+        '0 errores, 1 aviso',
+        '',
+      ].join('\n'),
+    );
+  });
+  // @endrule R-LIN-016
+});

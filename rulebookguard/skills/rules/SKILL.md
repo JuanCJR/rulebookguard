@@ -48,6 +48,10 @@ When you keep a plan, a spec or a task list, each item cites the rule ids it aff
 - Before a pull request, run `rulebookguard lint --base <the branch the pull request targets>` (or the `lint` tool with `base`). If you do not know that branch, use the remote default branch (`git symbolic-ref refs/remotes/origin/HEAD`). A changed rule whose tagging tests did not change fails as `pending-implementation`.
 - Your final report names every rule you touched (cited, proposed, changed or deprecated), or says that the task touched none.
 
+## Activating rules
+
+Before you ask the user to make a rule `active`, review it with them as the `rule-review` skill says: its "Questions for the business" one at a time, each answer recorded under `## Decisions`, and activation asked once for the rules that are ready. `lint` warns with `open-questions` on an active rule that still lists questions.
+
 ## Retiring and relating rules
 
 Retire a rule by setting `status: deprecated` and removing its `@rule`/`@endrule` tags and its `@implements`/`@endimplements` regions; a replacement rule names it in `supersedes`.

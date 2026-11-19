@@ -58,6 +58,7 @@ export interface Messages {
   unmatchedEndimplementsTag: (id: string) => string;
   implementsOutsideAnchors: (id: string) => string;
   contextOverBudget: (context: string, count: number, budget: number) => string;
+  openQuestions: (id: string, count: number) => string;
   deadEvidenceFile: (id: string, entry: string, file: string) => string;
   deadEvidenceSymbol: (id: string, entry: string, symbol: string, file: string) => string;
   entityOwner: (name: string) => string;
@@ -105,6 +106,7 @@ export interface Messages {
   unmatchedEndimplementsTagHint: (id: string) => string;
   implementsOutsideAnchorsHint: (id: string) => string;
   contextOverBudgetHint: string;
+  openQuestionsHint: string;
   deadEvidenceHint: string;
   duplicateEntityHint: string;
   unknownRelationEntityHint: string;
@@ -184,6 +186,8 @@ const EN: Messages = {
     `marks code as implementing ${id}, but no anchor of ${id} matches this file`,
   contextOverBudget: (context, count, budget) =>
     `context "${context}" has ${count} rules, more than the contextBudget of ${budget}`,
+  openQuestions: (id, count) =>
+    `active rule ${id} still has ${count} open ${count === 1 ? 'question' : 'questions'} for the business`,
   deadEvidenceFile: (id, entry, file) => `evidence "${entry}" of ${id}: ${file} does not exist`,
   deadEvidenceSymbol: (id, entry, symbol, file) =>
     `evidence "${entry}" of ${id}: "${symbol}" is not found in ${file}`,
@@ -265,6 +269,8 @@ const EN: Messages = {
     `add an anchor to ${id} that matches this file, or move the region to a file it anchors`,
   contextOverBudgetHint:
     'split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
+  openQuestionsHint:
+    'review them with the user (the rule-review skill) and record each answer under "## Decisions", or set the rule\'s status to proposed',
   deadEvidenceHint:
     'point the entry at the file and symbol that show the rule now ("path symbol"), or remove it',
   duplicateEntityHint:
@@ -355,6 +361,8 @@ const ES: Messages = {
     `marca código como implementación de ${id}, pero ningún anchor de ${id} coincide con este archivo`,
   contextOverBudget: (context, count, budget) =>
     `el contexto "${context}" tiene ${count} reglas, más que el contextBudget de ${budget}`,
+  openQuestions: (id, count) =>
+    `la regla activa ${id} todavía tiene ${count} ${count === 1 ? 'pregunta abierta' : 'preguntas abiertas'} para el negocio`,
   deadEvidenceFile: (id, entry, file) => `la evidencia "${entry}" de ${id}: ${file} no existe`,
   deadEvidenceSymbol: (id, entry, symbol, file) =>
     `la evidencia "${entry}" de ${id}: "${symbol}" no aparece en ${file}`,
@@ -438,6 +446,8 @@ const ES: Messages = {
     `agrega a ${id} un anchor que coincida con este archivo, o mueve la región a un archivo que ancle`,
   contextOverBudgetHint:
     'divide el contexto en otros más chicos o sube contextBudget en rulebookguard.config.yaml',
+  openQuestionsHint:
+    'revísalas con el usuario (la skill rule-review) y registra cada respuesta en "## Decisions", o pasa la regla a proposed',
   deadEvidenceHint:
     'apunta la entrada al archivo y al símbolo que muestran la regla hoy ("ruta símbolo"), o quítala',
   duplicateEntityHint:
