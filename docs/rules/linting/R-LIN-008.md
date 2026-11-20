@@ -2,7 +2,7 @@
 id: R-LIN-008
 context: linting
 entities: [Rule]
-status: proposed
+status: active
 anchors:
   - 'src/commands/lint.ts'
 summary: Two rules that conflict with each other cannot both be active; lint reports the pair once.
@@ -25,6 +25,6 @@ Scenario: Two active rules in conflict, one proposed
   And it reports nothing about R-CLI-003
 ```
 
-## Questions for the business
+## Decisions
 
-- A conflict declared on only one side counts the same as one declared on both. Is a one-sided declaration intended to be enough?
+- **D1 (2026-11-19)** Is a one-sided conflict declaration enough? "confirmo" (confirmation batch: stays as today). Decided: a conflict declared on one side is enough; the two rules cannot both be active.

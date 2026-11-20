@@ -2,7 +2,7 @@
 id: R-LIN-001
 context: linting
 entities: [Rule, Test]
-status: proposed
+status: active
 anchors:
   - 'src/commands/lint.ts'
 summary: An active rule must be tagged by at least one test, or lint reports an error.
@@ -15,7 +15,7 @@ evidence:
 
 # Active rules need a test
 
-Every rule with status `active` must be tagged with `@rule <ID>` in at least one file matched by `testGlobs`. If none is, lint reports an error on the rule file. Proposed and deprecated rules need no test.
+Every rule with status `active` must be tagged with `@rule <ID>` in at least one file matched by `testGlobs`. If none is, lint reports an error on the rule file. An opening `@rule <ID>` counts even when its `@endrule` is missing; that case is reported only by R-LIN-005. Proposed and deprecated rules need no test.
 
 ```gherkin
 Scenario: An active rule without a test
@@ -26,7 +26,7 @@ Scenario: An active rule without a test
   And it exits with status 1
 ```
 
-## Questions for the business
+## Decisions
 
-- The check counts a bare `@rule` tag even when its `@endrule` is missing (that case is reported separately by R-LIN-005). Is one opening tag enough to count as "tested", or should only a closed region count?
-- Is "at least one tag" the intended bar, or should the tag sit on a test that actually runs?
+- **D1 (2026-11-19)** Is one opening tag enough to count as "tested", or should only a closed region count? "1" (option 1: an opening tag is enough, as today). Decided: an unclosed `@rule` still counts as a test; the missing `@endrule` is reported once, by R-LIN-005.
+- **D2 (2026-11-19)** Is "at least one tag" the intended bar, or should the tag sit on a test that actually runs? "confirmo" (confirmation batch: stays as today). Decided: one tag in a file matched by `testGlobs` is enough; whether the test runs is the test runner's job.
