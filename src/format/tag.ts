@@ -51,6 +51,61 @@ export function findRuleTags(source: string): RuleTag[] {
   return tags;
 }
 
+export interface MisplacedMarker extends RuleTag {
+  marker: '@rule' | '@endrule' | '@implements' | '@endimplements';
+}
+
+const ANY_MARKER_PATTERN =
+  /(?<![\w@.-])(@(?:end)?(?:rule|implements))\s+(R-[A-Z][A-Z0-9]*-[0-9]{3})(?![\w-])/g;
+
+// Openers that may follow code on the same line; ";" and "%" are left out because code uses them as operators.
+const TRAILING_COMMENTS = ['//', '/*', '#', '--', '<!--'];
+const QUOTES = new Set(["'", '"', '`']);
+
+// @implements R-LIN-022
+// A marker in a comment that follows code does not count; it is found so lint can say so.
+// A comment opener inside a string literal does not start a comment.
+export function findMisplacedMarkers(source: string): MisplacedMarker[] {
+  const found: MisplacedMarker[] = [];
+  source.split(/\r?\n/).forEach((text, index) => {
+    if (COMMENT_LINE.test(text)) {
+      return;
+    }
+    const start = commentStart(text);
+    if (start === undefined) {
+      return;
+    }
+    for (const match of text.slice(start).matchAll(ANY_MARKER_PATTERN)) {
+      found.push({
+        marker: match[1] as MisplacedMarker['marker'],
+        id: match[2] as string,
+        line: index + 1,
+      });
+    }
+  });
+  return found;
+}
+
+function commentStart(text: string): number | undefined {
+  let quote: string | undefined;
+  for (let index = 0; index < text.length; index += 1) {
+    const char = text[index] as string;
+    if (quote !== undefined) {
+      if (char === '\\') {
+        index += 1;
+      } else if (char === quote) {
+        quote = undefined;
+      }
+    } else if (QUOTES.has(char)) {
+      quote = char;
+    } else if (TRAILING_COMMENTS.some((opener) => text.startsWith(opener, index))) {
+      return index;
+    }
+  }
+  return undefined;
+}
+// @endimplements R-LIN-022
+
 // @implements R-LIN-005
 export function findRuleRegions(source: string, kind?: 'rule'): RuleRegions;
 export function findRuleRegions(

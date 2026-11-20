@@ -1,8 +1,11 @@
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { createGlobMatcher, listRepoFiles, type GitFallbackListener } from '../catalog/files.ts';
 import { createEvidenceResolver } from '../catalog/evidence.ts';
 import {
   changedLines,
   changedSince,
+  fileAtRef,
   gitFailureReason,
   isCommitRef,
   isInsideWorkTree,
@@ -16,13 +19,20 @@ import {
   type CatalogIssueCode,
 } from '../catalog/load.ts';
 import { FormatError } from '../format/errors.ts';
+import { splitFrontmatter } from '../format/frontmatter.ts';
 import type { RuleDoc } from '../format/types.ts';
 import { messages, type Messages } from '../messages.ts';
-import { scanImplementations, scanTestRegions, type TagScan } from '../catalog/tags.ts';
+import {
+  scanImplementations,
+  scanTestRegions,
+  type MisplacedLocation,
+  type TagScan,
+} from '../catalog/tags.ts';
 import {
   CliError,
   EXIT_FAILURE,
   EXIT_OK,
+  EXIT_USAGE,
   gitFallbackWarning,
   requireRulebookRoot,
   type CliIo,
@@ -54,6 +64,22 @@ export interface LintOptions {
 }
 
 export async function lintCommand(io: CliIo, options: LintOptions): Promise<number> {
+  // @implements R-LIN-010
+  // @implements R-LIN-023
+  // Status 2 means lint could not run, so a caller can tell it from a rulebook with errors (1).
+  try {
+    return await lintRulebook(io, options);
+  } catch (error) {
+    if (error instanceof CliError && error.exitCode === EXIT_FAILURE) {
+      throw new CliError(error.message, EXIT_USAGE);
+    }
+    throw error;
+  }
+  // @endimplements R-LIN-023
+  // @endimplements R-LIN-010
+}
+
+async function lintRulebook(io: CliIo, options: LintOptions): Promise<number> {
   const root = await requireRulebookRoot(io);
   let catalog: Catalog;
   try {
@@ -62,7 +88,7 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
     if (!(error instanceof FormatError)) {
       throw error;
     }
-    return report(
+    report(
       io,
       error.issues.map((issue) =>
         issueFinding(
@@ -74,6 +100,9 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
       options.json,
       messages('en'),
     );
+    // @implements R-LIN-010
+    return EXIT_USAGE;
+    // @endimplements R-LIN-010
   }
   const text = messages(catalog.config.language);
   const changed =
@@ -84,11 +113,91 @@ export async function lintCommand(io: CliIo, options: LintOptions): Promise<numb
   const scan = await scanTestRegions(catalog.root, catalog.config.testGlobs, warn);
   const findings = await lintCatalog(catalog, scan, warn);
   if (options.base !== undefined && changed !== undefined) {
-    const lines = await testLineChanges(catalog, scan, options.base, changed, text);
-    findings.push(...pendingImplementation(catalog, scan, options.base, changed.files, lines));
+    const behavior = await behaviorChanges(catalog, options.base, changed);
+    const lines = await testLineChanges(catalog, scan, options.base, behavior, text);
+    findings.push(...pendingImplementation(catalog, scan, options.base, behavior.files, lines));
   }
   return report(io, findings, options.json, text);
 }
+
+// @implements R-LIN-011
+// A rule file whose only changes are in its decisions, its questions or its evidence did not change
+// what the rule says, so it does not ask for a changed test.
+async function behaviorChanges(
+  catalog: Catalog,
+  base: string,
+  changed: ChangeSet,
+): Promise<ChangeSet> {
+  const ruleFiles = new Set(
+    catalog.rules.filter((rule) => rule.status === 'active').map((rule) => rule.file),
+  );
+  const files: string[] = [];
+  for (const file of changed.files) {
+    if (
+      ruleFiles.has(file) &&
+      !changed.untracked.has(file) &&
+      (await sameStatement(catalog.root, base, file))
+    ) {
+      continue;
+    }
+    files.push(file);
+  }
+  return { files, untracked: changed.untracked };
+}
+
+async function sameStatement(root: string, base: string, file: string): Promise<boolean> {
+  const before = await fileAtRef(root, base, file);
+  if (before === undefined) {
+    return false;
+  }
+  let after: string;
+  try {
+    after = await readFile(join(root, file), 'utf8');
+  } catch {
+    return false;
+  }
+  const a = statement(before, file);
+  const b = statement(after, file);
+  return a !== undefined && a === b;
+}
+
+const NON_STATEMENT_HEADING = /^#{1,6}\s+(?:decisions|questions for the business):?\s*#*\s*$/i;
+
+function statement(source: string, file: string): string | undefined {
+  let parsed: { data: unknown; body: string };
+  try {
+    parsed = splitFrontmatter(source.replace(/\r\n/g, '\n'), file);
+  } catch {
+    return undefined;
+  }
+  const data = { ...(parsed.data as Record<string, unknown>) };
+  delete data.evidence;
+  // Activating a proposed rule does not change what it says; R-LIN-001 already asks for its test.
+  if (data.status === 'proposed') {
+    data.status = 'active';
+  }
+  let inFence = false;
+  let skipping = false;
+  const body: string[] = [];
+  for (const line of parsed.body.split('\n')) {
+    if (FENCE.test(line)) {
+      inFence = !inFence;
+    } else if (!inFence && HEADING.test(line)) {
+      skipping = NON_STATEMENT_HEADING.test(line);
+    }
+    if (!skipping) {
+      body.push(line);
+    }
+  }
+  return JSON.stringify([sortKeys(data), body.join('\n').trim()]);
+}
+
+function sortKeys(data: Record<string, unknown>): [string, unknown][] {
+  return Object.keys(data)
+    .sort(compare)
+    .map((key) => [key, data[key]]);
+}
+// @endimplements R-LIN-011
 
 function report(io: CliIo, findings: LintFinding[], json: boolean, text: Messages): number {
   const sorted = sortFindings(findings);
@@ -130,8 +239,9 @@ export async function lintCatalog(
   scan?: TagScan,
   onGitFallback?: GitFallbackListener,
 ): Promise<LintFinding[]> {
-  const { tags: tagIndex, problems } =
+  const testScan =
     scan ?? (await scanTestRegions(catalog.root, catalog.config.testGlobs, onGitFallback));
+  const { tags: tagIndex, problems } = testScan;
   const text = messages(catalog.config.language);
   const findings: LintFinding[] = catalog.issues.map((issue) =>
     issueFinding(issue.code, issue, text),
@@ -168,7 +278,8 @@ export async function lintCatalog(
     }
     // @endimplements R-LIN-001
     // @implements R-LIN-002
-    for (const anchor of rule.anchors) {
+    // A deprecated rule may outlive its code, so its anchors are not checked.
+    for (const anchor of rule.status === 'deprecated' ? [] : rule.anchors) {
       if (!files.some(createGlobMatcher([anchor]))) {
         findings.push(
           error(
@@ -210,12 +321,18 @@ export async function lintCatalog(
   }
   // @endimplements R-LIN-004
   // @endimplements R-LIN-003
-  findings.push(...(await implementations(catalog, files, invalid, successors, text)));
-  findings.push(...ruleRelations(catalog, invalid, text));
+  const implemented = await implementations(catalog, files, invalid, successors, text);
+  findings.push(...implemented.findings);
+  findings.push(
+    ...misplacedMarkers([...(testScan.misplaced ?? []), ...implemented.misplaced], text),
+  );
+  findings.push(...ruleRelations(catalog, invalid, successors, text));
   // @implements R-LIN-009
   const budget = catalog.config.contextBudget;
   for (const context of catalog.contexts) {
-    const count = catalog.rules.filter((rule) => rule.context === context.context).length;
+    const count = catalog.rules.filter(
+      (rule) => rule.context === context.context && rule.status !== 'deprecated',
+    ).length;
     if (count > budget) {
       findings.push({
         severity: 'warning',
@@ -383,13 +500,37 @@ async function deadEvidence(catalog: Catalog, text: Messages): Promise<LintFindi
   return findings;
 }
 
+// @implements R-LIN-022
+// A file can be both a test and anchored code, so the same marker is reported once.
+function misplacedMarkers(markers: MisplacedLocation[], text: Messages): LintFinding[] {
+  const seen = new Set<string>();
+  const findings: LintFinding[] = [];
+  for (const { file, line, marker, id } of markers) {
+    const key = `${file}:${line}:${marker}:${id}`;
+    if (seen.has(key)) {
+      continue;
+    }
+    seen.add(key);
+    findings.push({
+      severity: 'warning',
+      code: 'misplaced-marker',
+      file,
+      line,
+      message: text.misplacedMarker(marker, id),
+      hint: text.misplacedMarkerHint,
+    });
+  }
+  return findings;
+}
+// @endimplements R-LIN-022
+
 async function implementations(
   catalog: Catalog,
   files: string[],
   invalid: Set<string>,
   successors: Map<string, string>,
   text: Messages,
-): Promise<LintFinding[]> {
+): Promise<{ findings: LintFinding[]; misplaced: MisplacedLocation[] }> {
   // Only files some rule anchors are read: code no rule anchors cannot implement one.
   const anchored = createGlobMatcher(catalog.rules.flatMap((rule) => rule.anchors));
   const scan = await scanImplementations(catalog.root, files.filter(anchored));
@@ -444,12 +585,17 @@ async function implementations(
       }
     }
   }
-  return findings;
+  return { findings, misplaced: scan.misplaced ?? [] };
 }
 
 const RELATION_FIELDS = ['dependsOn', 'conflictsWith'] as const;
 
-function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): LintFinding[] {
+function ruleRelations(
+  catalog: Catalog,
+  invalid: Set<string>,
+  successors: Map<string, string>,
+  text: Messages,
+): LintFinding[] {
   const byId = new Map(catalog.rules.map((rule) => [rule.id, rule]));
   const findings: LintFinding[] = [];
   // @implements R-LIN-006
@@ -474,13 +620,23 @@ function ruleRelations(catalog: Catalog, invalid: Set<string>, text: Messages): 
               text.ruleReferenceHint(field),
             ),
           );
+        } else if (rule.status !== 'deprecated' && byId.get(id)?.status === 'deprecated') {
+          findings.push({
+            severity: 'warning',
+            code: 'deprecated-rule-reference',
+            file: rule.file,
+            message: text.deprecatedRuleReference(field, id),
+            hint: text.deprecatedRuleReferenceHint(field, id, successors.get(id)),
+          });
         }
       }
     }
   }
   // @endimplements R-LIN-006
   // @implements R-LIN-007
-  for (const cycle of dependencyCycles(byId)) {
+  // A deprecated rule no longer holds, so a cycle through it is not reported.
+  const live = new Map([...byId].filter(([, rule]) => rule.status !== 'deprecated'));
+  for (const cycle of dependencyCycles(live)) {
     findings.push(
       error(
         'dependency-cycle',

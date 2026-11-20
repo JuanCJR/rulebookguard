@@ -2,7 +2,7 @@
 id: R-LIN-003
 context: linting
 entities: [Test, Rule]
-status: proposed
+status: active
 anchors:
   - 'src/commands/lint.ts'
 summary: A test that tags a rule id which does not exist makes lint report an error.
@@ -25,6 +25,6 @@ Scenario: A tag with an unknown id
   Then it reports the error "tests/orders_test.py:11 tags R-XYZ-001, which does not exist"
 ```
 
-## Questions for the business
+## Decisions
 
-- Each occurrence of the unknown tag is reported, one finding per line. Is one finding per tag the intended granularity?
+- **D1 (2026-11-19)** Is one finding per tag the intended granularity? "confirmo" (confirmation batch: stays as today). Decided: each occurrence of an unknown id is its own finding, with its line.

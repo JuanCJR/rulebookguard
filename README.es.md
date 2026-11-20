@@ -246,7 +246,7 @@ Una regla está lista para activarse cuando no le quedan preguntas abiertas, el 
 
 ## Comandos
 
-`rulebookguard --help` los lista. Códigos de salida: `0` éxito, `1` fallo (id o contexto desconocido, falta la configuración, errores de lint, errores de git), `2` error de uso (comando u opción desconocidos, argumento faltante o sobrante).
+`rulebookguard --help` los lista. Códigos de salida: `0` éxito, `1` fallo (id o contexto desconocido, falta la configuración, errores de lint, errores de git), `2` error de uso (comando u opción desconocidos, argumento faltante o sobrante). `lint` también sale con 2 cuando no puede ejecutarse: falta la configuración o no es válida, o `--base` no puede comparar.
 
 | Comando                                       | Qué hace                                                                       |
 | --------------------------------------------- | ------------------------------------------------------------------------------ |
@@ -405,7 +405,7 @@ docs/rules/inventory/R-INV-001.md
 
 ### `lint`
 
-`lint [--base <ref>] [--json]` revisa todo el catálogo. Sale con 1 ante cualquier error; con 0 si solo hay advertencias o nada (`No issues found.`).
+`lint [--base <ref>] [--json]` revisa todo el catálogo. Sale con 1 ante cualquier error; con 0 si solo hay advertencias o nada (`No issues found.`); con 2 si no puede ejecutarse (opción desconocida, configuración faltante o no válida, o `--base` fuera de un work tree de git, con una ref desconocida o cuando falla git).
 
 ```sh
 $ rulebookguard lint
@@ -445,13 +445,15 @@ Formato: `<severity> <code> <file>[:line] <message>`, una línea `hint:` y al fi
 | error     | `duplicate-entity`            | dos `_context.md`, o uno dos veces, definen el mismo nombre de entidad                              |
 | error     | `unknown-relation-entity`     | una relación parte de fuera de su contexto o llega a una entidad no definida                        |
 | warning   | `undefined-entity`            | una regla nombra una entidad que ningún contexto define, si su contexto define entidades            |
-| warning   | `context-over-budget`         | un contexto tiene más reglas que `contextBudget`                                                    |
+| warning   | `deprecated-rule-reference`   | `dependsOn` o `conflictsWith` de una regla propuesta o activa nombra una regla `deprecated`         |
+| warning   | `misplaced-marker`            | un marcador está en un comentario después de código en la misma línea, así que no cuenta            |
+| warning   | `context-over-budget`         | un contexto tiene más reglas propuestas y activas que `contextBudget`                               |
 | warning   | `dead-evidence`               | una entrada de `evidence` nombra un archivo o símbolo que ya no existe                              |
 | warning   | `open-questions`              | una regla activa todavía lista [preguntas para el negocio](#revisar-las-reglas-antes-de-activarlas) |
 
-Una configuración no válida se reporta como hallazgos `schema`. Las marcas de un archivo de regla que no cumple el schema no se reportan de nuevo como `unknown-rule-tag`.
+Una configuración no válida se reporta como hallazgos `schema`, con salida 2. Las reglas `deprecated` quedan fuera del chequeo de anchors, del `contextBudget` y de los ciclos de dependencias. Las marcas de un archivo de regla que no cumple el schema no se reportan de nuevo como `unknown-rule-tag`.
 
-**`--base <ref>`** también revisa lo que cambió respecto de `<ref>`: un archivo de regla modificado necesita un cambio dentro de una de sus regiones `@rule` … `@endrule`, o se reporta `pending-implementation`.
+**`--base <ref>`** también revisa lo que cambió respecto de `<ref>`: un archivo de regla modificado necesita un cambio dentro de una de sus regiones `@rule` … `@endrule`, o se reporta `pending-implementation`. Una regla cuyos únicos cambios están en su sección `## Decisions`, en su sección `## Questions for the business` o en su `evidence`, o cuyo estado solo pasó de `proposed` a `active`, no cuenta como modificada.
 
 ```sh
 $ rulebookguard lint --base origin/main

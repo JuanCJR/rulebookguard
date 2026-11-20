@@ -2,7 +2,7 @@
 id: R-LIN-004
 context: linting
 entities: [Test, Rule]
-status: proposed
+status: active
 anchors:
   - 'src/commands/lint.ts'
 summary: A test that tags a deprecated rule makes lint report an error that names the replacing rule when there is one.
@@ -27,6 +27,6 @@ Scenario: A tag on a superseded rule
   And the hint is "tag R-ORD-001, which supersedes R-ORD-003, instead"
 ```
 
-## Questions for the business
+## Decisions
 
-- Is a tag on a deprecated rule meant to block (error), or would a warning during a migration period be acceptable?
+- **D1 (2026-11-19)** Should a test tagged with a deprecated rule block, or only warn during a migration? "1" (option 1: error, as today). Decided: it stays an error that names the replacing rule; deprecating a rule means updating its tags in the same change.

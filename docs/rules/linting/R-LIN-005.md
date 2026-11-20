@@ -2,7 +2,7 @@
 id: R-LIN-005
 context: linting
 entities: [Test, Rule]
-status: proposed
+status: active
 anchors:
   - 'src/format/tag.ts'
   - 'src/catalog/tags.ts'
@@ -28,6 +28,6 @@ Scenario: A region left open and a stray end
   And it reports "tests/billing/test_regions.py:5 @endrule R-BIL-002 has no open @rule R-BIL-002 before it"
 ```
 
-## Questions for the business
+## Decisions
 
-- Is nesting regions of different rules an intended use (one test covering two rules), or only tolerated?
+- **D1 (2026-11-19)** Is nesting regions of different rules an intended use? "confirmo" (confirmation batch: stays as today). Decided: nesting is an intended use; one test may cover two rules.

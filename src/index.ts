@@ -4,12 +4,14 @@ export { FormatError, formatIssue, type FormatIssue } from './format/errors.ts';
 export { splitFrontmatter, type Frontmatter } from './format/frontmatter.ts';
 export { isRuleId, loadRule, parseRule } from './format/rule.ts';
 export {
+  findMisplacedMarkers,
   findRuleRegions,
   findRuleTags,
   IMPLEMENTS_MARKER_PATTERN,
   RULE_MARKER_PATTERN,
   RULE_TAG_PATTERN,
   type ImplementsTagProblemCode,
+  type MisplacedMarker,
   type RegionKind,
   type RuleRegion,
   type RuleRegions,
