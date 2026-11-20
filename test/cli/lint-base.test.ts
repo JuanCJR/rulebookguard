@@ -122,6 +122,71 @@ describe('lint --base', () => {
     expect((await runCli(['lint', '--base', 'HEAD'], repo)).status).toBe(0);
   });
 
+  // @rule R-LIN-011
+  it('ignores a rule change only in its decisions, its questions or its evidence', async () => {
+    const repo = await committedRepo();
+    const file = join(repo, CLI_001);
+    await writeFile(
+      file,
+      (await readFile(file, 'utf8'))
+        .replace(/^summary: .*$/m, "$&\nevidence: ['src/clients/create.go']")
+        .concat(
+          '\n## Questions for the business\n\n- Per country or worldwide?\n',
+          '\n## Decisions\n\n- **D1 (2026-11-19)** Unique per country? "Yes." Decided: per country.\n',
+        ),
+    );
+
+    const result = await runCli(['lint', '--base', 'HEAD', '--json'], repo);
+    expect(result.status).toBe(0);
+    expect(JSON.parse(result.stdout).findings.map((f: { code: string }) => f.code)).toEqual([
+      'open-questions',
+    ]);
+  });
+
+  it('does not count activating a proposed rule, but counts activating and rewording it', async () => {
+    const repo = await committedRepo();
+    await appendFile(
+      join(repo, 'tests/billing/test_numbering.py'),
+      '# @rule R-CLI-002\n# @endrule R-CLI-002\n',
+    );
+    git(repo, 'commit', '-q', '-am', 'tag R-CLI-002');
+    const file = join(repo, 'docs/rules/clients/R-CLI-002.md');
+    const source = await readFile(file, 'utf8');
+
+    await writeFile(file, source.replace('status: proposed', 'status: active'));
+    expect(await runCli(['lint', '--base', 'HEAD'], repo)).toEqual({
+      status: 0,
+      stdout: 'No issues found.\n',
+      stderr: '',
+    });
+
+    await writeFile(
+      file,
+      source.replace('status: proposed', 'status: active').replace('verified', 'confirmed'),
+    );
+    expect((await runCli(['lint', '--base', 'HEAD'], repo)).stdout).toContain(
+      'error pending-implementation docs/rules/clients/R-CLI-002.md rule R-CLI-002 changed since HEAD',
+    );
+  });
+
+  it('still counts a change to the summary or the text next to a decision', async () => {
+    const repo = await committedRepo();
+    const file = join(repo, CLI_001);
+    const source = await readFile(file, 'utf8');
+    const decision = '\n## Decisions\n\n- **D1 (2026-11-19)** "Yes." Decided.\n';
+
+    await writeFile(file, source.replace('per country.', 'per country and type.') + decision);
+    expect(await runCli(['lint', '--base', 'HEAD'], repo)).toEqual({
+      status: 1,
+      stdout: `${PENDING_CLI_001}\n${PENDING_HINT}\n1 error, 0 warnings\n`,
+      stderr: '',
+    });
+
+    await writeFile(file, source.replace('Two clients', 'Two cleints') + decision);
+    expect((await runCli(['lint', '--base', 'HEAD'], repo)).status).toBe(1);
+  });
+  // @endrule R-LIN-011
+
   it('ignores changed rules that are proposed or deprecated', async () => {
     const repo = await committedRepo();
     await appendFile(join(repo, 'docs/rules/clients/R-CLI-002.md'), '\nMore.\n');
@@ -193,28 +258,31 @@ describe('lint --base', () => {
     );
   });
 
-  it('fails clearly on an unknown ref', async () => {
+  // @rule R-LIN-023
+  it('fails clearly on an unknown ref and exits 2', async () => {
     const repo = await committedRepo();
 
     for (const ref of ['no-such-branch', '--output=x']) {
       expect(await runCli(['lint', `--base=${ref}`], repo)).toEqual({
-        status: 1,
+        status: 2,
         stdout: '',
         stderr: `Unknown git ref "${ref}".\n`,
       });
     }
+    expect((await runCli(['for', '--changed', 'no-such-branch'], repo)).status).toBe(1);
   });
 
-  it('fails clearly outside a git work tree', async () => {
+  it('fails clearly outside a git work tree and exits 2', async () => {
     const dir = await scratchDir();
     await cp(fixtureRoot('repo'), dir, { recursive: true });
 
     expect(await runCli(['lint', '--base', 'main'], dir)).toEqual({
-      status: 1,
+      status: 2,
       stdout: '',
       stderr: `lint --base needs a git work tree, but ${dir} is not inside one.\n`,
     });
   });
+  // @endrule R-LIN-023
 
   it('requires a value for --base', async () => {
     const result = await runCli(['lint', '--base'], fixtureRoot('lint'));

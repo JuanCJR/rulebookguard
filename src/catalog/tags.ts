@@ -1,9 +1,11 @@
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import {
+  findMisplacedMarkers,
   findRuleRegions,
   findRuleTags,
   type ImplementsTagProblemCode,
+  type MisplacedMarker,
   type RuleTagProblemCode,
 } from '../format/tag.ts';
 import { expandGlobs, resolvesInside, type GitFallbackListener } from './files.ts';
@@ -26,10 +28,16 @@ export type TagIndex = Map<string, TagLocation[]>;
 
 export type RegionIndex = Map<string, TagRegion[]>;
 
+export interface MisplacedLocation extends MisplacedMarker {
+  file: string;
+}
+
 export interface TagScan {
   tags: TagIndex;
   regions: RegionIndex;
   problems: TagProblem[];
+  /** Markers in a comment after code, which do not count. */
+  misplaced?: MisplacedLocation[];
 }
 
 export async function scanTestTags(
@@ -48,6 +56,7 @@ export async function scanTestRegions(
   const tags: TagIndex = new Map();
   const regions: RegionIndex = new Map();
   const problems: TagProblem[] = [];
+  const misplaced: MisplacedLocation[] = [];
   const realRoot = await realpath(root);
   for (const file of await expandGlobs(root, testGlobs, onGitFallback)) {
     const path = join(root, file);
@@ -63,13 +72,16 @@ export async function scanTestRegions(
       push(regions, id, { file, line, endLine });
     }
     problems.push(...found.problems.map((problem) => ({ ...problem, file })));
+    misplaced.push(...findMisplacedMarkers(source).map((marker) => ({ ...marker, file })));
   }
-  return { tags: sortById(tags), regions: sortById(regions), problems };
+  return { tags: sortById(tags), regions: sortById(regions), problems, misplaced };
 }
 
 export interface ImplementationScan {
   regions: RegionIndex;
   problems: TagProblem<ImplementsTagProblemCode>[];
+  /** Markers in a comment after code, which do not count. */
+  misplaced?: MisplacedLocation[];
 }
 
 // A path that does not exist or is not a file has no regions, so a Write to a new file reads as empty.
@@ -79,6 +91,7 @@ export async function scanImplementations(
 ): Promise<ImplementationScan> {
   const regions: RegionIndex = new Map();
   const problems: TagProblem<ImplementsTagProblemCode>[] = [];
+  const misplaced: MisplacedLocation[] = [];
   const realRoot = await realpath(root);
   for (const file of files) {
     const path = join(root, file);
@@ -88,13 +101,15 @@ export async function scanImplementations(
     if (!(await stat(path)).isFile()) {
       continue;
     }
-    const found = findRuleRegions(await readFile(path, 'utf8'), 'implements');
+    const source = await readFile(path, 'utf8');
+    const found = findRuleRegions(source, 'implements');
     for (const { id, line, endLine } of found.regions) {
       push(regions, id, { file, line, endLine });
     }
     problems.push(...found.problems.map((problem) => ({ ...problem, file })));
+    misplaced.push(...findMisplacedMarkers(source).map((marker) => ({ ...marker, file })));
   }
-  return { regions: sortById(regions), problems };
+  return { regions: sortById(regions), problems, misplaced };
 }
 
 function push<T>(index: Map<string, T[]>, id: string, value: T): void {

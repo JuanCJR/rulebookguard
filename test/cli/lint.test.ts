@@ -1,4 +1,4 @@
-import { appendFile, cp, readFile, writeFile } from 'node:fs/promises';
+import { appendFile, cp, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vite-plus/test';
 import { scratchDir } from '../scratch.ts';
@@ -17,6 +17,9 @@ async function cleanRepo(): Promise<string> {
 }
 
 describe('lint', () => {
+  // @rule R-LIN-001
+  // @rule R-LIN-003
+  // @rule R-LIN-004
   it('lists every finding and exits 1 when there are errors', async () => {
     expect(await runCli(['lint'], lintFixture)).toEqual({
       status: 1,
@@ -25,8 +28,6 @@ describe('lint', () => {
         '  hint: wrap a test in a file matched by testGlobs with "@rule R-ORD-002" and "@endrule R-ORD-002", or set the rule\'s status to proposed',
         'error schema rules/orders/R-ORD-004.md field "status" must be one of: proposed, active, deprecated',
         '  hint: fix the file as the message says; the JSON Schemas ship under rulebookguard/schemas/v1/',
-        'warning context-over-budget rules/orders/_context.md context "orders" has 3 rules, more than the contextBudget of 2',
-        '  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
         'error unmatched-anchor rules/stock/R-STK-001.md anchor "src/stock/**" matches no file',
         '  hint: fix the glob so it matches the files that implement the rule, or remove it',
         'error duplicate-id rules/stock/R-STK-002.md field "id" duplicates the id of rules/stock/R-STK-001.md',
@@ -37,12 +38,15 @@ describe('lint', () => {
         '  hint: tag the rule that replaces R-ORD-003, or remove the tag',
         'error unknown-rule-tag tests/orders_test.py:11 tags R-XYZ-001, which does not exist',
         '  hint: fix the id in the tag, or create the rule it refers to',
-        '7 errors, 1 warning',
+        '7 errors, 0 warnings',
         '',
       ].join('\n'),
       stderr: '',
     });
   });
+  // @endrule R-LIN-004
+  // @endrule R-LIN-003
+  // @endrule R-LIN-001
 
   it('prints JSON', async () => {
     const result = await runCli(['lint', '--json'], lintFixture);
@@ -51,8 +55,8 @@ describe('lint', () => {
     expect(result.stderr).toBe('');
     const report = JSON.parse(result.stdout);
     expect(report.errors).toBe(7);
-    expect(report.warnings).toBe(1);
-    expect(report.findings).toHaveLength(8);
+    expect(report.warnings).toBe(0);
+    expect(report.findings).toHaveLength(7);
     expect(report.findings[0]).toEqual({
       severity: 'error',
       code: 'untested-rule',
@@ -60,7 +64,7 @@ describe('lint', () => {
       message: 'active rule R-ORD-002 has no test tagging it',
       hint: 'wrap a test in a file matched by testGlobs with "@rule R-ORD-002" and "@endrule R-ORD-002", or set the rule\'s status to proposed',
     });
-    expect(report.findings[6]).toEqual({
+    expect(report.findings[5]).toEqual({
       severity: 'error',
       code: 'deprecated-rule-tag',
       file: 'tests/orders_test.py',
@@ -89,6 +93,7 @@ describe('lint', () => {
     );
   });
 
+  // @rule R-LIN-005
   it('reports a @rule without its @endrule and an @endrule without its @rule', async () => {
     const repo = await cleanRepo();
     await writeFile(
@@ -117,6 +122,7 @@ describe('lint', () => {
       hint: 'add "@rule R-BIL-002" before the test, or remove the stray @endrule',
     });
   });
+  // @endrule R-LIN-005
 
   it('exits 0 with no findings', async () => {
     const repo = await cleanRepo();
@@ -133,7 +139,31 @@ describe('lint', () => {
     });
   });
 
+  // @rule R-LIN-009
+  // @rule R-LIN-010
   it('exits 0 when there are only warnings', async () => {
+    const repo = await cleanRepo();
+    await writeFile(
+      join(repo, 'rulebookguard.config.yaml'),
+      "schema: 1\nrulesDir: docs/rules\ntestGlobs: ['tests/**/*_test.go', 'tests/**/test_*.py']\ncontextBudget: 1\n",
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning context-over-budget docs/rules/billing/_context.md context "billing" has 2 rules, more than the contextBudget of 1',
+        '  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
+        'warning context-over-budget docs/rules/clients/_context.md context "clients" has 2 rules, more than the contextBudget of 1',
+        '  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
+        '0 errors, 2 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-010
+
+  it('does not count deprecated rules toward the context budget', async () => {
     const repo = await cleanRepo();
     await writeFile(
       join(repo, 'rulebookguard.config.yaml'),
@@ -142,15 +172,37 @@ describe('lint', () => {
 
     expect(await runCli(['lint'], repo)).toEqual({
       status: 0,
-      stdout: [
-        'warning context-over-budget docs/rules/clients/_context.md context "clients" has 3 rules, more than the contextBudget of 2',
-        '  hint: split the context into smaller ones, or raise contextBudget in rulebookguard.config.yaml',
-        '0 errors, 1 warning',
-        '',
-      ].join('\n'),
+      stdout: 'No issues found.\n',
       stderr: '',
     });
   });
+  // @endrule R-LIN-009
+
+  // @rule R-LIN-002
+  it('does not check the anchors of a deprecated rule', async () => {
+    const repo = await cleanRepo();
+    await rm(join(repo, 'src/clients/legacy'), { recursive: true });
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: 'No issues found.\n',
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-002
+
+  // @rule R-LIN-010
+  it('exits 2 without a config', async () => {
+    const dir = await scratchDir();
+
+    expect(await runCli(['lint'], dir)).toEqual({
+      status: 2,
+      stdout: '',
+      stderr: `No rulebookguard.config.yaml in ${dir} or any parent directory.\n`,
+    });
+    expect((await runCli(['list'], dir)).status).toBe(1);
+  });
+  // @endrule R-LIN-010
 
   it('reports a missing rules directory', async () => {
     const dir = await scratchDir();
@@ -176,15 +228,16 @@ describe('lint', () => {
 
     expect(result.status).toBe(1);
     expect(result.stdout).not.toContain('tags R-ORD-004');
-    expect(result.stdout).toContain('7 errors, 1 warning');
+    expect(result.stdout).toContain('7 errors, 0 warnings');
   });
 
-  it('reports an invalid config as schema findings', async () => {
+  // @rule R-LIN-010
+  it('reports an invalid config as schema findings and exits 2', async () => {
     const repo = await cleanRepo();
     await writeFile(join(repo, 'rulebookguard.config.yaml'), 'schema: 2\ntestGlobs: []\n');
 
     expect(await runCli(['lint'], repo)).toEqual({
-      status: 1,
+      status: 2,
       stdout: [
         'error schema rulebookguard.config.yaml field "schema" must be equal to 1',
         '  hint: fix the file as the message says; the JSON Schemas ship under rulebookguard/schemas/v1/',
@@ -219,6 +272,7 @@ describe('lint', () => {
       stderr: `${join(repo, 'rulebookguard.config.yaml')}: field "testGlobs" is required\n`,
     });
   });
+  // @endrule R-LIN-010
 
   it('prints each invalid-YAML finding on a single line', async () => {
     const repo = await cleanRepo();
@@ -270,6 +324,10 @@ describe('lint @implements regions', () => {
     });
   });
 
+  // @rule R-LIN-018
+  // @rule R-LIN-020
+  // @rule R-LIN-017
+  // @rule R-LIN-019
   it('reports broken, unknown, deprecated and misplaced regions', async () => {
     const repo = await cleanRepo();
     await writeFile(
@@ -314,13 +372,63 @@ describe('lint @implements regions', () => {
       stderr: '',
     });
   });
+  // @endrule R-LIN-019
+  // @endrule R-LIN-017
 
   it('does not scan files that no rule anchors', async () => {
     const repo = await cleanRepo();
     await writeFile(join(repo, 'README.md'), '<!-- @implements R-XYZ-001 -->\n');
+    await writeFile(join(repo, 'NOTES.md'), '<!-- @implements R-CLI-001 -->\n');
 
     expect((await runCli(['lint'], repo)).status).toBe(0);
   });
+  // @endrule R-LIN-020
+  // @endrule R-LIN-018
+
+  // @rule R-LIN-022
+  it('warns about a marker in a comment after code, but not about one in a string', async () => {
+    const repo = await cleanRepo();
+    await writeFile(
+      join(repo, 'src/clients/update.go'),
+      'func Update() {} // @implements R-CLI-001\nvar s = "// @implements R-CLI-002"\n',
+    );
+    await appendFile(
+      join(repo, 'tests/billing/test_numbering.py'),
+      "check()  # @rule R-BIL-001\nit('rejects a duplicate # @rule R-BIL-002')\n",
+    );
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning misplaced-marker src/clients/update.go:1 @implements R-CLI-001 follows code on the same line, so it does not count',
+        '  hint: move the marker to a line of its own that starts with a comment',
+        'warning misplaced-marker tests/billing/test_numbering.py:3 @rule R-BIL-001 follows code on the same line, so it does not count',
+        '  hint: move the marker to a line of its own that starts with a comment',
+        '0 errors, 2 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+
+  it('warns about a misplaced marker in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await writeFile(
+      join(repo, 'src/clients/update.go'),
+      'func Update() {} // @implements R-CLI-001\n',
+    );
+
+    expect((await runCli(['lint'], repo)).stdout).toBe(
+      [
+        'warning misplaced-marker src/clients/update.go:1 @implements R-CLI-001 va después de código en la misma línea, así que no cuenta',
+        '  sugerencia: mueve el marcador a una línea propia que empiece con un comentario',
+        '0 errores, 1 aviso',
+        '',
+      ].join('\n'),
+    );
+  });
+  // @endrule R-LIN-022
 
   it('writes the messages in Spanish', async () => {
     const repo = await cleanRepo();
@@ -388,6 +496,73 @@ describe('lint relations between rules', () => {
     });
   });
 
+  // @rule R-LIN-006
+  it('warns about a relation to a deprecated rule and names its replacement', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-BIL-001', 'dependsOn: [R-CLI-003]');
+    await addFrontmatter(repo, 'R-BIL-002', 'conflictsWith: [R-CLI-003]');
+    await addFrontmatter(repo, 'R-CLI-003', 'dependsOn: [R-CLI-003]');
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 1,
+      stdout: [
+        'warning deprecated-rule-reference docs/rules/billing/R-BIL-001.md dependsOn names R-CLI-003, which is deprecated',
+        '  hint: name the rule that replaces R-CLI-003, or remove it from dependsOn',
+        'warning deprecated-rule-reference docs/rules/billing/R-BIL-002.md conflictsWith names R-CLI-003, which is deprecated',
+        '  hint: name the rule that replaces R-CLI-003, or remove it from conflictsWith',
+        'error invalid-rule-reference docs/rules/clients/R-CLI-003.md dependsOn names the rule itself',
+        '  hint: fix the id, or remove it from dependsOn',
+        '1 error, 2 warnings',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+
+    await addFrontmatter(repo, 'R-CLI-002', 'supersedes: R-CLI-003');
+    expect((await runCli(['lint'], repo)).stdout).toContain(
+      [
+        'warning deprecated-rule-reference docs/rules/billing/R-BIL-001.md dependsOn names R-CLI-003, which is deprecated',
+        '  hint: name R-CLI-002, which supersedes R-CLI-003, instead',
+      ].join('\n'),
+    );
+  });
+
+  it('warns about a relation to a deprecated rule in Spanish', async () => {
+    const repo = await cleanRepo();
+    await appendFile(join(repo, 'rulebookguard.config.yaml'), 'language: es\n');
+    await addFrontmatter(repo, 'R-BIL-001', 'dependsOn: [R-CLI-003]');
+
+    expect((await runCli(['lint'], repo)).stdout).toBe(
+      [
+        'warning deprecated-rule-reference docs/rules/billing/R-BIL-001.md dependsOn nombra a R-CLI-003, que está deprecada',
+        '  sugerencia: nombra la regla que reemplaza a R-CLI-003 o quítala de dependsOn',
+        '0 errores, 1 aviso',
+        '',
+      ].join('\n'),
+    );
+  });
+  // @endrule R-LIN-006
+
+  // @rule R-LIN-007
+  it('does not report a dependsOn cycle that goes through a deprecated rule', async () => {
+    const repo = await cleanRepo();
+    await addFrontmatter(repo, 'R-CLI-002', 'dependsOn: [R-CLI-003]');
+    await addFrontmatter(repo, 'R-CLI-003', 'dependsOn: [R-CLI-002]');
+
+    expect(await runCli(['lint'], repo)).toEqual({
+      status: 0,
+      stdout: [
+        'warning deprecated-rule-reference docs/rules/clients/R-CLI-002.md dependsOn names R-CLI-003, which is deprecated',
+        '  hint: name the rule that replaces R-CLI-003, or remove it from dependsOn',
+        '0 errors, 1 warning',
+        '',
+      ].join('\n'),
+      stderr: '',
+    });
+  });
+  // @endrule R-LIN-007
+
+  // @rule R-LIN-008
   it('reports two active rules in conflict once, and ignores a conflict with a proposed rule', async () => {
     const repo = await cleanRepo();
     await addFrontmatter(repo, 'R-BIL-002', 'conflictsWith: [R-BIL-001]');
@@ -409,6 +584,7 @@ describe('lint relations between rules', () => {
       stderr: '',
     });
   });
+  // @endrule R-LIN-008
 
   it('prints relation findings in Spanish', async () => {
     const repo = await cleanRepo();
@@ -457,6 +633,7 @@ describe('lint dead evidence', () => {
   const evidence = (...entries: string[]): string =>
     `origin: extracted\nevidence:\n${entries.map((entry) => `  - '${entry}'`).join('\n')}`;
 
+  // @rule R-LIN-021
   it('warns when the file or the symbol of an evidence entry is gone, and exits 0', async () => {
     const repo = await cleanRepo();
     await addFrontmatter(
@@ -494,6 +671,7 @@ describe('lint dead evidence', () => {
 
     expect((await runCli(['lint'], repo)).stdout).toBe('No issues found.\n');
   });
+  // @endrule R-LIN-021
 
   it('does not follow an evidence path outside the repository', async () => {
     const repo = await cleanRepo();

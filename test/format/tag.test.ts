@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { findRuleRegions, findRuleTags } from '../../src/index.ts';
+import { findMisplacedMarkers, findRuleRegions, findRuleTags } from '../../src/index.ts';
 
 describe('findRuleTags', () => {
   it('finds tags in line comments of any language', () => {
@@ -38,6 +38,7 @@ describe('findRuleTags', () => {
     ]);
   });
 
+  // @rule R-LIN-022
   it('ignores tags in a test name, a string or a comment after code', () => {
     const source = [
       "it('rejects a duplicate @rule R-CLI-001', () => {});",
@@ -48,6 +49,29 @@ describe('findRuleTags', () => {
 
     expect(findRuleTags(source)).toEqual([]);
   });
+
+  it('finds only the markers in a comment that follows code', () => {
+    const source = [
+      "it('rejects a duplicate @rule R-CLI-001', () => {});",
+      'const note = "// @rule R-CLI-002";',
+      "await writeFile(file, '# @rule R-CLI-003\\n');",
+      'check(); // @rule R-CLI-004',
+      'x = 1  # @endrule R-CLI-005',
+      'SELECT 1; -- @implements R-CLI-006',
+      'fetch("http://x") /* @endimplements R-CLI-007 */',
+      '// @rule R-CLI-008',
+      'url = "http://example.com/@rule R-CLI-009"',
+      `s = 'say "hi" // @rule R-CLI-010' + "it's \\"# @rule R-CLI-011\\""`,
+    ].join('\n');
+
+    expect(findMisplacedMarkers(source)).toEqual([
+      { marker: '@rule', id: 'R-CLI-004', line: 4 },
+      { marker: '@endrule', id: 'R-CLI-005', line: 5 },
+      { marker: '@implements', id: 'R-CLI-006', line: 6 },
+      { marker: '@endimplements', id: 'R-CLI-007', line: 7 },
+    ]);
+  });
+  // @endrule R-LIN-022
 
   it('finds several tags on one line', () => {
     expect(findRuleTags('// @rule R-CLI-001 @rule R-OPS-010')).toEqual([

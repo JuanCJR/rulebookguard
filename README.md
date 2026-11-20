@@ -243,7 +243,7 @@ A rule is ready to activate when it has no open questions, the code already does
 
 ## Commands
 
-`rulebookguard --help` lists them. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument).
+`rulebookguard --help` lists them. Exit codes: `0` success, `1` failure (unknown id or context, missing config, lint errors, git errors), `2` usage error (unknown command or option, missing or extra argument). `lint` also exits 2 whenever it cannot run: a missing or invalid config, or a `--base` that cannot compare.
 
 | Command                                       | What it does                                                       |
 | --------------------------------------------- | ------------------------------------------------------------------ |
@@ -402,7 +402,7 @@ docs/rules/inventory/R-INV-001.md
 
 ### `lint`
 
-`lint [--base <ref>] [--json]` checks the whole catalog. Exit 1 on any error; 0 with only warnings or nothing (`No issues found.`).
+`lint [--base <ref>] [--json]` checks the whole catalog. Exit 1 on any error; 0 with only warnings or nothing (`No issues found.`); 2 when lint cannot run (unknown option, missing or invalid config, or `--base` outside a git work tree, with an unknown ref, or when git fails).
 
 ```sh
 $ rulebookguard lint
@@ -442,13 +442,15 @@ Format: `<severity> <code> <file>[:line] <message>`, a `hint:` line, then a coun
 | error    | `duplicate-entity`            | two `_context.md` files, or one twice, define the same entity name                          |
 | error    | `unknown-relation-entity`     | a relation starts outside its context or ends at an undefined entity                        |
 | warning  | `undefined-entity`            | a rule names an entity no context defines, when its own context defines entities            |
-| warning  | `context-over-budget`         | a context holds more rules than `contextBudget`                                             |
+| warning  | `deprecated-rule-reference`   | a proposed or active rule's `dependsOn` or `conflictsWith` names a deprecated rule          |
+| warning  | `misplaced-marker`            | a marker sits in a comment after code on the same line, so it does not count                |
+| warning  | `context-over-budget`         | a context holds more proposed and active rules than `contextBudget`                         |
 | warning  | `dead-evidence`               | an `evidence` entry names a file or a symbol that no longer exists                          |
 | warning  | `open-questions`              | an active rule still lists [questions for the business](#reviewing-rules-before-activation) |
 
-An invalid config is reported as `schema` findings. Tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
+An invalid config is reported as `schema` findings, with exit 2. Deprecated rules are left out of the anchor check, the context budget and dependency cycles. Tags of a rule file that fails the schema are not reported again as `unknown-rule-tag`.
 
-**`--base <ref>`** also checks what changed against `<ref>`: a changed rule file needs a change inside one of its `@rule` … `@endrule` regions, or it is `pending-implementation`.
+**`--base <ref>`** also checks what changed against `<ref>`: a changed rule file needs a change inside one of its `@rule` … `@endrule` regions, or it is `pending-implementation`. A rule whose only changes are in its `## Decisions` section, its `## Questions for the business` section or its `evidence`, or whose status only went from `proposed` to `active`, does not count as changed.
 
 ```sh
 $ rulebookguard lint --base origin/main

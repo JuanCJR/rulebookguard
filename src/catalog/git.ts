@@ -83,6 +83,19 @@ export async function changedLines(cwd: string, ref: string, file: string): Prom
   return spans;
 }
 
+/** The file's content at `ref`, or undefined when the file did not exist there. */
+export async function fileAtRef(
+  cwd: string,
+  ref: string,
+  file: string,
+): Promise<string | undefined> {
+  try {
+    return await runGit(cwd, ['show', `${ref}:./${file}`]);
+  } catch {
+    return undefined;
+  }
+}
+
 export function gitFailureReason(error: unknown): string {
   const { code, stderr, message } = error as {
     code?: unknown;
