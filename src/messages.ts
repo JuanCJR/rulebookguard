@@ -71,6 +71,10 @@ export interface Messages {
   unknownRuleReference: (field: string, id: string) => string;
   selfRuleReference: (field: string) => string;
   ruleReferenceHint: (field: string) => string;
+  deprecatedRuleReference: (field: string, id: string) => string;
+  deprecatedRuleReferenceHint: (field: string, id: string, successor: string | undefined) => string;
+  misplacedMarker: (marker: string, id: string) => string;
+  misplacedMarkerHint: string;
   dependencyCycle: (cycle: string[]) => string;
   dependencyCycleHint: string;
   activeRuleConflict: (a: string, b: string) => string;
@@ -203,6 +207,14 @@ const EN: Messages = {
   unknownRuleReference: (field, id) => `${field} names ${id}, which does not exist`,
   selfRuleReference: (field) => `${field} names the rule itself`,
   ruleReferenceHint: (field) => `fix the id, or remove it from ${field}`,
+  deprecatedRuleReference: (field, id) => `${field} names ${id}, which is deprecated`,
+  deprecatedRuleReferenceHint: (field, id, successor) =>
+    successor === undefined
+      ? `name the rule that replaces ${id}, or remove it from ${field}`
+      : `name ${successor}, which supersedes ${id}, instead`,
+  misplacedMarker: (marker, id) =>
+    `${marker} ${id} follows code on the same line, so it does not count`,
+  misplacedMarkerHint: 'move the marker to a line of its own that starts with a comment',
   dependencyCycle: (cycle) => `dependsOn forms a cycle: ${cycle.join(' → ')}`,
   dependencyCycleHint: 'remove one dependsOn link of the cycle',
   activeRuleConflict: (a, b) => `active rules ${a} and ${b} conflict`,
@@ -379,6 +391,14 @@ const ES: Messages = {
   unknownRuleReference: (field, id) => `${field} nombra a ${id}, que no existe`,
   selfRuleReference: (field) => `${field} nombra a la propia regla`,
   ruleReferenceHint: (field) => `corrige el id o quítalo de ${field}`,
+  deprecatedRuleReference: (field, id) => `${field} nombra a ${id}, que está deprecada`,
+  deprecatedRuleReferenceHint: (field, id, successor) =>
+    successor === undefined
+      ? `nombra la regla que reemplaza a ${id} o quítala de ${field}`
+      : `nombra ${successor}, que reemplaza a ${id}`,
+  misplacedMarker: (marker, id) =>
+    `${marker} ${id} va después de código en la misma línea, así que no cuenta`,
+  misplacedMarkerHint: 'mueve el marcador a una línea propia que empiece con un comentario',
   dependencyCycle: (cycle) => `dependsOn forma un ciclo: ${cycle.join(' → ')}`,
   dependencyCycleHint: 'quita un vínculo dependsOn del ciclo',
   activeRuleConflict: (a, b) => `las reglas activas ${a} y ${b} están en conflicto`,

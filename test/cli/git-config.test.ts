@@ -146,7 +146,7 @@ describe('git failures', () => {
 
     const result = await runCli(['lint', '--base', 'HEAD'], repo);
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stdout).toBe('');
     expect(result.stderr).toMatch(
       /^Cannot list the files changed since "HEAD": (?:fatal|error): [^\n]+\n$/,

@@ -2,7 +2,7 @@
 id: R-LIN-016
 context: linting
 entities: [Rule]
-status: proposed
+status: active
 anchors:
   - 'src/commands/lint.ts'
 summary: An active rule that still lists questions for the business gets an open-questions warning, not an error.
