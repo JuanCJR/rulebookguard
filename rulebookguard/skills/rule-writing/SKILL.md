@@ -52,6 +52,7 @@ The "about 20 lines" limit counts the rule itself, not its questions or decision
 - When the decision changes the rule, rewrite the rule text and its examples to match, and end the item with "Pending implementation." while the code does not do it yet.
 - Remove the answered question from "Questions for the business". A question kept open on purpose stays there, and its decision says so.
 - A correction is a new item that names the decision it corrects (`corrects D1`). Never rewrite or delete an earlier item.
+- When the code and its tests do what a pending decision says, a new item closes it (`implements D1`), naming the tests, for example `- **D4 (2026-03-12), implements D3** Implemented; tested by test/clients/create.test.ts "rejects a fifth attempt".` A decision is pending while it ends with "Pending implementation." and no later item implements it. The `rule-implement` skill does this work.
 - A rule that waits for a decision another rule has not implemented yet gets an item naming that rule and decision and what will change here; it stays `proposed`.
 - When a feature or an approved plan answers a question, quote the words of the request or the approval that answer it.
 

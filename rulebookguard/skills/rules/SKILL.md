@@ -50,7 +50,7 @@ When you keep a plan, a spec or a task list, each item cites the rule ids it aff
 
 ## Activating rules
 
-Before you ask the user to make a rule `active`, review it with them as the `rule-review` skill says: its "Questions for the business" one at a time, each answer recorded under `## Decisions`, and activation asked once for the rules that are ready. `lint` warns with `open-questions` on an active rule that still lists questions.
+Before you ask the user to make a rule `active`, review it with them as the `rule-review` skill says: its "Questions for the business" one at a time, each answer recorded under `## Decisions`, and activation asked once for the rules that are ready. `lint` warns with `open-questions` on an active rule that still lists questions. Rules whose decisions are "Pending implementation.", or proposed rules with no tagged test, are implemented with the `rule-implement` skill, rule by rule in the order above.
 
 ## Retiring and relating rules
 

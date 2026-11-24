@@ -88,9 +88,11 @@ A later correction from the user is a new decision that names the one it correct
 A rule is ready to become `active` only when all of these hold:
 
 - its "Questions for the business" list is empty, or gone;
-- the code already does what the rule says: no decision of it is pending implementation;
+- the code already does what the rule says: every decision that ended with "Pending implementation." has a later decision that implements it (the `rule-implement` skill does that work);
 - at least one test is tagged with `@rule <ID>` … `@endrule <ID>` and verifies it.
 
 A rule whose text depends on a decision another rule has not implemented yet (it lists that rule in `dependsOn`) stays `proposed`. Add a line to its `## Decisions` naming the rule and the decision it waits for, and what will change in this rule.
+
+When rules are not ready only because their code or tests are missing, offer to implement them with the `rule-implement` skill.
 
 Ask for activation once, at the end, with the list of ready rule ids. Set `status: active` only on the ids the user approves, then run `lint`. Report the rules that stay `proposed` and why.
