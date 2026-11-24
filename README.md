@@ -28,7 +28,7 @@ docs/rules/clients/R-CLI-001.md   ── anchors ──▶  src/clients/**/*.ts
 Requires Node.js 22 or later. Nothing in your code imports rulebookguard, so run it with `npx` and pin the version:
 
 ```sh
-npx rulebookguard@0.18.0 lint
+npx rulebookguard@0.19.0 lint
 ```
 
 Each release locks its dependencies for npm and `npx` (`pnpm dlx` and others ignore that lock). To keep the version in your lockfile instead:
@@ -39,10 +39,10 @@ npm install --save-dev rulebookguard
 
 ## Quick start
 
-1. `npx rulebookguard@0.18.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow. Adjust `testGlobs` in the [config](#configuration).
-2. `npx rulebookguard@0.18.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
+1. `npx rulebookguard@0.19.0 init clients --ci` writes `rulebookguard.config.yaml`, the `clients` context and a CI workflow. Adjust `testGlobs` in the [config](#configuration).
+2. `npx rulebookguard@0.19.0 new clients` creates `docs/rules/clients/R-CLI-001.md` as `proposed`.
 3. Write the rule, add its `anchors`, and set `status: active`. Wrap the test that proves it with `@rule R-CLI-001` and `@endrule R-CLI-001`.
-4. `npx rulebookguard@0.18.0 lint`. Then add it to CI with the [CI recipe](#ci-recipe).
+4. `npx rulebookguard@0.19.0 lint`. Then add it to CI with the [CI recipe](#ci-recipe).
 
 ## Writing rules
 
@@ -608,7 +608,7 @@ Every tool takes `project`? besides the input above. A failing command answers a
 > npm install --save-dev rulebookguard @rulebookguard/site
 > ```
 >
-> Without it they exit 1 with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off: `npx -p rulebookguard@0.18.0 -p @rulebookguard/site@0.18.0 rulebookguard site:run`.
+> Without it they exit 1 with `The site commands need the @rulebookguard/site package. Install it next to rulebookguard: npm install --save-dev @rulebookguard/site`. One-off: `npx -p rulebookguard@0.19.0 -p @rulebookguard/site@0.19.0 rulebookguard site:run`.
 
 | Command                                                   | What it does                                                                                                               |
 | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
@@ -700,7 +700,7 @@ jobs:
       - uses: actions/setup-node@v6
         with:
           node-version: 22
-      - run: npx --yes rulebookguard@0.18.0 lint --base origin/${{ github.base_ref }}
+      - run: npx --yes rulebookguard@0.19.0 lint --base origin/${{ github.base_ref }}
 ```
 
 > [!TIP]
@@ -751,7 +751,7 @@ Keep `rulebookguard.config.yaml` at the Kiro workspace root: Kiro reads `.kiro/`
 | Power in [`rulebookguard/`](rulebookguard) | the `rules`, `rule-writing`, `rule-review` and `rule-implement` skills and the MCP server | import it from GitHub              |
 | [Custom agents](#export)                   | `rule-author` and `rule-miner`                                                            | `rulebookguard export kiro-agents` |
 
-To install the power: Powers panel → **Add Custom Power** → **Import power from GitHub**, with `https://github.com/JuanCJR/rulebookguard/tree/v0.18.0/rulebookguard`. Kiro names the power after the last segment of that URL, `rulebookguard`; **Import power from a folder** with a clone of the `rulebookguard` folder works too. Its MCP server runs `npx --yes rulebookguard@0.18.0 mcp` (needs Node.js and network the first time). Kiro starts it in the power's own folder and offers it no workspace roots, so each tool takes a `project` argument with the workspace folder, which the `rules` skill tells the agent to pass, and `rules_for` finds the rulebook of an absolute file path by itself. If the tools still answer `No rulebookguard.config.yaml in ...`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
+To install the power: Powers panel → **Add Custom Power** → **Import power from GitHub**, with `https://github.com/JuanCJR/rulebookguard/tree/v0.19.0/rulebookguard`. Kiro names the power after the last segment of that URL, `rulebookguard`; **Import power from a folder** with a clone of the `rulebookguard` folder works too. Its MCP server runs `npx --yes rulebookguard@0.19.0 mcp` (needs Node.js and network the first time). Kiro starts it in the power's own folder and offers it no workspace roots, so each tool takes a `project` argument with the workspace folder, which the `rules` skill tells the agent to pass, and `rules_for` finds the rulebook of an absolute file path by itself. If the tools still answer `No rulebookguard.config.yaml in ...`, add the same entry, without `--project`, to the workspace `.kiro/settings/mcp.json`: Kiro starts workspace servers in the first workspace folder. There is no Kiro hook: steering files already deliver the rules.
 
 > [!NOTE]
 > Kiro CLI V1 and V2 do not load `fileMatch` steering files automatically; use `rulebookguard export agents-md` there. Powers are listed for CLI V3. A custom agent reads steering files only if its `resources` include `file://.kiro/steering/**/*.md`.
