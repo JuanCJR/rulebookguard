@@ -235,7 +235,7 @@ describe('for --changed', () => {
 
     const result = await runCli(['lint', '--base', 'HEAD'], dir);
 
-    expect(result.status).toBe(1);
+    expect(result.status).toBe(2);
     expect(result.stderr).toContain('lint --base needs a git work tree');
   });
 });
